@@ -2,14 +2,14 @@
 
 OCAMLFIND=ocamlfind
 OCAMLCFLAGS=
-PACKAGES=-package camlp5,oUnit,oUnit.advanced -syntax camlp5o
+PACKAGES=-package oUnit,oUnit.advanced
+PACKAGES1=-package camlp5,oUnit,oUnit.advanced -syntax camlp5o
 
-OCAMLMKLIB=ocamlmklib
-OCAMLMKLIB_FLAGS=
-
-ML= qasmsyntax.ml qasmlex.ml
+ML= qasmsyntax.ml qasmlex.ml qasmparser.ml
 MLI= 
 
+SRC=qasmlex.ml qasmlexer_tests.ml
+SRCP5=qasmparser.ml qasmsyntax.ml
 
 CMO= $(ML:.ml=.cmo)
 CMX= $(ML:.ml=.cmx)
@@ -23,12 +23,26 @@ all: $(RESULT).cma $(RESULT).cmxa dll$(RESULT).so
 test:: qasmlexer_tests.byte
 	./qasmlexer_tests.byte
 
-$(RESULT).cma $(RESULT).cmxa dll$(RESULT).so: $(OBJECTS)
-	    $(OCAMLMKLIB) -verbose -o $(RESULT) $(CMO) $(CMX) $(OCAMLMKLIB_FLAGS)
+$(RESULT).cma: $(CMO)
+	$(OCAMLFIND) ocamlc -a -o $(RESULT).cma $(CMO)
 
+$(RESULT).cmxa: $(CMX)
+	$(OCAMLFIND) ocamlopt -a -o $(RESULT).cmxa $(CMX)
 
-qasmlexer_tests.byte: qasmlexer_tests.cmo $(RESULT).cma
+qasmlexer_tests.byte: $(RESULT).cma qasmlexer_tests.cmo
 	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -linkpkg -linkall -o $@ $^
+
+qasmparser.cmo: qasmparser.ml
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+
+qasmparser.cmx: qasmparser.ml
+	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+
+qasmsyntax.cmo: qasmsyntax.ml
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+
+qasmsyntax.cmx: qasmsyntax.ml
+	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
 
 clean::
 	rm -f *.cm* *.o *.a *.byte *.opt qasmlex.ml oUnit*
@@ -52,6 +66,8 @@ realclean:: clean
 
 .NOTPARALLEL:
 
-.depend: *.ml*
-	$(OCAMLFIND) ocamldep $(PACKAGES) $^ > .depend.NEW && mv .depend.NEW .depend
+.depend: $(SRC) $(SRCP5)
+	$(OCAMLFIND) ocamldep $(PACKAGES) $(SRC) > .depend.NEW && \
+	$(OCAMLFIND) ocamldep $(PACKAGES1) $(SRCP5) >> .depend.NEW && \
+	mv .depend.NEW .depend
 -include .depend
