@@ -7,8 +7,8 @@ PACKAGES=-package camlp5,oUnit,oUnit.advanced -syntax camlp5o
 OCAMLMKLIB=ocamlmklib
 OCAMLMKLIB_FLAGS=
 
-ML = qasmsyntax.ml qasmlex.ml
-MLI = 
+ML= qasmsyntax.ml qasmlex.ml
+MLI= 
 
 
 CMO= $(ML:.ml=.cmo)

@@ -3,25 +3,6 @@
 open Lexing
 open Qasmsyntax
 
-module LexState = struct
-  type t = {
-      mutable bol : bool ;
-    }
-
-  let mk () = { bol = true }
-  let is_bol st = st.bol
-  let is_notbol st = not st.bol
-
-  let notbol_to_bol st =
-    assert (is_notbol st) ;
-    st.bol <- true
-
-  let bol_to_notbol st =
-    assert (is_bol st) ;
-    st.bol <- false
-
-end
-
 }
 
 let white = [' ' '\t']+
@@ -39,7 +20,7 @@ let comment_regexp = "//" [^ '\r' '\n']* newline
 
 rule header st =
   parse
-| "OPEMQASM" white { grab_real st lexbuf }
+| "OPENQASM" white { LexState.bol_to_notbol st ; grab_real st lexbuf }
 
 and grab_real st =
   parse
@@ -47,15 +28,15 @@ and grab_real st =
 
 and eat_header_suffix st tok =
   parse
-| white? ';' white? newline { grab_comment_suffix st tok lexbuf }
+| white? ';' white? newline { LexState.notbol_to_bol st ; grab_comment_suffix st tok lexbuf }
 
 and grab_comment_suffix st tok =
   parse
-| (white? comment_regexp)* { LexState.notbol_to_bol st ; (tok, Lexing.lexeme lexbuf) }
+| (white? comment_regexp)* { (tok, Lexing.lexeme lexbuf) }
 
 and grab_include st =
   parse
-| [^ '"']+ { eat_include_suffix_1 st (T_INCLUDE (Lexing.lexeme lexbuf)) lexbuf }
+| [^ '"']+ { LexState.bol_to_notbol st ; eat_include_suffix_1 st (T_INCLUDE (Lexing.lexeme lexbuf)) lexbuf }
 
 and eat_include_suffix_1 st tok =
   parse
@@ -63,7 +44,7 @@ and eat_include_suffix_1 st tok =
 
 and eat_include_suffix_2 st tok =
   parse
-| (newline | (white? comment_regexp)+) { (tok, Lexing.lexeme lexbuf) }
+| (newline | (white? comment_regexp)+) { LexState.notbol_to_bol st ; (tok, Lexing.lexeme lexbuf) }
 
 and token_notbol st =
   parse
@@ -104,6 +85,7 @@ and token_notbol st =
 | "measure" { grab_comment_suffix st T_MEASURE lexbuf }
 | "opaque" { grab_comment_suffix st T_OPAQUE lexbuf }
 | "reset" { grab_comment_suffix st T_RESET lexbuf }
+| eof { (T_EOF, "") }
 
 | integer_regexp { grab_comment_suffix st (T_INTEGER (int_of_string (Lexing.lexeme lexbuf))) lexbuf }
 | id_regexp { grab_comment_suffix st (T_ID (Lexing.lexeme lexbuf)) lexbuf }
@@ -116,4 +98,27 @@ and token_bol st =
 
 and token st =
   parse
-| "" { if (LexState.is_bol st) then token_bol st lexbuf else token_notbol st lexbuf }
+| "" { if LexState.is_at_head st then begin
+           LexState.past_head st ;
+           header st lexbuf
+         end
+       else if (LexState.is_bol st) then token_bol st lexbuf
+       else token_notbol st lexbuf }
+
+{
+  let make_lexer buf =
+    let lb = Lexing.from_string buf in
+    let st = LexState.mk () in
+    stream_of_lexer_eof (T_EOF, "") (token st) lb
+(*
+let make_lexer buf =
+  let lb = Lexing.from_string buf in
+  let st = LexState.mk () in
+  let tok0 = token st in
+  let rec tokenize () =
+    match (try Some(tok0 lb) with Failure _ -> None) with
+      Some t -> [< 't ; tokenize() >]
+    | None -> [< >] in
+  [< 'header st lb ; tokenize () >]
+ *)
+}

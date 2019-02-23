@@ -1,0 +1,22 @@
+(*
+;;; Local Variables: ***
+;;; mode:tuareg ***
+;;; End: ***
+
+*)
+
+#use "topfind";;
+
+#load "qasmsyntax.cmo";;
+#load "qasmlex.cmo";;
+
+#trace Qasmlex.header ;;
+#trace Qasmlex.grab_real ;;
+#trace Qasmlex.eat_header_suffix ;;
+#trace Qasmsyntax.LexState.bol_to_notbol ;;
+#trace Qasmsyntax.LexState.notbol_to_bol ;;
+
+let ll = Qasmlex.make_lexer {|OPENQASM 2.0;
+// argle bargle
+|} ;;
+
