@@ -1,4 +1,4 @@
-(* Copyright 2019 Chetan Murthy *)
+(* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open OUnit2
 
