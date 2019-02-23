@@ -1,0 +1,5 @@
+.depend
+*.cm*
+*.o
+*.a
+oUnit*
