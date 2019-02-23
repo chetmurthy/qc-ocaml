@@ -3,3 +3,6 @@
 *.o
 *.a
 oUnit*
+qasmlex.ml
+*.byte
+*.opt
