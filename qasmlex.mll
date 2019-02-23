@@ -36,11 +36,11 @@ and grab_comment_suffix st tok =
 
 and grab_include st =
   parse
-| [^ '"']+ { LexState.bol_to_notbol st ; eat_include_suffix_1 st (T_INCLUDE (Lexing.lexeme lexbuf)) lexbuf }
+| [^ '"']+ { eat_include_suffix_1 st (T_INCLUDE (Lexing.lexeme lexbuf)) lexbuf }
 
 and eat_include_suffix_1 st tok =
   parse
-| '"' white? { eat_include_suffix_2 st tok lexbuf }
+| '"' white? ";" white? { eat_include_suffix_2 st tok lexbuf }
 
 and eat_include_suffix_2 st tok =
   parse
@@ -71,7 +71,7 @@ and token_notbol st =
 | "barrier" { grab_comment_suffix st T_BARRIER lexbuf }
 | "cos" { grab_comment_suffix st T_COS lexbuf }
 | "creg" { grab_comment_suffix st T_CREG lexbuf }
-| "cx" { grab_comment_suffix st T_CX lexbuf }
+| "CX" { grab_comment_suffix st T_CX lexbuf }
 | "exp" { grab_comment_suffix st T_EXP lexbuf }
 | "gate" { grab_comment_suffix st T_GATE lexbuf }
 | "if" { grab_comment_suffix st T_IF lexbuf }
@@ -81,7 +81,7 @@ and token_notbol st =
 | "sin" { grab_comment_suffix st T_SIN lexbuf }
 | "sqrt" { grab_comment_suffix st T_SQRT lexbuf }
 | "tan" { grab_comment_suffix st T_TAN lexbuf }
-| "u" { grab_comment_suffix st T_U lexbuf }
+| "U" { grab_comment_suffix st T_U lexbuf }
 | "measure" { grab_comment_suffix st T_MEASURE lexbuf }
 | "opaque" { grab_comment_suffix st T_OPAQUE lexbuf }
 | "reset" { grab_comment_suffix st T_RESET lexbuf }
@@ -93,7 +93,7 @@ and token_notbol st =
 and token_bol st =
   parse
 | white { LexState.bol_to_notbol st ; token_notbol st lexbuf }
-| "#include" white '"' { LexState.bol_to_notbol st ; grab_include st lexbuf }
+| "include" white '"' { LexState.bol_to_notbol st ; grab_include st lexbuf }
 | "" { LexState.bol_to_notbol st ; token_notbol st lexbuf }
 
 and token st =

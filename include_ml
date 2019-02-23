@@ -16,8 +16,27 @@
 #trace Qasmlex.eat_header_suffix ;;
 #trace Qasmsyntax.LexState.bol_to_notbol ;;
 #trace Qasmsyntax.LexState.notbol_to_bol ;;
+#trace Qasmlex.token ;;
+#trace Qasmlex.token_bol ;;
+#trace Qasmlex.token_notbol ;;
+#trace Qasmlex.grab_include ;;
+#trace Qasmlex.eat_include_suffix_1 ;;
+#trace Qasmlex.eat_include_suffix_2 ;;
+
+
+(*
 
 let ll = Qasmlex.make_lexer {|OPENQASM 2.0;
 // argle bargle
 |} ;;
 
+
+ *)
+
+let ll = Qasmlex.make_lexer {|OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[2];
+
+h q[0];
+CX q[0],q[1];
+|} ;;
