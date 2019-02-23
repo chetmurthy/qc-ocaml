@@ -28,10 +28,13 @@ $(RESULT).cma $(RESULT).cmxa dll$(RESULT).so: $(OBJECTS)
 
 
 qasmlexer_tests.byte: qasmlexer_tests.cmo $(RESULT).cma
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -linkpkg -linkall -o $@ $<
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -linkpkg -linkall -o $@ $^
 
 clean::
 	rm -f *.cm* *.o *.a *.byte *.opt qasmlex.ml oUnit*
+
+realclean:: clean
+	rm -f .depend
 
 .SUFFIXES: .cmi .cmo .cmx .ml .mli .mll
 
@@ -46,3 +49,9 @@ clean::
 
 .mli.cmi:
 	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -c $<
+
+.NOTPARALLEL:
+
+.depend: *.ml*
+	$(OCAMLFIND) ocamldep $(PACKAGES) $^ > .depend.NEW && mv .depend.NEW .depend
+-include .depend
