@@ -11,7 +11,7 @@ let basic_tests = "basic tests" >:::
         let ll = make_lexer {|OPENQASM 2.0;
 // argle bargle
 |} in
-        assert_equal (list_of_stream ll) []
+        assert_equal (list_of_stream ll) [(T_OPENQASM "2.0", "// argle bargle\n")]
       )
   ]
 
