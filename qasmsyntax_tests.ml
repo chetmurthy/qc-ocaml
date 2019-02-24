@@ -3,8 +3,9 @@
 open OUnit2
 open Qasmlex
 open Qasmsyntax
+open Qasmparser
 
-let basic_tests = "basic tests" >:::
+let lexer_tests = "lexer tests" >:::
   [
     "header" >::
       (fun ctxt ->
@@ -58,7 +59,27 @@ h q[// bargle
       ) ;
   ]
 
+let test_parse_expr (name, txt, ast) =
+  name >:: (fun ctx ->
+    let ll = make_body_lexer txt in
+      assert_equal ast (expr ll)    
+  )
+
+let expr_parser_tests = "expr parser tests" >:::
+  (List.map test_parse_expr 
+     [
+       ("nnint", "1", Ast.NNINT 1);
+       ("real 0", "0.e+0", Ast.REAL "0.e+0");
+       ("id", "x", Ast.ID "x");
+       ("uminus", "-x", Ast.UMINUS (Ast.ID "x")) ;
+     ]
+  )
+
+let parser_tests = "parser tests" >:::
+  [
+  ]
+
 (* Run the tests in test suite *)
 let _ = 
-  run_test_tt_main ("all_tests" >::: [ basic_tests ])
+  run_test_tt_main ("all_tests" >::: [ lexer_tests; expr_parser_tests; parser_tests ])
 ;;

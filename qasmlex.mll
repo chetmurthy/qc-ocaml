@@ -85,6 +85,7 @@ and body_token wscom =
 | "reset" { (wscom, T_RESET) }
 | eof { (wscom, T_EOF) }
 
+| real_regexp { (wscom, T_REAL (Lexing.lexeme lexbuf)) }
 | integer_regexp { (wscom, T_INTEGER (int_of_string (Lexing.lexeme lexbuf))) }
 | id_regexp { (wscom, T_ID (Lexing.lexeme lexbuf)) }
 

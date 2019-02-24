@@ -73,6 +73,7 @@ let rec expr0 = parser
 | [< '(_, T_INTEGER n) >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in expression")
    else Ast.NNINT n
+| [< '(_, T_REAL r) >] -> Ast.REAL r
 | [< '(_, T_PI) >] -> Ast.PI
 | [< '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> e
 | [< '(_, T_SIN) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.SIN e
@@ -94,18 +95,24 @@ and expr2 = parser
 | [< e=expr1 >] -> e                                           
 
 and expr3 = parser
-| [< rv=ne_plist_with_sep
+| [< rv=ne_plist_with_sep_function
           (parser
            | [< '(_, T_STAR) >] -> (fun e1 e2 -> Ast.MUL(e1, e2))
           | [< '(_, T_SLASH) >] -> (fun e1 e2 -> Ast.DIV(e1, e2)))
           expr2 >] -> rv
 
 and expr4 = parser
-| [< rv=ne_plist_with_sep
+| [< rv=ne_plist_with_sep_function
           (parser
            | [< '(_, T_PLUS) >] -> (fun e1 e2 -> Ast.ADD(e1, e2))
           | [< '(_, T_DASH) >] -> (fun e1 e2 -> Ast.SUB(e1, e2)))
           expr3 >] -> rv
 
 and expr = parser
-| [< >] -> failwith "unimplemented"
+| [< e=expr4 >] -> e
+
+
+let explist = parser
+| [< l=ne_plist_with_sep (parser [< '(_, T_COMMA) >] -> ()) expr >] -> l
+
+

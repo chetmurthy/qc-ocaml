@@ -58,6 +58,7 @@ type rawtoken =
   | T_RESET
 
   | T_INTEGER of int
+  | T_REAL of RealNumeral.t
   | T_ID of string
 
 type token = string * rawtoken
@@ -97,6 +98,11 @@ let rec listrec acc = parser
 in listrec [] strm
 
 let ne_plist_with_sep sep elem = 
+ let rec do_rec = parser
+  [< e = elem; l = (parser [< () = sep; l = do_rec >] -> l | [< >] -> []) >] -> e::l
+ in do_rec
+
+let ne_plist_with_sep_function sep elem = 
  let rec do_rec accumf = parser
   [< e = elem; l = (parser [< f = sep; l = do_rec (f (accumf e)) >] -> l | [< >] -> e) >] -> l
  in do_rec (fun e -> e)

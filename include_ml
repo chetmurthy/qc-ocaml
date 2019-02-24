@@ -10,6 +10,7 @@
 
 #load "qasmsyntax.cmo";;
 #load "qasmlex.cmo";;
+#load "qasmparser.cmo";;
 
 #trace Qasmlex.header ;;
 #trace Qasmlex.grab_real ;;
@@ -37,11 +38,6 @@ CX q[0],q[1];
 |} ;;
 
  *)
-let ll = Qasmlex.make_body_lexer {|
-// argle
-qreg q[2];
-
-h q[// bargle
-0];
-
-|} ;;
+      let ll = Qasmlex.make_body_lexer {| 0.e+0 |}
+;;
+      
