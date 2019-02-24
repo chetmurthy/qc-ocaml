@@ -66,6 +66,31 @@ module Ast = struct
   | LN of expr
   | SQRT of expr
 
+
+  type bit_or_reg_t =
+    REG of string
+  | BIT of string * int
+
+  type instruction_t =
+    U of expr list * bit_or_reg_t
+  | CX of bit_or_reg_t * bit_or_reg_t
+  | COMPOSITE_GATE of string * expr list * bit_or_reg_t list
+  | MEASURE of bit_or_reg_t * bit_or_reg_t
+  | RESET of bit_or_reg_t
+
+  type gate_op_t =
+    GATE_INSTRUCTION of instruction_t
+  | GATE_BARRIER of string list
+
+  type stmt_t =
+    | STMT_GATEDECL of string * string list * string list * gate_op_t list
+    | STMT_OPAQUEDECL of string * string list * string list
+    | STMT_INSTRUCTION of instruction_t
+    | STMT_IF of string * int * instruction_t
+    | STMT_BARRIER of string list
+    | STMT_QREG of string * int
+    | STMT_CREG of string * int
+
 end
 
 let rec expr0 = parser
@@ -111,8 +136,75 @@ and expr4 = parser
 and expr = parser
 | [< e=expr4 >] -> e
 
+let bit_or_reg = parser
+| [< '(_, T_ID id) ; rv=(parser
+                        | [< '(_, T_LBRACKET); '(_, T_INTEGER n); '(_, T_RBRACKET) >] ->
+                        if n < 0 then raise (SyntaxError "negative integer not valid in register index")
+                        else Ast.BIT(id, n)
+                        | [< >] -> Ast.REG id
+                       ) >] -> rv
 
-let explist = parser
-| [< l=ne_plist_with_sep (parser [< '(_, T_COMMA) >] -> ()) expr >] -> l
+let id = parser
+| [< '(_, T_ID id) >] -> id
+
+let comma = parser [< '(_, T_COMMA) >] -> ()
+
+let explist strm = ne_plist_with_sep comma expr strm
+
+let instruction = parser
+| [< '(_, T_U) ; '(_, T_LPAREN) ; el=explist ; '(_, T_RPAREN) ; a=bit_or_reg ; '(_, T_SEMICOLON) >] ->
+   Ast.U(el, a)
+| [< '(_,T_CX) ; a1=bit_or_reg ; '(_, T_COMMA) ; a2=bit_or_reg ; '(_, T_SEMICOLON) >] ->
+   Ast.CX(a1, a2)
+| [< '(_, T_ID gateid) ;
+   params=(parser
+             [< '(_, T_LPAREN); l=plist_with_sep comma expr ; '(_, T_RPAREN) >] -> l
+          | [< >] -> []
+          ) ;
+   regs=ne_plist_with_sep comma bit_or_reg ;
+   '(_, T_SEMICOLON) >] -> Ast.COMPOSITE_GATE(gateid, params, regs)
+
+let gop = parser
+| [< i=instruction >] -> Ast.GATE_INSTRUCTION i
+| [< '(_, T_BARRIER) ; l=ne_plist_with_sep comma id; '(_, T_SEMICOLON) >] -> Ast.GATE_BARRIER l
+
+let gatedecl = parser
+| [< '(_, T_GATE) ; '(_, T_ID gateid) ;
+   formal_params=(parser
+                    [< '(_, T_LPAREN); l=plist_with_sep comma id ; '(_, T_RPAREN) >] -> l
+                 | [< >] -> []
+                 ) ;
+   formal_bits=ne_plist_with_sep comma id ;
+   '(_, T_LBRACE) ;
+   gopl=plist gop ;
+   '(_, T_RBRACE) >] -> Ast.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl)
+
+let opaquedecl = parser
+| [< '(_, T_OPAQUE) ; '(_, T_ID gateid) ;
+   formal_params=(parser
+                    [< '(_, T_LPAREN); l=plist_with_sep comma id ; '(_, T_RPAREN) >] -> l
+                 | [< >] -> []
+                 ) ;
+   formal_bits=ne_plist_with_sep comma id ;
+   '(_, T_SEMICOLON)
+ >] -> Ast.STMT_OPAQUEDECL(gateid, formal_params, formal_bits)
+
+let reg_decl=parser
+| [< '(_, T_QREG) ; '(_, T_ID id); '(_, T_LBRACKET) ; '(_, T_INTEGER n) ; '(_, T_RBRACKET) ; '(_, T_SEMICOLON) >] ->
+   if n < 0 then raise (SyntaxError "negative integer not valid in qreg statement")
+   else Ast.STMT_QREG(id, n) ;
+| [< '(_, T_CREG) ; '(_, T_ID id); '(_, T_LBRACKET) ; '(_, T_INTEGER n) ; '(_, T_RBRACKET) ; '(_, T_SEMICOLON) >] ->
+   if n < 0 then raise (SyntaxError "negative integer not valid in creg statement")
+   else Ast.STMT_CREG(id, n)
 
 
+let statement = parser
+| [< d=reg_decl >] -> d
+| [< d=gatedecl >] -> d
+| [< d=opaquedecl >] -> d
+| [< '(_, T_IF) ; '(_, T_LPAREN) ; '(_, T_ID id) ; '(_, T_EQEQ) ; '(_, T_INTEGER n) ; '(_, T_RPAREN) ; i=instruction >] ->
+   if n < 0 then raise (SyntaxError "negative integer not valid in if statment")
+   else Ast.STMT_IF(id, n, i)
+| [< '(_, T_BARRIER) ; l=ne_plist_with_sep comma id; '(_, T_SEMICOLON) >] -> Ast.STMT_BARRIER l
+
+let program strm = ne_plist statement strm

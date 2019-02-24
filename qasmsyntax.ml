@@ -97,10 +97,23 @@ let rec listrec acc = parser
 | [< >] -> List.rev acc
 in listrec [] strm
 
+let plist elem = 
+  let rec plist_rec accum = parser
+     [< e = elem; strm >] -> plist_rec (e::accum) strm
+   | [< >]                         -> (List.rev accum)
+  in plist_rec []
+
+let ne_plist elem = parser
+  [< e = elem; l = (plist elem) >] -> (e,l)
+
 let ne_plist_with_sep sep elem = 
  let rec do_rec = parser
   [< e = elem; l = (parser [< () = sep; l = do_rec >] -> l | [< >] -> []) >] -> e::l
  in do_rec
+
+let plist_with_sep sep elem = parser
+    [< l = (ne_plist_with_sep sep elem) >] -> l
+  | [< >] -> []
 
 let ne_plist_with_sep_function sep elem = 
  let rec do_rec accumf = parser
