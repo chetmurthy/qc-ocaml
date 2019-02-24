@@ -1,6 +1,6 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
-open Misc
+open Misc_functions
 
 exception SyntaxError of string
 
@@ -63,8 +63,6 @@ type rawtoken =
   | T_REAL of RealNumeral.t
   | T_ID of string
 
-type token = string * rawtoken
-
 module LexState = struct
   type t = {
       mutable at_head : bool ;
@@ -100,4 +98,9 @@ module TokenAux = struct
   let appendlist l =
     assert (l <> []) ;
     List.fold_left append (List.hd l) (List.tl l)
+
+  let comment_string a =
+    String.concat "" a.comments
 end
+
+type token = TokenAux.t * rawtoken

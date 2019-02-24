@@ -50,11 +50,27 @@ let ne_plist_with_sep_function sep elem =
   [< e = elem; l = (parser [< f = sep; l = do_rec (f (accumf e)) >] -> l | [< >] -> e) >] -> l
  in do_rec (fun e -> e)
 
-let clean_left_re = Pcre.regexp "^\\s*(\\S.*)?$"
-let clean_right_re = Pcre.regexp "^(.*\\S)?\\s*$"
+let clean_left_re = Pcre.regexp ~flags:[`DOTALL] "^\\h*(\\H.*)?$"
+let clean_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*\\H)?\\h*$"
 
 let cleanws s =
   let rv1 = Pcre.extract ~rex:clean_left_re s in
   let s = rv1.(1) in
   let rv2 = Pcre.extract ~rex:clean_right_re s in
   rv2.(1)
+
+let fst (a, _) = a
+let snd (_, b) = b
+
+let rec sep_last = function
+    [] -> failwith "sep_last"
+  | hd::[] -> (hd,[])
+  | hd::tl ->
+      let (l,tl) = sep_last tl in (l,hd::tl)
+
+let invoked_as name =
+  let l = [name; name^".byte"; name^".native"] in
+  let argv0 = Sys.argv.(0) in
+  let path = Pcre.split ~rex:(Pcre.regexp "/") argv0 in
+  let fname, _ = sep_last path in
+  List.mem fname l

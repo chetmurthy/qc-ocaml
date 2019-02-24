@@ -1,8 +1,7 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open OUnit2
-
-open Misc
+open Misc_functions
 open Qasmlex
 open Qasmsyntax
 open Qasmparser
@@ -25,7 +24,18 @@ let misc_tests = "misc tests" >:::
       (fun ctxt ->
         assert_equal (cleanws "\ta b\t")  "a b"
       ) ;
+    "pcre whitespace 5" >::
+      (fun ctxt ->
+        assert_equal (cleanws "\n")  "\n"
+      ) ;
+    "pcre whitespace 6" >::
+      (fun ctxt ->
+        assert_equal (cleanws " \t// argle\n \t")  "// argle\n"
+      ) ;
   ]
+
+let extract_tokens ll =
+  List.map (fun (a, tok) -> (TokenAux.comment_string a, tok)) (list_of_stream ll)
 
 let lexer_tests = "lexer tests" >:::
   [
@@ -34,7 +44,7 @@ let lexer_tests = "lexer tests" >:::
         let ll = make_lexer {|OPENQASM 2.0;
 // argle bargle
 |} in
-        assert_equal (list_of_stream ll) 
+        assert_equal (extract_tokens ll) 
           [("", Qasmsyntax.T_OPENQASM "2.0")]
       ) ;
     "simple qasm" >::
@@ -46,7 +56,7 @@ qreg q[2];
 h q[0];
 CX q[0],q[1];
 |} in
-        assert_equal (list_of_stream ll)
+        assert_equal (extract_tokens ll)
           [("", Qasmsyntax.T_OPENQASM "2.0"); ("", Qasmsyntax.T_INCLUDE "qelib1.inc");
            ("", Qasmsyntax.T_QREG); ("", Qasmsyntax.T_ID "q");
            ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 2);
@@ -70,7 +80,7 @@ qreg q[2];
 h q[// bargle
 0];
 |} in
-        assert_equal (list_of_stream ll)
+        assert_equal (extract_tokens ll)
           [("// argle\n", Qasmsyntax.T_QREG); ("", Qasmsyntax.T_ID "q");
            ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 2);
            ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON);
@@ -101,6 +111,7 @@ let parser_tests = "parser tests" >:::
   ]
 
 (* Run the tests in test suite *)
-let _ = 
+let _ =
+if invoked_as "qasmsyntax_tests" then
   run_test_tt_main ("all_tests" >::: [ misc_tests ; lexer_tests; expr_parser_tests; parser_tests ])
 ;;

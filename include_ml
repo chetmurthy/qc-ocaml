@@ -9,28 +9,39 @@
 #use "topfind";;
 
 #require "pcre";;
+#require "oUnit";;
+#require "oUnit.advanced";;
+#load "misc_functions.cmo";;
 #load "qasmsyntax.cmo";;
 #load "qasmlex.cmo";;
 #load "qasmparser.cmo";;
+#load "qasmsyntax_tests.cmo";;
 
-#trace Qasmlex.header ;;
-#trace Qasmlex.grab_real ;;
-#trace Qasmlex.eat_header_suffix ;;
-#trace Qasmlex.body_token ;;
-#trace Qasmlex.token ;;
-#trace Qasmlex.grab_include ;;
-#trace Qasmlex.eat_include_suffix_1 ;;
+open Misc_functions ;;
+open Qasmlex ;;
+
+#trace header ;;
+#trace grab_real ;;
+#trace eat_header_suffix ;;
+#trace body_token ;;
+#trace token ;;
+#trace grab_include ;;
+#trace eat_include_suffix_1 ;;
+#trace cleanws ;;
+
+let ll = make_body_lexer {|
+// argle
+qreg q[2];
+
+h q[// bargle
+0];
+|}
+ ;;
+
 
 
 (*
-let ll = Qasmlex.make_lexer {|OPENQASM 2.0;
-// argle bargle
-|} ;;
- *)
-
-
-(*
-let ll = Qasmlex.make_lexer {|OPENQASM 2.0;
+let ll = make_lexer {|OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[2];
 
@@ -39,6 +50,8 @@ CX q[0],q[1];
 |} ;;
 
  *)
-let ll = Qasmlex.make_body_lexer {| 0.e+0 |}
+(*
+let ll = make_body_lexer {| 0.e+0 |}
 ;;
       
+ *)
