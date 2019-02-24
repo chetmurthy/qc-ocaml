@@ -8,7 +8,7 @@ PACKAGES1=-package camlp5,oUnit,oUnit.advanced -syntax camlp5o
 ML= qasmsyntax.ml qasmlex.ml qasmparser.ml
 MLI= 
 
-SRC=qasmlex.ml qasmlexer_tests.ml
+SRC=qasmlex.ml qasmsyntax_tests.ml
 SRCP5=qasmparser.ml qasmsyntax.ml
 
 CMO= $(ML:.ml=.cmo)
@@ -20,8 +20,8 @@ RESULT=libqasm
 
 all: $(RESULT).cma $(RESULT).cmxa
 
-test:: qasmlexer_tests.byte
-	./qasmlexer_tests.byte
+test:: qasmsyntax_tests.byte
+	./qasmsyntax_tests.byte
 
 $(RESULT).cma: $(CMO)
 	$(OCAMLFIND) ocamlc -a -o $(RESULT).cma $(CMO)
@@ -29,7 +29,7 @@ $(RESULT).cma: $(CMO)
 $(RESULT).cmxa: $(CMX)
 	$(OCAMLFIND) ocamlopt -a -o $(RESULT).cmxa $(CMX)
 
-qasmlexer_tests.byte: $(RESULT).cma qasmlexer_tests.cmo
+qasmsyntax_tests.byte: $(RESULT).cma qasmsyntax_tests.cmo
 	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -linkpkg -linkall -o $@ $^
 
 qasmparser.cmo: qasmparser.ml
