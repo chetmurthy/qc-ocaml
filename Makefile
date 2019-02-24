@@ -1,7 +1,7 @@
 # Copyright 2019 Chetan Murthy, All rights reserved.
 
 OCAMLFIND=ocamlfind
-OCAMLCFLAGS=
+OCAMLCFLAGS=-g
 PACKAGES=-package oUnit,oUnit.advanced
 PACKAGES1=-package camlp5,oUnit,oUnit.advanced -syntax camlp5o
 
@@ -18,7 +18,7 @@ OBJECTS = $(CMO) $(CMX) $(CMI)
 
 RESULT=libqasm
 
-all: $(RESULT).cma $(RESULT).cmxa dll$(RESULT).so
+all: $(RESULT).cma $(RESULT).cmxa
 
 test:: qasmlexer_tests.byte
 	./qasmlexer_tests.byte

@@ -11,7 +11,9 @@ let basic_tests = "basic tests" >:::
         let ll = make_lexer {|OPENQASM 2.0;
 // argle bargle
 |} in
-        assert_equal (list_of_stream ll) [(T_OPENQASM "2.0", "// argle bargle\n")]
+        assert_equal (list_of_stream ll) 
+          [("", Qasmsyntax.T_OPENQASM "2.0");
+           ("// argle bargle\n", Qasmsyntax.T_EOF)]
       ) ;
     "simple qasm" >::
       (fun ctxt ->
@@ -23,19 +25,19 @@ h q[0];
 CX q[0],q[1];
 |} in
         assert_equal (list_of_stream ll)
-          [(T_OPENQASM "2.0", "");
-           (T_INCLUDE "qelib1.inc", "\n"); (T_QREG, "");
-           (T_ID "q", ""); (T_LBRACKET, "");
-           (T_INTEGER 2, ""); (T_RBRACKET, "");
-           (T_SEMICOLON, ""); (T_ID "h", "");
-           (T_ID "q", ""); (T_LBRACKET, "");
-           (T_INTEGER 0, ""); (T_RBRACKET, "");
-           (T_SEMICOLON, ""); (T_CX, "");
-           (T_ID "q", ""); (T_LBRACKET, "");
-           (T_INTEGER 0, ""); (T_RBRACKET, "");
-           (T_COMMA, ""); (T_ID "q", "");
-           (T_LBRACKET, ""); (T_INTEGER 1, "");
-           (T_RBRACKET, ""); (T_SEMICOLON, "")]
+          [("", Qasmsyntax.T_OPENQASM "2.0"); ("", Qasmsyntax.T_INCLUDE "qelib1.inc");
+           ("", Qasmsyntax.T_QREG); ("", Qasmsyntax.T_ID "q");
+           ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 2);
+           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON);
+           ("", Qasmsyntax.T_ID "h"); ("", Qasmsyntax.T_ID "q");
+           ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 0);
+           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON);
+           ("", Qasmsyntax.T_CX); ("", Qasmsyntax.T_ID "q");
+           ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 0);
+           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_COMMA);
+           ("", Qasmsyntax.T_ID "q"); ("", Qasmsyntax.T_LBRACKET);
+           ("", Qasmsyntax.T_INTEGER 1); ("", Qasmsyntax.T_RBRACKET);
+           ("", Qasmsyntax.T_SEMICOLON)]
       ) ;
   ]
 
