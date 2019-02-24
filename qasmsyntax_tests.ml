@@ -33,8 +33,7 @@ let lexer_tests = "lexer tests" >:::
 // argle bargle
 |} in
         assert_equal (list_of_stream ll) 
-          [("", Qasmsyntax.T_OPENQASM "2.0");
-           ("// argle bargle\n", Qasmsyntax.T_EOF)]
+          [("", Qasmsyntax.T_OPENQASM "2.0")]
       ) ;
     "simple qasm" >::
       (fun ctxt ->

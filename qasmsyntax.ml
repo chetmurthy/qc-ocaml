@@ -76,6 +76,13 @@ module LexState = struct
     st.at_head <- false
 end
 
+let stream_of_lexer_eof_function eof_function lexer lexbuf =
+let rec strec () =
+    let tok = lexer lexbuf
+    in if (eof_function tok) then [< >]
+       else [< 'tok; strec() >]
+in [< strec () >]
+
 let stream_of_lexer_eof eoftok lexer lexbuf =
 let rec strec () =
     let tok = lexer lexbuf
