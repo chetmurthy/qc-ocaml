@@ -1,6 +1,7 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 {
 open Lexing
+open Misc
 open Qasmsyntax
 
 }

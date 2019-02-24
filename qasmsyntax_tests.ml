@@ -1,6 +1,8 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open OUnit2
+
+open Misc
 open Qasmlex
 open Qasmsyntax
 open Qasmparser

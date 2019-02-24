@@ -1,5 +1,6 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
+open Misc
 open Qasmsyntax
 
 let pa_header = parser
