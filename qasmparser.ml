@@ -3,7 +3,7 @@
 open Qasmsyntax
 
 let pa_header = parser
-| [< 'T_OPENQASM r >] -> r
+| [< '(_, T_OPENQASM r) >] -> r
                                          
 (*
          mainprogram: "OPENQASM" real ";" program
@@ -68,23 +68,44 @@ module Ast = struct
 
 end
 
-
 let rec expr0 = parser
-| [< '(T_ID id, _) >] -> Ast.ID id
-| [< '(T_INTEGER n, _) >] ->
+| [< '(_, T_ID id) >] -> Ast.ID id
+| [< '(_, T_INTEGER n) >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in expression")
    else Ast.NNINT n
-| [< '(T_PI, _) >] -> Ast.PI
-| [< '(T_LPAREN, _) ; e = expr ; '(T_RPAREN, _) >] -> e
-| [< '(T_SIN, _) ; '(T_LPAREN, _) ; e = expr ; '(T_RPAREN, _) >] -> Ast.SIN e
-| [< '(T_COS, _) ; '(T_LPAREN, _) ; e = expr ; '(T_RPAREN, _) >] -> Ast.COS e
-| [< '(T_TAN, _) ; '(T_LPAREN, _) ; e = expr ; '(T_RPAREN, _) >] -> Ast.TAN e
-| [< '(T_EXP, _) ; '(T_LPAREN, _) ; e = expr ; '(T_RPAREN, _) >] -> Ast.EXP e
-| [< '(T_LN, _) ; '(T_LPAREN, _) ; e = expr ; '(T_RPAREN, _) >] -> Ast.LN e
-| [< '(T_SQRT, _) ; '(T_LPAREN, _) ; e = expr ; '(T_RPAREN, _) >] -> Ast.SQRT e
+| [< '(_, T_PI) >] -> Ast.PI
+| [< '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> e
+| [< '(_, T_SIN) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.SIN e
+| [< '(_, T_COS) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.COS e
+| [< '(_, T_TAN) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.TAN e
+| [< '(_, T_EXP) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.EXP e
+| [< '(_, T_LN) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.LN e
+| [< '(_, T_SQRT) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.SQRT e
 
 and expr1 = parser
-| [< e1=expr0 ; '(T_CARET, _) ; e2=expr1 >] -> Ast.XOR(e1, e2)
+| [< e1=expr0 ;
+   rv=(parser
+       | [< '(_, T_CARET) ; e2=expr1 >] -> Ast.XOR(e1, e2)
+      | [< >] -> e1) >] -> rv
+
+and expr2 = parser
+| [< '(_, T_DASH) ; e=expr2 >] -> Ast.UMINUS e
+| [< '(_, T_PLUS) ; e=expr2 >] -> e
+| [< e=expr1 >] -> e                                           
+
+and expr3 = parser
+| [< rv=ne_plist_with_sep
+          (parser
+           | [< '(_, T_STAR) >] -> (fun e1 e2 -> Ast.MUL(e1, e2))
+          | [< '(_, T_SLASH) >] -> (fun e1 e2 -> Ast.DIV(e1, e2)))
+          expr2 >] -> rv
+
+and expr4 = parser
+| [< rv=ne_plist_with_sep
+          (parser
+           | [< '(_, T_PLUS) >] -> (fun e1 e2 -> Ast.ADD(e1, e2))
+          | [< '(_, T_DASH) >] -> (fun e1 e2 -> Ast.SUB(e1, e2)))
+          expr3 >] -> rv
 
 and expr = parser
 | [< >] -> failwith "unimplemented"

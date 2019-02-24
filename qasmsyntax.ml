@@ -95,3 +95,8 @@ let rec listrec acc = parser
   [< 't ; strm >] -> listrec (t::acc) strm
 | [< >] -> List.rev acc
 in listrec [] strm
+
+let ne_plist_with_sep sep elem = 
+ let rec do_rec accumf = parser
+  [< e = elem; l = (parser [< f = sep; l = do_rec (f (accumf e)) >] -> l | [< >] -> e) >] -> l
+ in do_rec (fun e -> e)

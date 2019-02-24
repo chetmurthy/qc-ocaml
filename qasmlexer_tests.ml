@@ -39,6 +39,23 @@ CX q[0],q[1];
            ("", Qasmsyntax.T_INTEGER 1); ("", Qasmsyntax.T_RBRACKET);
            ("", Qasmsyntax.T_SEMICOLON)]
       ) ;
+    "qasm body" >::
+      (fun ctxt ->
+        let ll = make_body_lexer {|
+// argle
+qreg q[2];
+
+h q[// bargle
+0];
+|} in
+        assert_equal (list_of_stream ll)
+          [("// argle\n", Qasmsyntax.T_QREG); ("", Qasmsyntax.T_ID "q");
+           ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 2);
+           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON);
+           ("", Qasmsyntax.T_ID "h"); ("", Qasmsyntax.T_ID "q");
+           ("", Qasmsyntax.T_LBRACKET); ("// bargle\n", Qasmsyntax.T_INTEGER 0);
+           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON)]
+      ) ;
   ]
 
 (* Run the tests in test suite *)

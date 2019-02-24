@@ -101,4 +101,8 @@ and token st = parse
     let st = LexState.mk () in
     let lb = Lexing.from_string buf in
     stream_of_lexer_eof ("", T_EOF) (token st) lb
+
+  let make_body_lexer buf =
+    let lb = Lexing.from_string buf in
+    stream_of_lexer_eof ("", T_EOF) (body_token "") lb
 }
