@@ -5,6 +5,26 @@ open Qasmlex
 open Qasmsyntax
 open Qasmparser
 
+let misc_tests = "misc tests" >:::
+  [
+    "pcre whitespace 1" >::
+      (fun ctxt ->
+        assert_equal (cleanws "")  ""
+      );
+    "pcre whitespace 2" >::
+      (fun ctxt ->
+        assert_equal (cleanws "a")  "a"
+      ) ;
+    "pcre whitespace 3" >::
+      (fun ctxt ->
+        assert_equal (cleanws "a b")  "a b"
+      ) ;
+    "pcre whitespace 4" >::
+      (fun ctxt ->
+        assert_equal (cleanws "\ta b\t")  "a b"
+      ) ;
+  ]
+
 let lexer_tests = "lexer tests" >:::
   [
     "header" >::
@@ -81,5 +101,5 @@ let parser_tests = "parser tests" >:::
 
 (* Run the tests in test suite *)
 let _ = 
-  run_test_tt_main ("all_tests" >::: [ lexer_tests; expr_parser_tests; parser_tests ])
+  run_test_tt_main ("all_tests" >::: [ misc_tests ; lexer_tests; expr_parser_tests; parser_tests ])
 ;;

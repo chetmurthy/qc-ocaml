@@ -119,3 +119,11 @@ let ne_plist_with_sep_function sep elem =
  let rec do_rec accumf = parser
   [< e = elem; l = (parser [< f = sep; l = do_rec (f (accumf e)) >] -> l | [< >] -> e) >] -> l
  in do_rec (fun e -> e)
+
+let clean_left_re = Pcre.regexp "^\\s*(\\S.*)?$"
+let clean_right_re = Pcre.regexp "^(.*\\S)?\\s*$"
+let cleanws s =
+  let rv1 = Pcre.extract ~rex:clean_left_re s in
+  let s = rv1.(1) in
+  let rv2 = Pcre.extract ~rex:clean_right_re s in
+  rv2.(1)
