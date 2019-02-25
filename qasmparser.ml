@@ -21,9 +21,6 @@ let full_parse pfun ?(fname="") buf =
 let body_parse pfun ?(fname="") buf =
   let tokstrm = Qasmlex.make_body_lexer ~fname buf in
   pfun (expand_include tokstrm)
-
-let pa_header = parser
-| [< '(_, T_OPENQASM r) >] -> r
                                          
 (*
          mainprogram: "OPENQASM" real ";" program
@@ -124,6 +121,12 @@ module Ast = struct
   type program_t = stmt_t list
 
 end
+
+
+module PA = struct
+
+let header = parser
+| [< '(_, T_OPENQASM r) >] -> r
 
 let rec expr0 = parser
 | [< '(aux, T_ID id) >] -> (aux, Ast.ID id)
@@ -284,4 +287,6 @@ let ne_statement_list strm = let (h, t) = ne_plist statement strm in h::t
 let program strm = ne_statement_list strm
 
 let mainprogram = parser
-| [< vers=pa_header ; l=program >] -> (vers, l)
+| [< vers=header ; l=program >] -> (vers, l)
+
+end

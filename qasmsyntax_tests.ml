@@ -110,7 +110,7 @@ h q[// bargle
 
 let test_parse_expr (name, txt, expect) =
   name >:: (fun ctx ->
-    let (aux, e) = body_parse expr txt in
+    let (aux, e) = body_parse PA.expr txt in
       assert_equal expect (TA.comment_string aux, e)
   )
 
@@ -128,13 +128,13 @@ let expr_parser_tests = "expr parser tests" >:::
 
 let test_parse_instruction (name, txt, expect) =
   name >:: (fun ctx ->
-    let (aux, e) = body_parse instruction txt in
+    let (aux, e) = body_parse PA.instruction txt in
       assert_equal expect (TA.comment_string aux, e)
   )
 
 let test_parse_statement (name, txt, expect) =
   name >:: (fun ctx ->
-    let (aux, e) = body_parse statement txt in
+    let (aux, e) = body_parse PA.statement txt in
       assert_equal expect (TA.comment_string aux, e)
   )
 
@@ -158,7 +158,7 @@ q, b;|},
 
 let test_parse_main (name, txt, expect) =
   name >:: (fun ctxt ->
-    let rv = full_parse mainprogram txt in
+    let rv = full_parse PA.mainprogram txt in
     assert_equal expect rv
   )
 
