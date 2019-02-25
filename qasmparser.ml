@@ -248,8 +248,8 @@ let gop = parser
    (TA.appendlist [aux1; aux2; aux3], Ast.GATE_BARRIER l)
 
 let as_list pfun strm = (parser [< rv=pfun >] -> (TA.mt, [rv])) strm
-let ne_gop_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list gop) strm
-let gop_list strm = possibly_empty ne_gop_list strm
+let ne_gop_list strm =
+  let h,t = ne_plist gop strm in h::t
 
 let gatedecl = parser
 | [< '(aux1, T_GATE) ; '(aux2, T_ID gateid) ;
@@ -260,9 +260,9 @@ let gatedecl = parser
                          ) ;
    (aux3, formal_bits)=ne_id_list ;
    '(aux4, T_LBRACE) ;
-   (aux5, gopl)=gop_list ;
+   gopl=ne_gop_list ;
    '(aux6, T_RBRACE) >] ->
-   (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6],
+   (TA.appendlist [aux1; aux2; aux3; aux4; aux6],
     Ast.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl))
 
 let opaquedecl = parser
