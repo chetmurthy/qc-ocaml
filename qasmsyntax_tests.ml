@@ -182,27 +182,27 @@ let test_roundtrip_program_file (name, fname, expect) =
 let parser_tests = "parser tests" >:::
   [
     test_roundtrip_main_buf ("header",{|OPENQASM 2.0;
-qreg q[1] ;
+qreg q[1];
 |},
 {|OPENQASM 2.0;
-qreg q[1] ;
+qreg q[1];
 |}) ;
     test_roundtrip_main_buf ("include 0", {|OPENQASM 2.0;
 include "testdata/empty.inc";
-qreg q[1] ;
+qreg q[1];
 |},
 {|OPENQASM 2.0;
-qreg q[1] ;
+qreg q[1];
 |}) ;
     test_roundtrip_main_buf ("include 1", {|OPENQASM 2.0;
 include "testdata/oneline.inc";
 |},
 {|OPENQASM 2.0;
-qreg q[1] ;
+qreg q[1];
 |}) ;
     test_roundtrip_main_file ("example", "testdata/example.qasm",
 {|OPENQASM 2.0;
-qreg q[1] ;
+qreg q[1];
 |}) ;
   ]
 

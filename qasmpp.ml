@@ -47,25 +47,25 @@ module PP = struct
 
 let pr_comma = (fun () -> [< '", " >])
 
-  let raw_instruction = function
-    | Ast.U(el, a) -> [< '"U(" ; prlist_with_sep pr_comma expr el ; '") " ; bit_or_reg a ; '";\n" >]
-    | Ast.CX(l, r) -> [< '"CX " ; bit_or_reg l ; '", "; bit_or_reg r ; '";\n"; >]
+  let raw_instruction ?(prefix="") = function
+    | Ast.U(el, a) -> [< 'prefix ; '"U(" ; prlist_with_sep pr_comma expr el ; '") " ; bit_or_reg a ; '";\n" >]
+    | Ast.CX(l, r) -> [< 'prefix ; '"CX " ; bit_or_reg l ; '", "; bit_or_reg r ; '";\n"; >]
     | Ast.COMPOSITE_GATE(gateid, params, regs) ->
-       [< 'gateid ; '" (" ; prlist_with_sep pr_comma expr params  ; '") " ; prlist_with_sep pr_comma bit_or_reg regs ; '";\n" >]
-    | Ast.MEASURE(l, r) -> [< '"measure " ; bit_or_reg l ; '", "; bit_or_reg r ; '";\n" >]
-    | Ast.RESET l -> [< '"reset " ; bit_or_reg l ; '";\n" >]
+       [< 'prefix ; 'gateid ; '" (" ; prlist_with_sep pr_comma expr params  ; '") " ; prlist_with_sep pr_comma bit_or_reg regs ; '";\n" >]
+    | Ast.MEASURE(l, r) -> [< 'prefix ; '"measure " ; bit_or_reg l ; '", "; bit_or_reg r ; '";\n" >]
+    | Ast.RESET l -> [< 'prefix ; '"reset " ; bit_or_reg l ; '";\n" >]
 
-  let instruction (aux, i) =
+  let instruction ~prefix (aux, i) =
     let commentstring = TA.comment_string aux in
     match commentstring with
-    | "" -> raw_instruction i
-    | _ -> [< 'commentstring ; raw_instruction i >]
+    | "" -> raw_instruction ~prefix i
+    | _ -> [< 'commentstring ; raw_instruction ~prefix i >]
 
   let pr_id s = [< 's >]
 
   let raw_gate_op = function
-    | Ast.GATE_INSTRUCTION i -> raw_instruction i
-    | Ast.GATE_BARRIER l -> [< '"barrier "; prlist_with_sep pr_comma pr_id l ; '";\n" >]
+    | Ast.GATE_INSTRUCTION i -> raw_instruction ~prefix:"  " i
+    | Ast.GATE_BARRIER l -> [< '"  " ; '"barrier "; prlist_with_sep pr_comma pr_id l ; '";\n" >]
 
   let gate_op (aux, gop) =
     let commentstring = TA.comment_string aux in
@@ -88,9 +88,9 @@ let pr_comma = (fun () -> [< '", " >])
     | Ast.STMT_BARRIER l ->
        [< '"barrier " ; prlist_with_sep pr_comma pr_id l ; '";\n" >]
     | Ast.STMT_QREG(id, n) ->
-       [< '"qreg " ; 'id ; '"[" ; 'string_of_int n ; '"] ;\n" >]
+       [< '"qreg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
     | Ast.STMT_CREG(id, n) ->
-       [< '"Creg " ; 'id ; '"[" ; 'string_of_int n ; '"] ;\n" >]
+       [< '"Creg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
       
   let stmt (aux, s) =
     let commentstring = TA.comment_string aux in
