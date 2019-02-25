@@ -18,6 +18,11 @@ let full_parse pfun ?(fname="") buf =
   let tokstrm = Qasmlex.make_lexer ~fname buf in
   pfun (expand_include tokstrm)
 
+let full_parse_from_file pfun fname =
+let ic = open_in fname in
+  let tokstrm = Qasmlex.make_lexer_from_channel ~fname ic in
+  pfun (expand_include tokstrm)
+
 let body_parse pfun ?(fname="") buf =
   let tokstrm = Qasmlex.make_body_lexer ~fname buf in
   pfun (expand_include tokstrm)

@@ -157,18 +157,42 @@ q, b;|},
      ]
   )
 
-let test_roundtrip_main (name, txt, expect) =
+let test_roundtrip_main_buf (name, txt, expect) =
   name >:: (fun ctxt ->
     let rv = full_parse PA.mainprogram txt in
     let pretty = PP.pp PP.main rv in
     assert_equal expect pretty
   )
 
+let test_roundtrip_main_file (name, fname, expect) =
+  name >:: (fun ctxt ->
+    let rv = full_parse_from_file PA.mainprogram fname in
+    let pretty = PP.pp PP.main rv in
+    assert_equal expect pretty
+  )
+
 let parser_tests = "parser tests" >:::
   [
-    test_roundtrip_main ("header",{|OPENQASM 2.0;
+    test_roundtrip_main_buf ("header",{|OPENQASM 2.0;
 qreg q[1] ;
 |},
+{|OPENQASM 2.0;
+qreg q[1] ;
+|}) ;
+    test_roundtrip_main_buf ("include 0", {|OPENQASM 2.0;
+include "testdata/empty.inc";
+qreg q[1] ;
+|},
+{|OPENQASM 2.0;
+qreg q[1] ;
+|}) ;
+    test_roundtrip_main_buf ("include 1", {|OPENQASM 2.0;
+include "testdata/oneline.inc";
+|},
+{|OPENQASM 2.0;
+qreg q[1] ;
+|}) ;
+    test_roundtrip_main_file ("example", "testdata/example.qasm",
 {|OPENQASM 2.0;
 qreg q[1] ;
 |}) ;
