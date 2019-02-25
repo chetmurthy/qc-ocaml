@@ -48,6 +48,8 @@ let pa_header = parser
 
  *)
 
+module TA = TokenAux
+
 module Ast = struct
   type expr =
     ID of string
@@ -72,18 +74,21 @@ module Ast = struct
     REG of string
   | BIT of string * int
 
-  type instruction_t =
+  type raw_instruction_t =
     U of expr list * bit_or_reg_t
   | CX of bit_or_reg_t * bit_or_reg_t
   | COMPOSITE_GATE of string * expr list * bit_or_reg_t list
   | MEASURE of bit_or_reg_t * bit_or_reg_t
   | RESET of bit_or_reg_t
 
+  type instruction_t =
+    TA.t * raw_instruction_t
+
   type gate_op_t =
     GATE_INSTRUCTION of instruction_t
-  | GATE_BARRIER of string list
+  | GATE_BARRIER of TA.t * string list
 
-  type stmt_t =
+  type raw_stmt_t =
     | STMT_GATEDECL of string * string list * string list * gate_op_t list
     | STMT_OPAQUEDECL of string * string list * string list
     | STMT_INSTRUCTION of instruction_t
@@ -92,9 +97,11 @@ module Ast = struct
     | STMT_QREG of string * int
     | STMT_CREG of string * int
 
-end
+  type stmt_t = TA.t * raw_stmt_t
 
-module TA = TokenAux
+  type program_t = stmt_t list
+
+end
 
 let rec expr0 = parser
 | [< '(aux, T_ID id) >] -> (aux, Ast.ID id)
@@ -165,21 +172,21 @@ let bit_or_reg = parser
 let id = parser
 | [< '(aux, T_ID id) >] -> (aux, id)
 
-let comma f = parser
+let aux_comma f = parser
 | [< '(aux2, T_COMMA) >] ->
    (fun (aux1, lhs) (aux3, rhs) -> (TA.appendlist [aux1; aux2; aux3], f lhs rhs))
 
 let as_list pfun strm = (parser [< (a,rv)=pfun >] -> (a, [rv])) strm
 
-let ne_explist strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list expr) strm
+let ne_explist strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list expr) strm
 
 let possibly_empty pfun = parser
 | [< l=pfun >] -> l
 | [< >] -> (TA.mt, [])
 
-let ne_bit_or_reg_list strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list bit_or_reg) strm
+let ne_bit_or_reg_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list bit_or_reg) strm
 
-let ne_id_list strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list id) strm
+let ne_id_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list id) strm
 
 let instruction = parser
 | [< '(aux1, T_U) ; '(aux2, T_LPAREN) ; (aux3, el)=ne_explist ; '(aux4, T_RPAREN) ; (aux5, a)=bit_or_reg ; '(aux6, T_SEMICOLON) >] ->
@@ -197,11 +204,11 @@ let instruction = parser
    (TA.appendlist [aux1; aux2; aux3; aux4], Ast.COMPOSITE_GATE(gateid, params, regs))
 
 let gop = parser
-| [< (aux, i)=instruction >] -> (aux, Ast.GATE_INSTRUCTION i)
+| [< i=instruction >] -> (TA.mt, Ast.GATE_INSTRUCTION i)
 | [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
-   (TA.appendlist [aux1; aux2; aux3], Ast.GATE_BARRIER l)
+   (TA.mt, Ast.GATE_BARRIER(TA.appendlist [aux1; aux2; aux3], l))
 
-let ne_gop_list strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list gop) strm
+let ne_gop_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list gop) strm
 let gop_list strm = possibly_empty ne_gop_list strm
 
 let gatedecl = parser
@@ -242,12 +249,12 @@ let statement = parser
 | [< d=reg_decl >] -> d
 | [< d=gatedecl >] -> d
 | [< d=opaquedecl >] -> d
-| [< '(aux1, T_IF) ; '(aux2, T_LPAREN) ; '(aux3, T_ID id) ; '(aux4, T_EQEQ) ; '(aux5, T_INTEGER n) ; '(aux6, T_RPAREN) ; (aux7, i)=instruction >] ->
+| [< '(aux1, T_IF) ; '(aux2, T_LPAREN) ; '(aux3, T_ID id) ; '(aux4, T_EQEQ) ; '(aux5, T_INTEGER n) ; '(aux6, T_RPAREN) ; i=instruction >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in if statment")
-   else (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6; aux7], Ast.STMT_IF(id, n, i))
+   else (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6], Ast.STMT_IF(id, n, i))
 | [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3], Ast.STMT_BARRIER l)
 
-let ne_statement_list strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list statement) strm
+let ne_statement_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list statement) strm
 
 let program strm = ne_statement_list strm
