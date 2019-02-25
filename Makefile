@@ -5,11 +5,11 @@ OCAMLCFLAGS=-g
 PACKAGES=-package oUnit,oUnit.advanced,pcre
 PACKAGES1=-package camlp5,oUnit,oUnit.advanced,pcre -syntax camlp5o
 
-ML= misc_functions.ml qasmsyntax.ml qasmlex.ml qasmparser.ml
+ML= misc_functions.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml
 MLI= 
 
 SRC=qasmlex.ml qasmsyntax_tests.ml
-SRCP5=qasmparser.ml misc_functions.ml qasmsyntax.ml
+SRCP5=qasmparser.ml qasmpp.ml misc_functions.ml qasmsyntax.ml
 
 CMO= $(ML:.ml=.cmo)
 CMX= $(ML:.ml=.cmx)
@@ -36,6 +36,12 @@ qasmparser.cmo: qasmparser.ml
 	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
 
 qasmparser.cmx: qasmparser.ml
+	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+
+qasmpp.cmo: qasmpp.ml
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+
+qasmpp.cmx: qasmpp.ml
 	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
 
 qasmsyntax.cmo: qasmsyntax.ml

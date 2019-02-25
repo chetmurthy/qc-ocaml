@@ -75,3 +75,14 @@ let invoked_as name =
   let path = Pcre.split ~rex:(Pcre.regexp "/") argv0 in
   let fname, _ = sep_last path in
   List.mem fname l
+
+let rec prlist elem l = match l with 
+    []   -> [< >]
+  | h::t -> let e = elem h and r = prlist elem t in [< e; r >];;
+
+let rec prlist_with_sep sep elem l = match l with
+    []   -> [< >]
+  | [h]  -> elem h
+  | h::t ->
+      let e = elem h and s = sep()
+      in [< e; s; prlist_with_sep sep elem t >];;

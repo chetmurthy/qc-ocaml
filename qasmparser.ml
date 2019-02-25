@@ -87,15 +87,15 @@ module Ast = struct
 
 
   type bit_or_reg_t =
-    REG of string
-  | BIT of string * int
+    | REG of string
+    | BIT of string * int
 
   type raw_instruction_t =
-    U of expr list * bit_or_reg_t
-  | CX of bit_or_reg_t * bit_or_reg_t
-  | COMPOSITE_GATE of string * expr list * bit_or_reg_t list
-  | MEASURE of bit_or_reg_t * bit_or_reg_t
-  | RESET of bit_or_reg_t
+    | U of expr list * bit_or_reg_t
+    | CX of bit_or_reg_t * bit_or_reg_t
+    | COMPOSITE_GATE of string * expr list * bit_or_reg_t list
+    | MEASURE of bit_or_reg_t * bit_or_reg_t
+    | RESET of bit_or_reg_t
 
   type instruction_t =
     TA.t * raw_instruction_t
@@ -227,6 +227,10 @@ let instruction = parser
    (aux3, regs)=ne_bit_or_reg_list ;
     '(aux4, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3; aux4], Ast.COMPOSITE_GATE(gateid, params, regs))
+| [< '(aux1, T_MEASURE) ; (aux2, l)=bit_or_reg ; '(aux3, T_DASHGT) ; (aux4, r)=bit_or_reg ; '(aux5, T_SEMICOLON) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4; aux5], Ast.MEASURE(l, r))
+| [< '(aux1, T_RESET) ; (aux2, l)=bit_or_reg ; '(aux3, T_SEMICOLON) >] ->
+   (TA.appendlist [aux1; aux2; aux3], Ast.RESET(l))
 
 let gop = parser
 | [< (aux, i)=instruction >] -> (aux, Ast.GATE_INSTRUCTION i)

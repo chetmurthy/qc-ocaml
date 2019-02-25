@@ -15,12 +15,14 @@
 #load "qasmsyntax.cmo";;
 #load "qasmlex.cmo";;
 #load "qasmparser.cmo";;
+#load "qasmpp.cmo";;
 #load "qasmsyntax_tests.cmo";;
 
 open Misc_functions ;;
 open Qasmsyntax ;;
 open Qasmlex ;;
 open Qasmparser ;;
+open Qasmpp ;;
 
 #trace header ;;
 #trace grab_real ;;

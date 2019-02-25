@@ -5,6 +5,7 @@ open Misc_functions
 open Qasmlex
 open Qasmsyntax
 open Qasmparser
+open Qasmpp
 
 let misc_tests = "misc tests" >:::
   [
@@ -156,17 +157,21 @@ q, b;|},
      ]
   )
 
-let test_parse_main (name, txt, expect) =
+let test_roundtrip_main (name, txt, expect) =
   name >:: (fun ctxt ->
     let rv = full_parse PA.mainprogram txt in
-    assert_equal expect rv
+    let pretty = PP.pp PP.main rv in
+    assert_equal expect pretty
   )
 
 let parser_tests = "parser tests" >:::
   [
-    test_parse_main ("header",{|OPENQASM 2.0;
+    test_roundtrip_main ("header",{|OPENQASM 2.0;
 qreg q[1] ;
-|},("2.0", [])) ;
+|},
+{|OPENQASM 2.0;
+qreg q[1] ;
+|}) ;
   ]
 
 (* Run the tests in test suite *)
