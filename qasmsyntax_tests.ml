@@ -90,19 +90,22 @@ h q[// bargle
       ) ;
   ]
 
-let test_parse_expr (name, txt, ast) =
+let test_parse_expr (name, txt, expect) =
   name >:: (fun ctx ->
     let ll = make_body_lexer txt in
-      assert_equal ast (expr ll)    
+    let (aux, e) = expr ll in
+      assert_equal expect (TokenAux.comment_string aux, e)
   )
 
 let expr_parser_tests = "expr parser tests" >:::
   (List.map test_parse_expr 
      [
-       ("nnint", "1", Ast.NNINT 1);
-       ("real 0", "0.e+0", Ast.REAL "0.e+0");
-       ("id", "x", Ast.ID "x");
-       ("uminus", "-x", Ast.UMINUS (Ast.ID "x")) ;
+       ("nnint", "1", ("", Ast.NNINT 1));
+       ("real 0", "0.e+0", ("", Ast.REAL "0.e+0"));
+       ("id", "x", ("", Ast.ID "x"));
+       ("uminus", "-x", ("", Ast.UMINUS (Ast.ID "x"))) ;
+       ("uminus comment", " // argle\n -x", ("// argle\n", Ast.UMINUS (Ast.ID "x"))) ;
+       ("uminus comment 2", "-// argle\n x", ("// argle\n", Ast.UMINUS (Ast.ID "x"))) ;
      ]
   )
 

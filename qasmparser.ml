@@ -94,118 +94,160 @@ module Ast = struct
 
 end
 
+module TA = TokenAux
+
 let rec expr0 = parser
-| [< '(_, T_ID id) >] -> Ast.ID id
-| [< '(_, T_INTEGER n) >] ->
+| [< '(aux, T_ID id) >] -> (aux, Ast.ID id)
+| [< '(aux, T_INTEGER n) >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in expression")
-   else Ast.NNINT n
-| [< '(_, T_REAL r) >] -> Ast.REAL r
-| [< '(_, T_PI) >] -> Ast.PI
-| [< '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> e
-| [< '(_, T_SIN) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.SIN e
-| [< '(_, T_COS) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.COS e
-| [< '(_, T_TAN) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.TAN e
-| [< '(_, T_EXP) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.EXP e
-| [< '(_, T_LN) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.LN e
-| [< '(_, T_SQRT) ; '(_, T_LPAREN) ; e = expr ; '(_, T_RPAREN) >] -> Ast.SQRT e
+   else (aux, Ast.NNINT n)
+| [< '(aux, T_REAL r) >] -> (aux, Ast.REAL r)
+| [< '(aux, T_PI) >] -> (aux, Ast.PI)
+| [< '(aux1, T_LPAREN) ; (aux2, e) = expr ; '(aux3, T_RPAREN) >] ->
+   (TA.appendlist [aux1; aux2; aux3], e)
+
+| [< '(aux1, T_SIN) ; '(aux2, T_LPAREN) ; (aux3, e) = expr ; '(aux4, T_RPAREN) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4], Ast.SIN e)
+
+| [< '(aux1, T_COS) ; '(aux2, T_LPAREN) ; (aux3, e) = expr ; '(aux4, T_RPAREN) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4], Ast.COS e)
+
+| [< '(aux1, T_TAN) ; '(aux2, T_LPAREN) ; (aux3, e) = expr ; '(aux4, T_RPAREN) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4], Ast.TAN e)
+
+| [< '(aux1, T_EXP) ; '(aux2, T_LPAREN) ; (aux3, e) = expr ; '(aux4, T_RPAREN) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4], Ast.EXP e)
+
+| [< '(aux1, T_LN) ; '(aux2, T_LPAREN) ; (aux3, e) = expr ; '(aux4, T_RPAREN) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4], Ast.LN e)
+
+| [< '(aux1, T_SQRT) ; '(aux2, T_LPAREN) ; (aux3, e) = expr ; '(aux4, T_RPAREN) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4], Ast.SQRT e)
 
 and expr1 = parser
-| [< e1=expr0 ;
+| [< (aux1, e1)=expr0 ;
    rv=(parser
-       | [< '(_, T_CARET) ; e2=expr1 >] -> Ast.XOR(e1, e2)
-      | [< >] -> e1) >] -> rv
+       | [< '(aux2, T_CARET) ; (aux3, e2)=expr1 >] -> (TA.appendlist [aux1; aux2; aux3], Ast.XOR(e1, e2))
+      | [< >] -> (aux1, e1)) >] -> rv
 
 and expr2 = parser
-| [< '(_, T_DASH) ; e=expr2 >] -> Ast.UMINUS e
-| [< '(_, T_PLUS) ; e=expr2 >] -> e
-| [< e=expr1 >] -> e                                           
+| [< '(aux1, T_DASH) ; (aux2, e)=expr2 >] -> (TA.append aux1 aux2, Ast.UMINUS e)
+| [< '(aux1, T_PLUS) ; (aux2, e)=expr2 >] -> (TA.append aux1 aux2, e)
+| [< e=expr1 >] -> e
 
 and expr3 = parser
 | [< rv=ne_plist_with_sep_function
           (parser
-           | [< '(_, T_STAR) >] -> (fun e1 e2 -> Ast.MUL(e1, e2))
-          | [< '(_, T_SLASH) >] -> (fun e1 e2 -> Ast.DIV(e1, e2)))
+           | [< '(aux2, T_STAR) >] ->
+           (fun (aux1, e1) (aux3, e2) -> (TA.appendlist [aux1; aux2; aux3], Ast.MUL(e1, e2)))
+          | [< '(aux2, T_SLASH) >] ->
+             (fun (aux1, e1) (aux3, e2) -> (TA.appendlist [aux1; aux2; aux3], Ast.DIV(e1, e2))))
           expr2 >] -> rv
 
 and expr4 = parser
 | [< rv=ne_plist_with_sep_function
           (parser
-           | [< '(_, T_PLUS) >] -> (fun e1 e2 -> Ast.ADD(e1, e2))
-          | [< '(_, T_DASH) >] -> (fun e1 e2 -> Ast.SUB(e1, e2)))
+           | [< '(aux2, T_PLUS) >] -> (fun (aux1, e1) (aux3, e2) -> (TA.appendlist [aux1; aux2; aux3], Ast.ADD(e1, e2)))
+          | [< '(aux2, T_DASH) >] -> (fun (aux1, e1) (aux3, e2) -> (TA.appendlist [aux1; aux2; aux3], Ast.SUB(e1, e2))))
           expr3 >] -> rv
 
 and expr = parser
 | [< e=expr4 >] -> e
 
 let bit_or_reg = parser
-| [< '(_, T_ID id) ; rv=(parser
-                        | [< '(_, T_LBRACKET); '(_, T_INTEGER n); '(_, T_RBRACKET) >] ->
+| [< '(aux1, T_ID id) ; rv=(parser
+                        | [< '(aux2, T_LBRACKET); '(aux3, T_INTEGER n); '(aux4, T_RBRACKET) >] ->
                         if n < 0 then raise (SyntaxError "negative integer not valid in register index")
-                        else Ast.BIT(id, n)
-                        | [< >] -> Ast.REG id
+                        else (TA.appendlist [aux1; aux2; aux3; aux4], Ast.BIT(id, n))
+                        | [< >] -> (aux1, Ast.REG id)
                        ) >] -> rv
 
 let id = parser
-| [< '(_, T_ID id) >] -> id
+| [< '(aux, T_ID id) >] -> (aux, id)
 
-let comma = parser [< '(_, T_COMMA) >] -> ()
+let comma f = parser
+| [< '(aux2, T_COMMA) >] ->
+   (fun (aux1, lhs) (aux3, rhs) -> (TA.appendlist [aux1; aux2; aux3], f lhs rhs))
 
-let explist strm = ne_plist_with_sep comma expr strm
+let as_list pfun strm = (parser [< (a,rv)=pfun >] -> (a, [rv])) strm
+
+let ne_explist strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list expr) strm
+
+let possibly_empty pfun = parser
+| [< l=pfun >] -> l
+| [< >] -> (TA.mt, [])
+
+let ne_bit_or_reg_list strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list bit_or_reg) strm
+
+let ne_id_list strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list id) strm
 
 let instruction = parser
-| [< '(_, T_U) ; '(_, T_LPAREN) ; el=explist ; '(_, T_RPAREN) ; a=bit_or_reg ; '(_, T_SEMICOLON) >] ->
-   Ast.U(el, a)
-| [< '(_,T_CX) ; a1=bit_or_reg ; '(_, T_COMMA) ; a2=bit_or_reg ; '(_, T_SEMICOLON) >] ->
-   Ast.CX(a1, a2)
-| [< '(_, T_ID gateid) ;
-   params=(parser
-             [< '(_, T_LPAREN); l=plist_with_sep comma expr ; '(_, T_RPAREN) >] -> l
-          | [< >] -> []
-          ) ;
-   regs=ne_plist_with_sep comma bit_or_reg ;
-   '(_, T_SEMICOLON) >] -> Ast.COMPOSITE_GATE(gateid, params, regs)
+| [< '(aux1, T_U) ; '(aux2, T_LPAREN) ; (aux3, el)=ne_explist ; '(aux4, T_RPAREN) ; (aux5, a)=bit_or_reg ; '(aux6, T_SEMICOLON) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6], Ast.U(el, a))
+| [< '(aux1,T_CX) ; (aux2, a1)=bit_or_reg ; '(aux3, T_COMMA) ; (aux4, a2)=bit_or_reg ; '(aux5, T_SEMICOLON) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4; aux5], Ast.CX(a1, a2))
+| [< '(aux1, T_ID gateid) ;
+   (aux2, params)=(parser
+                     [< '(paux1, T_LPAREN); (paux2, l)=possibly_empty ne_explist; '(paux3, T_RPAREN) >] ->
+                   (TA.appendlist [paux1; paux2; paux3], l)
+                  | [< >] -> (TA.mt, [])
+                  ) ;
+   (aux3, regs)=ne_bit_or_reg_list ;
+    '(aux4, T_SEMICOLON) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4], Ast.COMPOSITE_GATE(gateid, params, regs))
 
 let gop = parser
-| [< i=instruction >] -> Ast.GATE_INSTRUCTION i
-| [< '(_, T_BARRIER) ; l=ne_plist_with_sep comma id; '(_, T_SEMICOLON) >] -> Ast.GATE_BARRIER l
+| [< (aux, i)=instruction >] -> (aux, Ast.GATE_INSTRUCTION i)
+| [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
+   (TA.appendlist [aux1; aux2; aux3], Ast.GATE_BARRIER l)
+
+let ne_gop_list strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list gop) strm
+let gop_list strm = possibly_empty ne_gop_list strm
 
 let gatedecl = parser
-| [< '(_, T_GATE) ; '(_, T_ID gateid) ;
-   formal_params=(parser
-                    [< '(_, T_LPAREN); l=plist_with_sep comma id ; '(_, T_RPAREN) >] -> l
-                 | [< >] -> []
-                 ) ;
-   formal_bits=ne_plist_with_sep comma id ;
-   '(_, T_LBRACE) ;
-   gopl=plist gop ;
-   '(_, T_RBRACE) >] -> Ast.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl)
+| [< '(aux1, T_GATE) ; '(aux2, T_ID gateid) ;
+   (aux2, formal_params)=(parser
+                            [< '(paux1, T_LPAREN); (paux2, l)=ne_id_list ; '(paux3, T_RPAREN) >] ->
+                          (TA.appendlist [paux1; paux2; paux3], l)
+                         | [< >] -> (TA.mt, [])
+                         ) ;
+   (aux3, formal_bits)=ne_id_list ;
+   '(aux4, T_LBRACE) ;
+   (aux5, gopl)=gop_list ;
+   '(aux6, T_RBRACE) >] ->
+   (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6],
+    Ast.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl))
 
 let opaquedecl = parser
-| [< '(_, T_OPAQUE) ; '(_, T_ID gateid) ;
-   formal_params=(parser
-                    [< '(_, T_LPAREN); l=plist_with_sep comma id ; '(_, T_RPAREN) >] -> l
-                 | [< >] -> []
+| [< '(aux1, T_OPAQUE) ; '(aux2, T_ID gateid) ;
+   (aux3, formal_params)=(parser
+                            [< '(paux1, T_LPAREN); (paux2, l)=possibly_empty ne_id_list ; '(paux3, T_RPAREN) >] ->
+                          (TA.appendlist [paux1; paux2; paux3], l)
+                 | [< >] -> (TA.mt, [])
                  ) ;
-   formal_bits=ne_plist_with_sep comma id ;
-   '(_, T_SEMICOLON)
- >] -> Ast.STMT_OPAQUEDECL(gateid, formal_params, formal_bits)
+   (aux4, formal_bits)=ne_id_list ;
+   '(aux5, T_SEMICOLON)
+ >] -> (TA.appendlist [aux1; aux2; aux3; aux4; aux5], Ast.STMT_OPAQUEDECL(gateid, formal_params, formal_bits))
 
 let reg_decl=parser
-| [< '(_, T_QREG) ; '(_, T_ID id); '(_, T_LBRACKET) ; '(_, T_INTEGER n) ; '(_, T_RBRACKET) ; '(_, T_SEMICOLON) >] ->
+| [< '(aux1, T_QREG) ; '(aux2, T_ID id); '(aux3, T_LBRACKET) ; '(aux4, T_INTEGER n) ; '(aux5, T_RBRACKET) ; '(aux6, T_SEMICOLON) >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in qreg statement")
-   else Ast.STMT_QREG(id, n) ;
-| [< '(_, T_CREG) ; '(_, T_ID id); '(_, T_LBRACKET) ; '(_, T_INTEGER n) ; '(_, T_RBRACKET) ; '(_, T_SEMICOLON) >] ->
+   else (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6], Ast.STMT_QREG(id, n)) ;
+| [< '(aux1, T_CREG) ; '(aux2, T_ID id); '(aux3, T_LBRACKET) ; '(aux4, T_INTEGER n) ; '(aux5, T_RBRACKET) ; '(aux6, T_SEMICOLON) >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in creg statement")
-   else Ast.STMT_CREG(id, n)
+   else (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6], Ast.STMT_CREG(id, n))
 
 
 let statement = parser
 | [< d=reg_decl >] -> d
 | [< d=gatedecl >] -> d
 | [< d=opaquedecl >] -> d
-| [< '(_, T_IF) ; '(_, T_LPAREN) ; '(_, T_ID id) ; '(_, T_EQEQ) ; '(_, T_INTEGER n) ; '(_, T_RPAREN) ; i=instruction >] ->
+| [< '(aux1, T_IF) ; '(aux2, T_LPAREN) ; '(aux3, T_ID id) ; '(aux4, T_EQEQ) ; '(aux5, T_INTEGER n) ; '(aux6, T_RPAREN) ; (aux7, i)=instruction >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in if statment")
-   else Ast.STMT_IF(id, n, i)
-| [< '(_, T_BARRIER) ; l=ne_plist_with_sep comma id; '(_, T_SEMICOLON) >] -> Ast.STMT_BARRIER l
+   else (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6; aux7], Ast.STMT_IF(id, n, i))
+| [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
+   (TA.appendlist [aux1; aux2; aux3], Ast.STMT_BARRIER l)
 
-let program strm = ne_plist statement strm
+let ne_statement_list strm = ne_plist_with_sep_function (comma (fun h t -> h@t)) (as_list statement) strm
+
+let program strm = ne_statement_list strm

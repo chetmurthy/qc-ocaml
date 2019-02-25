@@ -18,7 +18,9 @@
 #load "qasmsyntax_tests.cmo";;
 
 open Misc_functions ;;
+open Qasmsyntax ;;
 open Qasmlex ;;
+open Qasmparser ;;
 
 #trace header ;;
 #trace grab_real ;;

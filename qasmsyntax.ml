@@ -89,6 +89,12 @@ module TokenAux = struct
       endpos = Lexing.lexeme_end_p lb ;
     }
 
+  let mt = {
+      comments = [] ;
+      startpos = Lexing.dummy_pos ;
+      endpos = Lexing.dummy_pos ;
+    }
+
   let append a1 a2 =
     {
       comments = a1.comments @ a2.comments ;

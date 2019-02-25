@@ -45,10 +45,11 @@ let plist_with_sep sep elem = parser
     [< l = (ne_plist_with_sep sep elem) >] -> l
   | [< >] -> []
 
+
 let ne_plist_with_sep_function sep elem = 
- let rec do_rec accumf = parser
-  [< e = elem; l = (parser [< f = sep; l = do_rec (f (accumf e)) >] -> l | [< >] -> e) >] -> l
- in do_rec (fun e -> e)
+ let rec do_rec = parser
+  [< e = elem; rv = (parser [< f = sep; l = do_rec >] -> f e l | [< >] -> e) >] -> rv
+ in do_rec
 
 let clean_left_re = Pcre.regexp ~flags:[`DOTALL] "^\\h*(\\H.*)?$"
 let clean_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*\\H)?\\h*$"
