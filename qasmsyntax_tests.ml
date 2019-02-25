@@ -109,6 +109,38 @@ let expr_parser_tests = "expr parser tests" >:::
      ]
   )
 
+let test_parse_instruction (name, txt, expect) =
+  name >:: (fun ctx ->
+    let ll = make_body_lexer txt in
+    let (aux, e) = instruction ll in
+      assert_equal expect (TokenAux.comment_string aux, e)
+  )
+
+let test_parse_statement (name, txt, expect) =
+  name >:: (fun ctx ->
+    let ll = make_body_lexer txt in
+    let (aux, e) = statement ll in
+      assert_equal expect (TokenAux.comment_string aux, e)
+  )
+
+let statement_parser_tests = "statement parser tests" >:::
+  (List.map test_parse_statement
+     [
+       ("qreg", "qreg q[1];", ("", Ast.STMT_QREG("q", 1)));
+       ("qreg", {|
+qreg //argle
+q[//bargle
+1];|}, ("//argle\n//bargle\n", Ast.STMT_QREG("q", 1)));
+       ("CX", "CX q, b;", ("", Ast.STMT_INSTRUCTION(Ast.CX(Ast.REG "q", Ast.REG "b")))) ;
+       ("if", "if(c==1) CX q, b;", ("", Ast.STMT_IF("c", 1, Ast.CX(Ast.REG "q", Ast.REG "b")))) ;
+       ("if comment", 
+{|if(c==//bargle
+1) CX //argle
+q, b;|},
+ ("//bargle\n//argle\n", Ast.STMT_IF("c", 1, Ast.CX(Ast.REG "q", Ast.REG "b")))) ;
+     ]
+  )
+
 let parser_tests = "parser tests" >:::
   [
   ]
@@ -116,5 +148,5 @@ let parser_tests = "parser tests" >:::
 (* Run the tests in test suite *)
 let _ =
 if invoked_as "qasmsyntax_tests" then
-  run_test_tt_main ("all_tests" >::: [ misc_tests ; lexer_tests; expr_parser_tests; parser_tests ])
+  run_test_tt_main ("all_tests" >::: [ misc_tests ; lexer_tests; expr_parser_tests; statement_parser_tests; parser_tests ])
 ;;
