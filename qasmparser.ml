@@ -3,6 +3,25 @@
 open Misc_functions
 open Qasmsyntax
 
+let expand_include strm =
+  let rec exprec =
+    parser
+  | [< '(_, T_INCLUDE fname) ; strm >] ->
+     let ic = open_in fname in
+     [< exprec (Qasmlex.make_body_lexer_from_channel ~fname ic) ; exprec strm >]
+  | [< 'tok ; strm >] -> [< 'tok ; exprec strm >]
+  | [< >] -> [< >]
+  in
+  exprec strm
+
+let full_parse pfun ?(fname="") buf =
+  let tokstrm = Qasmlex.make_lexer ~fname buf in
+  pfun (expand_include tokstrm)
+
+let body_parse pfun ?(fname="") buf =
+  let tokstrm = Qasmlex.make_body_lexer ~fname buf in
+  pfun (expand_include tokstrm)
+
 let pa_header = parser
 | [< '(_, T_OPENQASM r) >] -> r
                                          
@@ -260,6 +279,9 @@ let statement = parser
 | [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3], Ast.STMT_BARRIER l)
 
-let ne_statement_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list statement) strm
+let ne_statement_list strm = let (h, t) = ne_plist statement strm in h::t
 
 let program strm = ne_statement_list strm
+
+let mainprogram = parser
+| [< vers=pa_header ; l=program >] -> (vers, l)

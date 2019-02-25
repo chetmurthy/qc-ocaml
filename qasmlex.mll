@@ -113,4 +113,10 @@ and token st = parse
     lb.lex_start_p <- { lb.lex_start_p with pos_fname = fname } ;
     lb.lex_curr_p <- { lb.lex_curr_p with pos_fname = fname } ;
     stream_of_lexer_eof_function (fun (_, e) -> e = T_EOF) (body_token "") lb
+
+  let make_body_lexer_from_channel ?(fname="") ic =
+    let lb = Lexing.from_channel ic in
+    lb.lex_start_p <- { lb.lex_start_p with pos_fname = fname } ;
+    lb.lex_curr_p <- { lb.lex_curr_p with pos_fname = fname } ;
+    stream_of_lexer_eof_function (fun (_, e) -> e = T_EOF) (body_token "") lb
 }
