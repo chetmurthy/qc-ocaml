@@ -27,6 +27,11 @@ let body_parse pfun ?(fname="") buf =
   let tokstrm = Qasmlex.make_body_lexer ~fname buf in
   pfun (expand_include tokstrm)
                                          
+let body_parse_from_file pfun fname =
+let ic = open_in fname in
+  let tokstrm = Qasmlex.make_body_lexer_from_channel ~fname ic in
+  pfun (expand_include tokstrm)
+
 (*
          mainprogram: "OPENQASM" real ";" program
          program: statement | program statement

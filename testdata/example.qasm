@@ -1,3 +1,4 @@
+OPENQASM 2.0;
 include "testdata/qelib1.inc";
 qreg q[3];
 qreg r[3];
