@@ -18,12 +18,15 @@
 #load "qasmpp.cmo";;
 #load "qasmsyntax_tests.cmo";;
 
+#print_length 1048576 ;;
+
 open Misc_functions ;;
 open Qasmsyntax ;;
 open Qasmlex ;;
 open Qasmparser ;;
 open Qasmpp ;;
 
+(*
 #trace header ;;
 #trace grab_real ;;
 #trace eat_header_suffix ;;
@@ -32,6 +35,7 @@ open Qasmpp ;;
 #trace grab_include ;;
 #trace eat_include_suffix_1 ;;
 #trace cleanws ;;
+ *)
 
 (*
 let ll = make_body_lexer {|

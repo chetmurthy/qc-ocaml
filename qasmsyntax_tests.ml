@@ -200,10 +200,7 @@ include "testdata/oneline.inc";
 {|OPENQASM 2.0;
 qreg q[1];
 |}) ;
-    test_roundtrip_main_file ("example", "testdata/example.qasm",
-{|OPENQASM 2.0;
-qreg q[1];
-|}) ;
+    test_roundtrip_main_file ("example", "testdata/example.qasm", file_contents "testdata/example.qasm-result") ;
   ]
 
 (* Run the tests in test suite *)

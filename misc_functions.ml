@@ -53,8 +53,9 @@ let ne_plist_with_sep_function sep elem =
 
 let clean_left_re = Pcre.regexp ~flags:[`DOTALL] "^\\h*(\\H.*)?$"
 let clean_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*\\H)?\\h*$"
-
+let nl_re = Pcre.regexp "\r"
 let cleanws s =
+  let s = Pcre.substitute ~rex:nl_re ~subst:(fun s -> "") s in
   let rv1 = Pcre.extract ~rex:clean_left_re s in
   let s = rv1.(1) in
   let rv2 = Pcre.extract ~rex:clean_right_re s in
@@ -86,3 +87,28 @@ let rec prlist_with_sep sep elem l = match l with
   | h::t ->
       let e = elem h and s = sep()
       in [< e; s; prlist_with_sep sep elem t >];;
+
+type ('a,'b) union = Inl of 'a | Inr of 'b
+
+let finally f arg finf =
+  let rv = try Inl(f arg) with e -> Inr e
+  in (try finf arg (match rv with Inl v -> Some v | Inr _ -> None) with e -> ());
+	match rv with
+		Inl v -> v
+	  | Inr e -> raise e
+
+let apply_to_in_channel f fna =
+  let ic = open_in fna in
+    finally
+      f
+      ic
+      (fun _ _ -> close_in ic)
+
+let file_contents fna =
+  apply_to_in_channel
+    (fun ic ->
+       let len = in_channel_length ic in
+       let cbuf = Bytes.create len in
+	 really_input ic cbuf 0 len;
+	 Bytes.to_string cbuf)
+    fna

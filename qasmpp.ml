@@ -90,7 +90,7 @@ let pr_comma = (fun () -> [< '", " >])
     | Ast.STMT_QREG(id, n) ->
        [< '"qreg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
     | Ast.STMT_CREG(id, n) ->
-       [< '"Creg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
+       [< '"creg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
       
   let stmt (aux, s) =
     let commentstring = TA.comment_string aux in
