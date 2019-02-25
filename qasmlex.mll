@@ -101,12 +101,16 @@ and token st = parse
 }
 
 {
-  let make_lexer buf =
+  let make_lexer ?(fname="") buf =
     let st = LexState.mk () in
     let lb = Lexing.from_string buf in
+    lb.lex_start_p <- { lb.lex_start_p with pos_fname = fname } ;
+    lb.lex_curr_p <- { lb.lex_curr_p with pos_fname = fname } ;
     stream_of_lexer_eof_function (fun (_, e) -> e = T_EOF) (token st) lb
 
-  let make_body_lexer buf =
+  let make_body_lexer ?(fname="") buf =
     let lb = Lexing.from_string buf in
+    lb.lex_start_p <- { lb.lex_start_p with pos_fname = fname } ;
+    lb.lex_curr_p <- { lb.lex_curr_p with pos_fname = fname } ;
     stream_of_lexer_eof_function (fun (_, e) -> e = T_EOF) (body_token "") lb
 }

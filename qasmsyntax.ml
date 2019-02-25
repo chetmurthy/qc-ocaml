@@ -107,6 +107,9 @@ module TokenAux = struct
 
   let comment_string a =
     String.concat "" a.comments
+
+  let startpos a = a.startpos
+  let endpos a = a.endpos
 end
 
 type token = TokenAux.t * rawtoken

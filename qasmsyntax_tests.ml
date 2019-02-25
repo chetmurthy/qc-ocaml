@@ -35,17 +35,35 @@ let misc_tests = "misc tests" >:::
   ]
 
 let extract_tokens ll =
-  List.map (fun (a, tok) -> (TokenAux.comment_string a, tok)) (list_of_stream ll)
+  List.map
+    (fun (a, tok) ->
+      (TA.comment_string a,
+       (TA.startpos a).Lexing.pos_fname,
+       tok))
+    (list_of_stream ll)
 
 let lexer_tests = "lexer tests" >:::
   [
+    "fanme" >::
+      (fun ctxt ->
+        let ll = make_lexer ~fname:"foo" {|OPENQASM 2.0;
+// argle bargle
+|} in
+        let toks = list_of_stream ll in
+        assert_equal (List.length toks) 1 ;
+        let (aux, tok) = List.hd toks in
+        assert_equal tok (T_OPENQASM "2.0") ;
+        assert_equal (TA.comment_string aux) "" ;
+        assert_equal (TA.startpos aux).Lexing.pos_fname "foo" ;
+        assert_equal (TA.endpos aux).Lexing.pos_fname "foo" ;
+      ) ;
     "header" >::
       (fun ctxt ->
         let ll = make_lexer {|OPENQASM 2.0;
 // argle bargle
 |} in
         assert_equal (extract_tokens ll) 
-          [("", Qasmsyntax.T_OPENQASM "2.0")]
+          [("", "", T_OPENQASM "2.0")]
       ) ;
     "simple qasm" >::
       (fun ctxt ->
@@ -57,19 +75,19 @@ h q[0];
 CX q[0],q[1];
 |} in
         assert_equal (extract_tokens ll)
-          [("", Qasmsyntax.T_OPENQASM "2.0"); ("", Qasmsyntax.T_INCLUDE "qelib1.inc");
-           ("", Qasmsyntax.T_QREG); ("", Qasmsyntax.T_ID "q");
-           ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 2);
-           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON);
-           ("", Qasmsyntax.T_ID "h"); ("", Qasmsyntax.T_ID "q");
-           ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 0);
-           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON);
-           ("", Qasmsyntax.T_CX); ("", Qasmsyntax.T_ID "q");
-           ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 0);
-           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_COMMA);
-           ("", Qasmsyntax.T_ID "q"); ("", Qasmsyntax.T_LBRACKET);
-           ("", Qasmsyntax.T_INTEGER 1); ("", Qasmsyntax.T_RBRACKET);
-           ("", Qasmsyntax.T_SEMICOLON)]
+          [("", "", T_OPENQASM "2.0"); ("", "", T_INCLUDE "qelib1.inc");
+           ("", "", T_QREG); ("", "", T_ID "q");
+           ("", "", T_LBRACKET); ("", "", T_INTEGER 2);
+           ("", "", T_RBRACKET); ("", "", T_SEMICOLON);
+           ("", "", T_ID "h"); ("", "", T_ID "q");
+           ("", "", T_LBRACKET); ("", "", T_INTEGER 0);
+           ("", "", T_RBRACKET); ("", "", T_SEMICOLON);
+           ("", "", T_CX); ("", "", T_ID "q");
+           ("", "", T_LBRACKET); ("", "", T_INTEGER 0);
+           ("", "", T_RBRACKET); ("", "", T_COMMA);
+           ("", "", T_ID "q"); ("", "", T_LBRACKET);
+           ("", "", T_INTEGER 1); ("", "", T_RBRACKET);
+           ("", "", T_SEMICOLON)]
       ) ;
     "qasm body" >::
       (fun ctxt ->
@@ -81,12 +99,12 @@ h q[// bargle
 0];
 |} in
         assert_equal (extract_tokens ll)
-          [("// argle\n", Qasmsyntax.T_QREG); ("", Qasmsyntax.T_ID "q");
-           ("", Qasmsyntax.T_LBRACKET); ("", Qasmsyntax.T_INTEGER 2);
-           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON);
-           ("", Qasmsyntax.T_ID "h"); ("", Qasmsyntax.T_ID "q");
-           ("", Qasmsyntax.T_LBRACKET); ("// bargle\n", Qasmsyntax.T_INTEGER 0);
-           ("", Qasmsyntax.T_RBRACKET); ("", Qasmsyntax.T_SEMICOLON)]
+          [("// argle\n", "", T_QREG); ("", "", T_ID "q");
+           ("", "", T_LBRACKET); ("", "", T_INTEGER 2);
+           ("", "", T_RBRACKET); ("", "", T_SEMICOLON);
+           ("", "", T_ID "h"); ("", "", T_ID "q");
+           ("", "", T_LBRACKET); ("// bargle\n", "", T_INTEGER 0);
+           ("", "", T_RBRACKET); ("", "", T_SEMICOLON)]
       ) ;
   ]
 
@@ -94,7 +112,7 @@ let test_parse_expr (name, txt, expect) =
   name >:: (fun ctx ->
     let ll = make_body_lexer txt in
     let (aux, e) = expr ll in
-      assert_equal expect (TokenAux.comment_string aux, e)
+      assert_equal expect (TA.comment_string aux, e)
   )
 
 let expr_parser_tests = "expr parser tests" >:::
@@ -113,14 +131,14 @@ let test_parse_instruction (name, txt, expect) =
   name >:: (fun ctx ->
     let ll = make_body_lexer txt in
     let (aux, e) = instruction ll in
-      assert_equal expect (TokenAux.comment_string aux, e)
+      assert_equal expect (TA.comment_string aux, e)
   )
 
 let test_parse_statement (name, txt, expect) =
   name >:: (fun ctx ->
     let ll = make_body_lexer txt in
     let (aux, e) = statement ll in
-      assert_equal expect (TokenAux.comment_string aux, e)
+      assert_equal expect (TA.comment_string aux, e)
   )
 
 let statement_parser_tests = "statement parser tests" >:::

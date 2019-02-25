@@ -31,6 +31,7 @@ open Qasmparser ;;
 #trace eat_include_suffix_1 ;;
 #trace cleanws ;;
 
+(*
 let ll = make_body_lexer {|
 // argle
 qreg q[2];
@@ -39,7 +40,7 @@ h q[// bargle
 0];
 |}
  ;;
-
+ *)
 
 
 (*
