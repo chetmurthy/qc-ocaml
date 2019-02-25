@@ -93,11 +93,15 @@ and body_token wscom =
 | id_regexp { (TA.mk wscom lexbuf, T_ID (Lexing.lexeme lexbuf)) }
 
 and token st = parse
-| "" { if LexState.is_at_head st then begin
-           LexState.past_head st ;
-           header lexbuf
-         end
-       else body_token "" lexbuf
+| "" { try
+      if LexState.is_at_head st then begin
+          LexState.past_head st ;
+          header lexbuf
+        end
+      else body_token "" lexbuf
+    with Failure _ ->
+      let p = Lexing.lexeme_start_p lexbuf in
+      raise (SyntaxError (Printf.sprintf "lexing: failed in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
 }
 
 {

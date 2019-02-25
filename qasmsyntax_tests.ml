@@ -66,6 +66,13 @@ let lexer_tests = "lexer tests" >:::
         assert_equal (extract_tokens ll) 
           [("", "", T_OPENQASM "2.0")]
       ) ;
+    "header fail" >::
+      (fun ctxt ->
+        assert_raises ~msg:"should raise SyntaxError"
+          (SyntaxError "lexing: failed in file \"\" at char 9") (fun () ->
+            list_of_stream (make_lexer {|OPENQASM 2.0|})
+          ) ;
+      ) ;
     "simple qasm" >::
       (fun ctxt ->
         let ll = make_lexer {|OPENQASM 2.0;
@@ -201,6 +208,12 @@ include "testdata/oneline.inc";
 qreg q[1];
 |}) ;
     test_roundtrip_main_file ("example", "testdata/example.qasm", file_contents "testdata/example.qasm-result") ;
+    "fail">:: (fun ctxt ->
+      assert_raises ~msg:"should raise SyntaxError"
+        (SyntaxError "lexing: failed in file \"testdata/example_fail.qasm\" at char 9")
+               (fun () ->
+                 full_parse_from_file PA.mainprogram "testdata/example_fail.qasm")
+    ) ;
   ]
 
 (* Run the tests in test suite *)
