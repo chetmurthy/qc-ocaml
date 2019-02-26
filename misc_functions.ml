@@ -112,3 +112,57 @@ let file_contents fna =
 	 really_input ic cbuf 0 len;
 	 Bytes.to_string cbuf)
     fna
+
+let subset l1 l2 =
+  let t2 = Hashtbl.create 151 in
+    List.iter (fun x-> Hashtbl.add t2 x ()) l2;
+    let rec look = function
+    [] -> true
+      | x::ll -> try Hashtbl.find t2 x; look ll
+        with Not_found -> false
+    in look l1
+
+let same_members s1 s2 = subset s1 s2 && subset s2 s1
+
+let rec uniquize = function
+    [] -> []
+  | (h::t) -> if List.mem h t then uniquize t else h::(uniquize t)
+let make_set = uniquize
+
+let add_set a fs = if List.mem a fs then fs else (a::fs)
+
+let rec rmv_set a ls =
+  match ls with
+      (h::t) -> if h = a then t else h::(rmv_set a t)
+    | _ -> failwith "listset__rmv"
+
+let try_find f = 
+ let rec try_find_f = function
+     [] -> failwith "try_find"
+   | h::t -> try f h with Failure _ -> try_find_f t
+ in try_find_f
+
+let filter p =
+  let rec filter_aux = function
+      [] -> []
+    | x::l -> if p x then x::filter_aux l else filter_aux l
+  in filter_aux
+
+let rec last = function
+    [] -> failwith "last"
+  | x::[] -> x
+  | x::l -> last l
+
+let for_all p = 
+ let rec for_all_p = function
+     [] -> true | a::l -> p a && for_all_p l
+ in for_all_p
+
+let exists p l = not(for_all (function x -> not(p x)) l)
+
+let push l x = (l := x :: !l)
+let pop l =
+    match !l with
+    h::tl -> l := tl
+  | [] -> invalid_arg "pop"
+let top l = List.hd !l

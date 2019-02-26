@@ -5,10 +5,10 @@ OCAMLCFLAGS=-g
 PACKAGES=-package oUnit,oUnit.advanced,pcre,ocamlgraph
 PACKAGES1=-package camlp5,oUnit,oUnit.advanced,pcre,ocamlgraph -syntax camlp5o
 
-ML= misc_functions.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml
-MLI= 
+ML= misc_functions.ml gmap.ml gset.ml coll.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml
+MLI= gmap.mli gset.mli
 
-SRC=qasmlex.ml qasmsyntax_tests.ml
+SRC=qasmlex.ml qasmsyntax_tests.ml coll.ml gmap.ml gset.ml
 SRCP5=qasmparser.ml qasmpp.ml misc_functions.ml qasmsyntax.ml qasmdag0.ml
 
 CMO= $(ML:.ml=.cmo)
