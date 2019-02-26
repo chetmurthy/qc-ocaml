@@ -438,16 +438,54 @@ end
 module TYCHK = struct
   open Coll
 
-  type env_t = {
-      gates: (string, TA.t AST.gatedecl_t) LM.t ;
-      cparams: (string, AST.cparamvar_t AST.expr) LM.t ;
-    }
-  
   exception TypeError of string
 
-  let _expr check_cparam (cst : CST.expr) =
+  module Env = struct
+    type t = {
+        gates: (string, TA.t AST.gatedecl_t) LM.t ;
+        qregs: (string, int) LM.t ;
+        cregs: (string, int) LM.t ;
+      }
+
+    let mk () = { gates = LM.mk() ; qregs = LM.mk() ; cregs = LM.mk() }
+
+    let add_gate envs (id, v) = { envs with gates = LM.add envs.gates (id,v) }
+    let add_qreg envs (id, v) = { envs with qregs = LM.add envs.qregs (id,v) }
+    let add_creg envs (id, v) = { envs with cregs = LM.add envs.cregs (id,v) }
+
+    let has_gate envs id = LM.in_dom envs.gates id
+
+    let must_have_gate envs id =
+      if not (has_gate envs id) then
+        raise (TypeError (Printf.sprintf "gate %s not declared" id))
+
+    let must_not_have_gate envs id =
+      if has_gate envs id then
+        raise (TypeError (Printf.sprintf "gate %s already declared" id))
+
+    let has_creg envs id = LM.in_dom envs.cregs id
+    let lookup_creg envs id =
+      if has_creg envs id then AST.CREG id
+      else raise (TypeError(Printf.sprintf "creg %s not declared" id))
+
+    let must_not_have_creg envs id =
+      if has_creg envs id then
+        raise (TypeError(Printf.sprintf "creg %s already declared" id))
+
+    let has_qreg envs id = LM.in_dom envs.qregs id
+    let lookup_qreg envs id =
+      if has_qreg envs id then AST.QREG id
+      else raise (TypeError(Printf.sprintf "qreg %s not declared" id))
+
+    let must_not_have_qreg envs id =
+      if has_qreg envs id then
+        raise (TypeError(Printf.sprintf "qreg %s already declared" id))
+
+  end
+
+  let _expr cparam (cst : CST.expr) =
     let rec erec = function
-      | CST.ID id -> AST.ID (check_cparam id)
+      | CST.ID id -> AST.ID (cparam id)
       | REAL r -> AST.REAL r
       | NNINT n -> AST.NNINT n
       | PI -> AST.PI
@@ -465,26 +503,61 @@ module TYCHK = struct
       | SQRT e1 -> AST.SQRT(erec e1)
     in erec cst
 
-  let raw_gate_op _ (cst: CST.raw_gate_op_t) =
-    (failwith "unimplemented" : AST.raw_gate_op_t)
+  let lookup_or_indexed f envs arg =
+    match arg with
+    | CST.REG id -> AST.IT (f envs id)
+    | BIT (id, n) -> AST.INDEXED(f envs id, n)
 
-  let gate_op envs (aux, cst) =
-    (aux, raw_gate_op envs cst)
+  let cpaarm_fail id = raise (TypeError (Printf.sprintf "classical param not permitted (%s)" id))
 
-  let raw_qop _ (cst: CST.raw_qop_t) =
-    (failwith "unimplemented" : AST.raw_qop_t)
+  let raw_uop envs cparam qarg = function
+    | CST.U(el, qr) -> AST.U(List.map (_expr cparam) el, qarg qr)
+    | CX(qr1, qr2) -> AST.CX(qarg qr1, qarg qr2)
+    | COMPOSITE_GATE(gateid, cparam_actuals, qal) ->
+       Env.must_have_gate envs gateid ;
+       AST.COMPOSITE_GATE(gateid, List.map (_expr cparam) cparam_actuals, List.map qarg qal)
+
+  let raw_gate_op envs cparam qarg (cst: CST.raw_gate_op_t) =
+    match cst with
+    | CST.GATE_UOP u ->
+       AST.GATE_UOP (raw_uop envs cparam qarg u)
+    | GATE_BARRIER l -> AST.GATE_BARRIER(List.map (fun id -> qarg (CST.REG id)) l)
+
+  let gate_op envs cparam qarg (aux, cst) =
+    (aux, raw_gate_op envs cparam qarg cst)
+
+  let raw_qop envs (cst: CST.raw_qop_t) =
+    let cparam id =
+      raise (TypeError(Printf.sprintf "cparams not permitted here (\"%s\")" id)) in
+    let qarg x = lookup_or_indexed Env.lookup_qreg envs x in
+    let carg x = lookup_or_indexed Env.lookup_creg envs x in
+    match cst with
+    | CST.UOP u ->
+       AST.UOP(raw_uop envs cparam qarg u)
+
+    | MEASURE(q, c) -> AST.MEASURE(qarg q, carg c)
+
+    | RESET q -> AST.RESET (qarg q)
 
   let qop envs (aux, cst) =
     (aux, raw_qop envs cst)
 
-  let lookup_creg envs id = (failwith "unimplemented" : AST.creg_t)
-  let lookup_qreg envs id = (failwith "unimplemented" : AST.qreg_t)
-
   let raw_stmt envs (cst: 'aux CST.raw_stmt_t) =
     match cst with
     | CST.STMT_GATEDECL(gateid, param_formals, qubit_formals, gopl) ->
+       Env.must_not_have_gate envs gateid ;
+       let cparam id =
+         if List.mem id param_formals then AST.CPARAMVAR id
+         else raise (TypeError(Printf.sprintf "cparam %s not declared" id)) in
+       let qarg = function
+         | CST.REG id ->
+            if List.mem id qubit_formals then AST.QUBIT id
+            else raise (TypeError(Printf.sprintf "qarg %s not declared" id))
+         | BIT (id, n) ->
+            raise (TypeError(Printf.sprintf "qarg %s[%n] not permitted in composite-gate definition body" id n)) in
+
        AST.STMT_GATEDECL(gateid, param_formals, qubit_formals,
-                         List.map (gate_op envs) gopl)
+                         List.map (gate_op envs cparam qarg) gopl)
       
     | STMT_OPAQUEDECL(gateid, param_formals, qubit_formals) ->
        AST.STMT_OPAQUEDECL(gateid, param_formals, qubit_formals)
@@ -492,11 +565,34 @@ module TYCHK = struct
     | STMT_QOP q -> AST.STMT_QOP(raw_qop envs q)
 
     | STMT_IF(id, n, q) ->
-       AST.STMT_IF(lookup_creg envs id, n, raw_qop envs q)
+       AST.STMT_IF(Env.lookup_creg envs id, n, raw_qop envs q)
 
-(*
-    | STMT_BARRIER ids -> AST.STMT_BARRIER(List.map (lookup_qreg envs) ids)
-    | STMT_QREG of string * int
-    | STMT_CREG of string * int
- *)
+    | STMT_BARRIER l ->
+       AST.STMT_BARRIER(List.map (lookup_or_indexed Env.lookup_qreg envs) l)
+
+    | STMT_QREG(id, n) ->
+       Env.must_not_have_qreg envs id ;
+       AST.STMT_QREG(id, n)
+
+    | STMT_CREG(id, n) ->
+       Env.must_not_have_creg envs id ;
+       AST.STMT_CREG(id, n)
+
+  let stmt envs (aux, rst) = (aux,raw_stmt envs rst)
+
+  let program l =
+    let stmt1 envs cst =
+      let (aux, rst as stmt) = stmt envs cst in
+      match rst with
+      | STMT_QREG(id, n) -> (Env.add_qreg envs (id, n), stmt)
+      | STMT_CREG(id, n) -> (Env.add_creg envs (id, n), stmt)
+      | STMT_GATEDECL(gateid, param_formals, qubit_formals, gopl) ->
+         (Env.add_gate envs (gateid, (gateid, param_formals, qubit_formals, gopl)),
+          stmt)
+      | _ -> (envs, stmt)
+    in
+    List.fold_left (fun (envs,acc) stmt ->
+        let (envs, stmt) = stmt1 envs stmt in
+        (envs, stmt::acc))
+      (Env.mk(), []) l
 end
