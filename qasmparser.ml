@@ -96,22 +96,22 @@ module Ast = struct
   | SQRT of expr
 
 
-  type bit_or_reg_t =
+  type id_or_indexed_t =
     | REG of string
     | BIT of string * int
 
-  type raw_instruction_t =
-    | U of expr list * bit_or_reg_t
-    | CX of bit_or_reg_t * bit_or_reg_t
-    | COMPOSITE_GATE of string * expr list * bit_or_reg_t list
-    | MEASURE of bit_or_reg_t * bit_or_reg_t
-    | RESET of bit_or_reg_t
+  type raw_qop_t =
+    | U of expr list * id_or_indexed_t
+    | CX of id_or_indexed_t * id_or_indexed_t
+    | COMPOSITE_GATE of string * expr list * id_or_indexed_t list
+    | MEASURE of id_or_indexed_t * id_or_indexed_t
+    | RESET of id_or_indexed_t
 
-  type instruction_t =
-    TA.t * raw_instruction_t
+  type qop_t =
+    TA.t * raw_qop_t
 
   type raw_gate_op_t =
-    GATE_INSTRUCTION of raw_instruction_t
+    GATE_QOP of raw_qop_t
   | GATE_BARRIER of string list
 
   type gate_op_t =
@@ -120,8 +120,8 @@ module Ast = struct
   type raw_stmt_t =
     | STMT_GATEDECL of string * string list * string list * gate_op_t list
     | STMT_OPAQUEDECL of string * string list * string list
-    | STMT_INSTRUCTION of raw_instruction_t
-    | STMT_IF of string * int * raw_instruction_t
+    | STMT_QOP of raw_qop_t
+    | STMT_IF of string * int * raw_qop_t
     | STMT_BARRIER of string list
     | STMT_QREG of string * int
     | STMT_CREG of string * int
@@ -196,7 +196,7 @@ and expr4 = parser
 and expr = parser
 | [< e=expr4 >] -> e
 
-let bit_or_reg = parser
+let id_or_indexed = parser
 | [< '(aux1, T_ID id) ; rv=(parser
                         | [< '(aux2, T_LBRACKET); '(aux3, T_INTEGER n); '(aux4, T_RBRACKET) >] ->
                         if n < 0 then raise (SyntaxError "negative integer not valid in register index")
@@ -219,14 +219,14 @@ let possibly_empty pfun = parser
 | [< l=pfun >] -> l
 | [< >] -> (TA.mt, [])
 
-let ne_bit_or_reg_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list_lift_aux bit_or_reg) strm
+let ne_id_or_indexed_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list_lift_aux id_or_indexed) strm
 
 let ne_id_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list_lift_aux id) strm
 
-let instruction = parser
-| [< '(aux1, T_U) ; '(aux2, T_LPAREN) ; (aux3, el)=ne_explist ; '(aux4, T_RPAREN) ; (aux5, a)=bit_or_reg ; '(aux6, T_SEMICOLON) >] ->
+let qop = parser
+| [< '(aux1, T_U) ; '(aux2, T_LPAREN) ; (aux3, el)=ne_explist ; '(aux4, T_RPAREN) ; (aux5, a)=id_or_indexed ; '(aux6, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6], Ast.U(el, a))
-| [< '(aux1,T_CX) ; (aux2, a1)=bit_or_reg ; '(aux3, T_COMMA) ; (aux4, a2)=bit_or_reg ; '(aux5, T_SEMICOLON) >] ->
+| [< '(aux1,T_CX) ; (aux2, a1)=id_or_indexed ; '(aux3, T_COMMA) ; (aux4, a2)=id_or_indexed ; '(aux5, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3; aux4; aux5], Ast.CX(a1, a2))
 | [< '(aux1, T_ID gateid) ;
    (aux2, params)=(parser
@@ -234,16 +234,16 @@ let instruction = parser
                    (TA.appendlist [paux1; paux2; paux3], l)
                   | [< >] -> (TA.mt, [])
                   ) ;
-   (aux3, regs)=ne_bit_or_reg_list ;
+   (aux3, regs)=ne_id_or_indexed_list ;
     '(aux4, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3; aux4], Ast.COMPOSITE_GATE(gateid, params, regs))
-| [< '(aux1, T_MEASURE) ; (aux2, l)=bit_or_reg ; '(aux3, T_DASHGT) ; (aux4, r)=bit_or_reg ; '(aux5, T_SEMICOLON) >] ->
+| [< '(aux1, T_MEASURE) ; (aux2, l)=id_or_indexed ; '(aux3, T_DASHGT) ; (aux4, r)=id_or_indexed ; '(aux5, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3; aux4; aux5], Ast.MEASURE(l, r))
-| [< '(aux1, T_RESET) ; (aux2, l)=bit_or_reg ; '(aux3, T_SEMICOLON) >] ->
+| [< '(aux1, T_RESET) ; (aux2, l)=id_or_indexed ; '(aux3, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3], Ast.RESET(l))
 
 let gop = parser
-| [< (aux, i)=instruction >] -> (aux, Ast.GATE_INSTRUCTION i)
+| [< (aux, i)=qop >] -> (aux, Ast.GATE_QOP i)
 | [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3], Ast.GATE_BARRIER l)
 
@@ -289,8 +289,8 @@ let statement = parser
 | [< d=reg_decl >] -> d
 | [< d=gatedecl >] -> d
 | [< d=opaquedecl >] -> d
-| [< (aux, i)=instruction >] -> (aux, Ast.STMT_INSTRUCTION i)
-| [< '(aux1, T_IF) ; '(aux2, T_LPAREN) ; '(aux3, T_ID id) ; '(aux4, T_EQEQ) ; '(aux5, T_INTEGER n) ; '(aux6, T_RPAREN) ; (aux7, i)=instruction >] ->
+| [< (aux, i)=qop >] -> (aux, Ast.STMT_QOP i)
+| [< '(aux1, T_IF) ; '(aux2, T_LPAREN) ; '(aux3, T_ID id) ; '(aux4, T_EQEQ) ; '(aux5, T_INTEGER n) ; '(aux6, T_RPAREN) ; (aux7, i)=qop >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in if statment")
    else (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6; aux7], Ast.STMT_IF(id, n, i))
 | [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
@@ -303,4 +303,44 @@ let program strm = ne_statement_list strm
 let mainprogram = parser
 | [< vers=header ; l=program >] -> (vers, l)
 
+end
+
+module PROG = struct
+  type param_var_t =
+    | CPARAM of string
+
+  type gate_bit_t =
+    | QUBIT of string
+
+  type main_var_t =
+    | CREG of string
+    | QREG of string
+
+  type 'a expr =
+    | ID of 'a
+    | REAL of RealNumeral.t
+    | NNINT of int
+    | PI
+    | ADD of 'a expr * 'a expr
+    | SUB of 'a expr * 'a expr
+    | MUL of 'a expr * 'a expr
+    | DIV of 'a expr * 'a expr
+    | UMINUS of 'a expr
+    | XOR of 'a expr * 'a expr
+    | SIN of 'a expr
+    | COS of 'a expr
+    | TAN of 'a expr
+    | EXP of 'a expr
+    | LN of 'a expr
+    | SQRT of 'a expr
+
+(*
+  type raw_qop_t =
+    | U of expr list * id_or_indexed_t
+    | CX of id_or_indexed_t * id_or_indexed_t
+    | COMPOSITE_GATE of string * expr list * id_or_indexed_t list
+    | MEASURE of id_or_indexed_t * id_or_indexed_t
+    | RESET of id_or_indexed_t
+
+ *)
 end
