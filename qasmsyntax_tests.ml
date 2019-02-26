@@ -125,12 +125,12 @@ let test_parse_expr (name, txt, expect) =
 let expr_parser_tests = "expr parser tests" >:::
   (List.map test_parse_expr 
      [
-       ("nnint", "1", ("", Ast.NNINT 1));
-       ("real 0", "0.e+0", ("", Ast.REAL "0.e+0"));
-       ("id", "x", ("", Ast.ID "x"));
-       ("uminus", "-x", ("", Ast.UMINUS (Ast.ID "x"))) ;
-       ("uminus comment", " // argle\n -x", ("// argle\n", Ast.UMINUS (Ast.ID "x"))) ;
-       ("uminus comment 2", "-// argle\n x", ("// argle\n", Ast.UMINUS (Ast.ID "x"))) ;
+       ("nnint", "1", ("", CST.NNINT 1));
+       ("real 0", "0.e+0", ("", CST.REAL "0.e+0"));
+       ("id", "x", ("", CST.ID "x"));
+       ("uminus", "-x", ("", CST.UMINUS (CST.ID "x"))) ;
+       ("uminus comment", " // argle\n -x", ("// argle\n", CST.UMINUS (CST.ID "x"))) ;
+       ("uminus comment 2", "-// argle\n x", ("// argle\n", CST.UMINUS (CST.ID "x"))) ;
      ]
   )
 
@@ -158,24 +158,24 @@ let test_parse_statement (name, txt, expect) =
 let statement_parser_tests = "statement parser tests" >:::
   ((List.map test_parse_statement
      [
-       ("qreg", "qreg q[1];", ("", Ast.STMT_QREG("q", 1)));
+       ("qreg", "qreg q[1];", ("", CST.STMT_QREG("q", 1)));
        ("qreg", {|
 qreg //argle
 q[//bargle
-1];|}, ("//argle\n//bargle\n", Ast.STMT_QREG("q", 1)));
-       ("CX", "CX q, b;", ("", Ast.STMT_QOP(Ast.UOP (Ast.CX(Ast.REG "q", Ast.REG "b"))))) ;
-       ("cx", "cx a, b;", ("", Ast.STMT_QOP(Ast.UOP (Ast.COMPOSITE_GATE("cx", [], [Ast.REG "a"; Ast.REG "b"]))))) ;
-       ("if", "if(c==1) CX q, b;", ("", Ast.STMT_IF("c", 1, Ast.UOP (Ast.CX(Ast.REG "q", Ast.REG "b"))))) ;
+1];|}, ("//argle\n//bargle\n", CST.STMT_QREG("q", 1)));
+       ("CX", "CX q, b;", ("", CST.STMT_QOP(CST.UOP (CST.CX(CST.REG "q", CST.REG "b"))))) ;
+       ("cx", "cx a, b;", ("", CST.STMT_QOP(CST.UOP (CST.COMPOSITE_GATE("cx", [], [CST.REG "a"; CST.REG "b"]))))) ;
+       ("if", "if(c==1) CX q, b;", ("", CST.STMT_IF("c", 1, CST.UOP (CST.CX(CST.REG "q", CST.REG "b"))))) ;
        ("if comment", 
 {|if(c==//bargle
 1) CX //argle
 q, b;|},
- ("//bargle\n//argle\n", Ast.STMT_IF("c", 1, Ast.UOP (Ast.CX(Ast.REG "q", Ast.REG "b"))))) ;
-       ("gate 1", "gate g a, b { cx a, b; }", ("", Ast.STMT_GATEDECL ("g", [], ["a"; "b"],
+ ("//bargle\n//argle\n", CST.STMT_IF("c", 1, CST.UOP (CST.CX(CST.REG "q", CST.REG "b"))))) ;
+       ("gate 1", "gate g a, b { cx a, b; }", ("", CST.STMT_GATEDECL ("g", [], ["a"; "b"],
                                                                       [("",
-                                                                        Ast.GATE_UOP
-                                                                          (Ast.COMPOSITE_GATE ("cx", [],
-                                                                                               [Ast.REG "a"; Ast.REG "b"])))]))) ;
+                                                                        CST.GATE_UOP
+                                                                          (CST.COMPOSITE_GATE ("cx", [],
+                                                                                               [CST.REG "a"; CST.REG "b"])))]))) ;
 
      ]) @ [
     "fail">:: (fun ctxt ->
