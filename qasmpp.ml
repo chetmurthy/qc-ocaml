@@ -47,11 +47,14 @@ module PP = struct
 
 let pr_comma = (fun () -> [< '", " >])
 
-  let raw_qop ?(prefix="") = function
+  let raw_uop ?(prefix="") = function
     | Ast.U(el, a) -> [< 'prefix ; '"U(" ; prlist_with_sep pr_comma expr el ; '") " ; id_or_indexed a ; '";\n" >]
     | Ast.CX(l, r) -> [< 'prefix ; '"CX " ; id_or_indexed l ; '", "; id_or_indexed r ; '";\n"; >]
     | Ast.COMPOSITE_GATE(gateid, params, regs) ->
        [< 'prefix ; 'gateid ; '" (" ; prlist_with_sep pr_comma expr params  ; '") " ; prlist_with_sep pr_comma id_or_indexed regs ; '";\n" >]
+
+  let raw_qop ?(prefix="") = function
+    | Ast.UOP u -> raw_uop ~prefix u
     | Ast.MEASURE(l, r) -> [< 'prefix ; '"measure " ; id_or_indexed l ; '", "; id_or_indexed r ; '";\n" >]
     | Ast.RESET l -> [< 'prefix ; '"reset " ; id_or_indexed l ; '";\n" >]
 
@@ -64,7 +67,7 @@ let pr_comma = (fun () -> [< '", " >])
   let pr_id s = [< 's >]
 
   let raw_gate_op = function
-    | Ast.GATE_QOP i -> raw_qop ~prefix:"  " i
+    | Ast.GATE_UOP i -> raw_uop ~prefix:"  " i
     | Ast.GATE_BARRIER l -> [< '"  " ; '"barrier "; prlist_with_sep pr_comma pr_id l ; '";\n" >]
 
   let gate_op (aux, gop) =

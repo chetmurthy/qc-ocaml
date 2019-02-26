@@ -154,14 +154,23 @@ let statement_parser_tests = "statement parser tests" >:::
 qreg //argle
 q[//bargle
 1];|}, ("//argle\n//bargle\n", Ast.STMT_QREG("q", 1)));
-       ("CX", "CX q, b;", ("", Ast.STMT_QOP(Ast.CX(Ast.REG "q", Ast.REG "b")))) ;
-       ("cx", "cx a, b;", ("", Ast.STMT_QOP(Ast.COMPOSITE_GATE("cx", [], [Ast.REG "a"; Ast.REG "b"])))) ;
-       ("if", "if(c==1) CX q, b;", ("", Ast.STMT_IF("c", 1, Ast.CX(Ast.REG "q", Ast.REG "b")))) ;
+       ("CX", "CX q, b;", ("", Ast.STMT_QOP(Ast.UOP (Ast.CX(Ast.REG "q", Ast.REG "b"))))) ;
+       ("cx", "cx a, b;", ("", Ast.STMT_QOP(Ast.UOP (Ast.COMPOSITE_GATE("cx", [], [Ast.REG "a"; Ast.REG "b"]))))) ;
+       ("if", "if(c==1) CX q, b;", ("", Ast.STMT_IF("c", 1, Ast.UOP (Ast.CX(Ast.REG "q", Ast.REG "b"))))) ;
        ("if comment", 
 {|if(c==//bargle
 1) CX //argle
 q, b;|},
- ("//bargle\n//argle\n", Ast.STMT_IF("c", 1, Ast.CX(Ast.REG "q", Ast.REG "b")))) ;
+ ("//bargle\n//argle\n", Ast.STMT_IF("c", 1, Ast.UOP (Ast.CX(Ast.REG "q", Ast.REG "b"))))) ;
+       ("gate 1", "gate g a, b { cx a, b; }", ("", Ast.STMT_GATEDECL ("g", [], ["a"; "b"],
+                                                                      [({TA.comments = [""; ""; ""; ""; ""];
+                                                                         startpos =
+                                                                           {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 14};
+                                                                         endpos =
+                                                                           {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 22}},
+                                                                        Ast.GATE_UOP
+                                                                          (Ast.COMPOSITE_GATE ("cx", [],
+                                                                                               [Ast.REG "a"; Ast.REG "b"])))]))) ;
      ]
   )
 

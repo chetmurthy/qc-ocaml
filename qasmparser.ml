@@ -100,10 +100,13 @@ module Ast = struct
     | REG of string
     | BIT of string * int
 
-  type raw_qop_t =
+  type raw_uop_t =
     | U of expr list * id_or_indexed_t
     | CX of id_or_indexed_t * id_or_indexed_t
     | COMPOSITE_GATE of string * expr list * id_or_indexed_t list
+
+  type raw_qop_t =
+    | UOP of raw_uop_t
     | MEASURE of id_or_indexed_t * id_or_indexed_t
     | RESET of id_or_indexed_t
 
@@ -111,7 +114,7 @@ module Ast = struct
     TA.t * raw_qop_t
 
   type raw_gate_op_t =
-    GATE_QOP of raw_qop_t
+    GATE_UOP of raw_uop_t
   | GATE_BARRIER of string list
 
   type gate_op_t =
@@ -223,7 +226,7 @@ let ne_id_or_indexed_list strm = ne_plist_with_sep_function (aux_comma (fun h t 
 
 let ne_id_list strm = ne_plist_with_sep_function (aux_comma (fun h t -> h@t)) (as_list_lift_aux id) strm
 
-let qop = parser
+let uop = parser
 | [< '(aux1, T_U) ; '(aux2, T_LPAREN) ; (aux3, el)=ne_explist ; '(aux4, T_RPAREN) ; (aux5, a)=id_or_indexed ; '(aux6, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6], Ast.U(el, a))
 | [< '(aux1,T_CX) ; (aux2, a1)=id_or_indexed ; '(aux3, T_COMMA) ; (aux4, a2)=id_or_indexed ; '(aux5, T_SEMICOLON) >] ->
@@ -237,13 +240,17 @@ let qop = parser
    (aux3, regs)=ne_id_or_indexed_list ;
     '(aux4, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3; aux4], Ast.COMPOSITE_GATE(gateid, params, regs))
+
+let qop = parser
+| [< (aux,u)=uop >] -> (aux, Ast.UOP u)
+
 | [< '(aux1, T_MEASURE) ; (aux2, l)=id_or_indexed ; '(aux3, T_DASHGT) ; (aux4, r)=id_or_indexed ; '(aux5, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3; aux4; aux5], Ast.MEASURE(l, r))
 | [< '(aux1, T_RESET) ; (aux2, l)=id_or_indexed ; '(aux3, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3], Ast.RESET(l))
 
 let gop = parser
-| [< (aux, i)=qop >] -> (aux, Ast.GATE_QOP i)
+| [< (aux, i)=uop >] -> (aux, Ast.GATE_UOP i)
 | [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3], Ast.GATE_BARRIER l)
 
