@@ -11,6 +11,8 @@
 #require "pcre";;
 #require "oUnit";;
 #require "oUnit.advanced";;
+#require "ocamlgraph" ;;
+
 #load "misc_functions.cmo";;
 #load "qasmsyntax.cmo";;
 #load "qasmlex.cmo";;
