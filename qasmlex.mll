@@ -45,11 +45,11 @@ and eat_include_suffix_1 rv =
   parse
 | '"' white? ";" { rv }
 
-and body_token wscom =
+and body_token0 wscom =
   parse
-| white+ { assert (wscom = "") ; body_token "" lexbuf }
-| newline { assert (wscom = "") ; body_token "" lexbuf }
-| (comment_regexp (white|newline)*)+ { body_token (Lexing.lexeme lexbuf) lexbuf }
+| white+ { assert (wscom = "") ; body_token0 "" lexbuf }
+| newline { assert (wscom = "") ; body_token0 "" lexbuf }
+| (comment_regexp (white|newline)*)+ { body_token0 (Lexing.lexeme lexbuf) lexbuf }
 
 | "include" white+ '"' { grab_include wscom lexbuf }
 | ';' { (TA.mk wscom lexbuf, T_SEMICOLON) }
@@ -92,19 +92,25 @@ and body_token wscom =
 | integer_regexp { (TA.mk wscom lexbuf, T_INTEGER (int_of_string (Lexing.lexeme lexbuf))) }
 | id_regexp { (TA.mk wscom lexbuf, T_ID (Lexing.lexeme lexbuf)) }
 
-and token st = parse
-| "" { try
+{
+  let token st lexbuf =
+    try
       if LexState.is_at_head st then begin
           LexState.past_head st ;
           header lexbuf
         end
-      else body_token "" lexbuf
+      else body_token0 "" lexbuf
     with Failure _ ->
       let p = Lexing.lexeme_start_p lexbuf in
       raise (SyntaxError (Printf.sprintf "lexing: failed in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
-}
 
-{
+  let body_token coms lexbuf =
+    try
+      body_token0 coms lexbuf
+    with Failure _ ->
+      let p = Lexing.lexeme_start_p lexbuf in
+      raise (SyntaxError (Printf.sprintf "lexing: failed in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
+
   let make_lexer ?(fname="") buf =
     let st = LexState.mk () in
     let lb = Lexing.from_string buf in

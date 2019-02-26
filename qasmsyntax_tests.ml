@@ -68,7 +68,7 @@ let lexer_tests = "lexer tests" >:::
       ) ;
     "header fail" >::
       (fun ctxt ->
-        assert_raises ~msg:"should raise SyntaxError"
+        assert_raises ~msg:"should raise SyntaxError(lexing)"
           (SyntaxError "lexing: failed in file \"\" at char 9") (fun () ->
             list_of_stream (make_lexer {|OPENQASM 2.0|})
           ) ;
@@ -156,7 +156,7 @@ let test_parse_statement (name, txt, expect) =
   )
 
 let statement_parser_tests = "statement parser tests" >:::
-  (List.map test_parse_statement
+  ((List.map test_parse_statement
      [
        ("qreg", "qreg q[1];", ("", Ast.STMT_QREG("q", 1)));
        ("qreg", {|
@@ -176,7 +176,15 @@ q, b;|},
                                                                         Ast.GATE_UOP
                                                                           (Ast.COMPOSITE_GATE ("cx", [],
                                                                                                [Ast.REG "a"; Ast.REG "b"])))]))) ;
-     ]
+
+     ]) @ [
+    "fail">:: (fun ctxt ->
+      assert_raises ~msg:"should raise SyntaxError(parsing)"
+        (SyntaxError "parse error in file \"\" at char 23")
+               (fun () ->
+                 body_parse PA.statement "gate g a, b { cx a, b; measure a->b ;}")
+    ) ;
+   ]
   )
 
 let test_roundtrip_main_buf (name, txt, expect) =
@@ -223,7 +231,7 @@ qreg q[1];
 |}) ;
     test_roundtrip_main_file ("example", "testdata/example.qasm", file_contents "testdata/example.qasm-result") ;
     "fail">:: (fun ctxt ->
-      assert_raises ~msg:"should raise SyntaxError"
+      assert_raises ~msg:"should raise SyntaxError(lexing)"
         (SyntaxError "lexing: failed in file \"testdata/example_fail.qasm\" at char 9")
                (fun () ->
                  full_parse_from_file PA.mainprogram "testdata/example_fail.qasm")

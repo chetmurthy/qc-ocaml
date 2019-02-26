@@ -25,8 +25,15 @@ let ic = open_in fname in
 
 let body_parse pfun ?(fname="") buf =
   let tokstrm = Qasmlex.make_body_lexer ~fname buf in
-  pfun (expand_include tokstrm)
-                                         
+  let tokstrm = expand_include tokstrm in
+  try pfun tokstrm
+  with Stream.Error _ ->
+        match Stream.peek tokstrm with
+        | None -> raise (SyntaxError("parsing error at EOF"))
+        | Some(aux, tok) ->
+           let p = TokenAux.startpos aux in
+           raise (SyntaxError (Printf.sprintf "parse error in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
+
 let body_parse_from_file pfun fname =
 let ic = open_in fname in
   let tokstrm = Qasmlex.make_body_lexer_from_channel ~fname ic in
