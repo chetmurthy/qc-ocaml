@@ -151,7 +151,7 @@ let aux2comment_mapper = {
 
 let test_parse_statement (name, txt, expect) =
   name >:: (fun ctx ->
-    let rv = AuxMap.auxmap_stmt aux2comment_mapper (body_parse PA.statement txt) in
+    let rv = AuxMap.stmt aux2comment_mapper (body_parse PA.statement txt) in
     assert_equal expect rv
   )
 
