@@ -138,7 +138,7 @@ module CST = struct
     | STMT_OPAQUEDECL of string * string list * string list
     | STMT_QOP of raw_qop_t
     | STMT_IF of string * int * raw_qop_t
-    | STMT_BARRIER of string list
+    | STMT_BARRIER of id_or_indexed_t list
     | STMT_QREG of string * int
     | STMT_CREG of string * int
 
@@ -343,7 +343,9 @@ let statement = parser
 | [< '(aux1, T_IF) ; '(aux2, T_LPAREN) ; '(aux3, T_ID id) ; '(aux4, T_EQEQ) ; '(aux5, T_INTEGER n) ; '(aux6, T_RPAREN) ; (aux7, i)=qop >] ->
    if n < 0 then raise (SyntaxError "negative integer not valid in if statment")
    else (TA.appendlist [aux1; aux2; aux3; aux4; aux5; aux6; aux7], CST.STMT_IF(id, n, i))
-| [< '(aux1, T_BARRIER) ; (aux2, l)=ne_id_list; '(aux3, T_SEMICOLON) >] ->
+| [< '(aux1, T_BARRIER) ;
+   (aux2, l)=ne_id_or_indexed_list ;
+   '(aux3, T_SEMICOLON) >] ->
    (TA.appendlist [aux1; aux2; aux3], CST.STMT_BARRIER l)
 
 let ne_statement_list strm = let (h, t) = ne_plist statement strm in h::t
@@ -416,11 +418,13 @@ module AST = struct
   type 'aux gate_op_t =
     'aux * raw_gate_op_t
 
+  type 'aux gatedecl_t = string * string list * string list * 'aux gate_op_t list
+
   type 'aux raw_stmt_t =
-    | STMT_GATEDECL of string * string list * string list * 'aux gate_op_t list
+    | STMT_GATEDECL of 'aux gatedecl_t
     | STMT_OPAQUEDECL of string * string list * string list
     | STMT_QOP of raw_qop_t
-    | STMT_IF of string * int * raw_qop_t
+    | STMT_IF of creg_t * int * raw_qop_t
     | STMT_BARRIER of qreg_t or_indexed list
     | STMT_QREG of string * int
     | STMT_CREG of string * int
@@ -432,5 +436,67 @@ module AST = struct
 end
 
 module TYCHK = struct
+  open Coll
+
+  type env_t = {
+      gates: (string, TA.t AST.gatedecl_t) LM.t ;
+      cparams: (string, AST.cparamvar_t AST.expr) LM.t ;
+    }
   
+  exception TypeError of string
+
+  let _expr check_cparam (cst : CST.expr) =
+    let rec erec = function
+      | CST.ID id -> AST.ID (check_cparam id)
+      | REAL r -> AST.REAL r
+      | NNINT n -> AST.NNINT n
+      | PI -> AST.PI
+      | ADD(e1, e2) -> AST.ADD(erec e1, erec e2)
+      | SUB(e1, e2) -> AST.SUB(erec e1, erec e2)
+      | MUL(e1, e2) -> AST.MUL(erec e1, erec e2)
+      | DIV(e1, e2) -> AST.DIV(erec e1, erec e2)
+      | UMINUS e1 -> AST.UMINUS(erec e1)
+      | XOR(e1, e2) -> AST.XOR(erec e1, erec e2)
+      | SIN e1 -> AST.SIN(erec e1)
+      | COS e1 -> AST.COS(erec e1)
+      | TAN e1 -> AST.TAN(erec e1)
+      | EXP e1 -> AST.EXP(erec e1)
+      | LN e1 -> AST.LN(erec e1)
+      | SQRT e1 -> AST.SQRT(erec e1)
+    in erec cst
+
+  let raw_gate_op _ (cst: CST.raw_gate_op_t) =
+    (failwith "unimplemented" : AST.raw_gate_op_t)
+
+  let gate_op envs (aux, cst) =
+    (aux, raw_gate_op envs cst)
+
+  let raw_qop _ (cst: CST.raw_qop_t) =
+    (failwith "unimplemented" : AST.raw_qop_t)
+
+  let qop envs (aux, cst) =
+    (aux, raw_qop envs cst)
+
+  let lookup_creg envs id = (failwith "unimplemented" : AST.creg_t)
+  let lookup_qreg envs id = (failwith "unimplemented" : AST.qreg_t)
+
+  let raw_stmt envs (cst: 'aux CST.raw_stmt_t) =
+    match cst with
+    | CST.STMT_GATEDECL(gateid, param_formals, qubit_formals, gopl) ->
+       AST.STMT_GATEDECL(gateid, param_formals, qubit_formals,
+                         List.map (gate_op envs) gopl)
+      
+    | STMT_OPAQUEDECL(gateid, param_formals, qubit_formals) ->
+       AST.STMT_OPAQUEDECL(gateid, param_formals, qubit_formals)
+
+    | STMT_QOP q -> AST.STMT_QOP(raw_qop envs q)
+
+    | STMT_IF(id, n, q) ->
+       AST.STMT_IF(lookup_creg envs id, n, raw_qop envs q)
+
+(*
+    | STMT_BARRIER ids -> AST.STMT_BARRIER(List.map (lookup_qreg envs) ids)
+    | STMT_QREG of string * int
+    | STMT_CREG of string * int
+ *)
 end

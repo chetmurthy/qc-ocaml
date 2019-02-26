@@ -89,12 +89,12 @@ let pr_comma = (fun () -> [< '", " >])
     | CST.STMT_IF(reg, n, i) ->
        [< '"if (" ; pr_id reg ; '"=="; 'string_of_int n ; '") "; raw_qop i >]
     | CST.STMT_BARRIER l ->
-       [< '"barrier " ; prlist_with_sep pr_comma pr_id l ; '";\n" >]
+       [< '"barrier " ; prlist_with_sep pr_comma id_or_indexed l ; '";\n" >]
     | CST.STMT_QREG(id, n) ->
        [< '"qreg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
     | CST.STMT_CREG(id, n) ->
        [< '"creg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
-      
+
   let stmt (aux, s) =
     let commentstring = TA.comment_string aux in
     match commentstring with
