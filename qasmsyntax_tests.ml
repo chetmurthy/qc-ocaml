@@ -141,7 +141,7 @@ let test_parse_qop (name, txt, expect) =
   )
 
 let aux2comment_mapper = {
-    AuxMap.stmt = (fun aux _ ->
+    CST.AuxMap.stmt = (fun aux _ ->
       TA.comment_string aux
     ) ;
     gop = (fun aux _ ->
@@ -151,7 +151,7 @@ let aux2comment_mapper = {
 
 let test_parse_statement (name, txt, expect) =
   name >:: (fun ctx ->
-    let rv = AuxMap.stmt aux2comment_mapper (body_parse PA.statement txt) in
+    let rv = CST.AuxMap.stmt aux2comment_mapper (body_parse PA.statement txt) in
     assert_equal expect rv
   )
 
@@ -238,8 +238,16 @@ qreg q[1];
     ) ;
   ]
 
+let typechecker_tests = "typechecker tests" >:::
+  [
+  ]
+
 (* Run the tests in test suite *)
 let _ =
 if invoked_as "qasmsyntax_tests" then
-  run_test_tt_main ("all_tests" >::: [ misc_tests ; lexer_tests; expr_parser_tests; statement_parser_tests; parser_tests ])
+  run_test_tt_main ("all_tests" >::: [
+        misc_tests ; lexer_tests; expr_parser_tests;
+        statement_parser_tests; parser_tests;
+        typechecker_tests;
+    ])
 ;;

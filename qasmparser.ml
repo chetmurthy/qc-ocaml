@@ -146,38 +146,38 @@ module CST = struct
 
   type 'aux program_t = 'aux stmt_t list
 
+  module AuxMap = struct
+    type ('a, 'b) mappers_t = {
+        stmt : 'a -> 'a raw_stmt_t -> 'b ;
+        gop : 'a -> raw_gate_op_t -> 'b ;
+      }
+
+    let gop mappers (aux, raw_gop) =
+      let aux' = mappers.gop aux raw_gop in
+      (aux', raw_gop)
+
+    let raw_stmt mappers = function
+      | STMT_GATEDECL(gateid, formal_params, formal_qregs, gopl) ->
+         STMT_GATEDECL(gateid, formal_params, formal_qregs,
+                           List.map (gop mappers) gopl)
+
+      | STMT_OPAQUEDECL(a, b, c) -> STMT_OPAQUEDECL(a, b, c)
+      | STMT_QOP q -> STMT_QOP q
+      | STMT_IF(a, b, c) -> STMT_IF(a, b, c)
+      | STMT_BARRIER l -> STMT_BARRIER l
+      | STMT_QREG (a,b) -> STMT_QREG (a,b)
+      | STMT_CREG (a, b) -> STMT_CREG (a, b)
+
+    let stmt mappers (aux, raw_stmt0) =
+      let aux' = mappers.stmt aux raw_stmt0 in
+      let raw_stmt' = raw_stmt mappers raw_stmt0 in
+      (aux', raw_stmt')
+
+    let program mappers l = List.map (stmt mappers) l
+  end
+
+
 end
-
-module AuxMap = struct
-  type ('a, 'b) mappers_t = {
-      stmt : 'a -> 'a CST.raw_stmt_t -> 'b ;
-      gop : 'a -> CST.raw_gate_op_t -> 'b ;
-    }
-
-  let gop mappers (aux, raw_gop) =
-    let aux' = mappers.gop aux raw_gop in
-    (aux', raw_gop)
-
-  let raw_stmt mappers = function
-    | CST.STMT_GATEDECL(gateid, formal_params, formal_qregs, gopl) ->
-       CST.STMT_GATEDECL(gateid, formal_params, formal_qregs,
-                     List.map (gop mappers) gopl)
-
-    | CST.STMT_OPAQUEDECL(a, b, c) -> CST.STMT_OPAQUEDECL(a, b, c)
-    | CST.STMT_QOP q -> CST.STMT_QOP q
-    | CST.STMT_IF(a, b, c) -> CST.STMT_IF(a, b, c)
-    | CST.STMT_BARRIER l -> CST.STMT_BARRIER l
-    | CST.STMT_QREG (a,b) -> CST.STMT_QREG (a,b)
-    | CST.STMT_CREG (a, b) -> CST.STMT_CREG (a, b)
-
-  let stmt mappers (aux, raw_stmt0) =
-    let aux' = mappers.stmt aux raw_stmt0 in
-    let raw_stmt' = raw_stmt mappers raw_stmt0 in
-    (aux', raw_stmt')
-
-  let program mappers l = List.map (stmt mappers) l
-end
-
 
 module PA = struct
 
