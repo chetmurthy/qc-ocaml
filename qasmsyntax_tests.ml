@@ -140,10 +140,19 @@ let test_parse_qop (name, txt, expect) =
       assert_equal expect (TA.comment_string aux, e)
   )
 
+let aux2comment_mapper = {
+    AuxMap.stmt = (fun aux _ ->
+      TA.comment_string aux
+    ) ;
+    gop = (fun aux _ ->
+      TA.comment_string aux
+    )
+  }
+
 let test_parse_statement (name, txt, expect) =
   name >:: (fun ctx ->
-    let (aux, e) = body_parse PA.statement txt in
-      assert_equal expect (TA.comment_string aux, e)
+    let rv = AuxMap.auxmap_stmt aux2comment_mapper (body_parse PA.statement txt) in
+    assert_equal expect rv
   )
 
 let statement_parser_tests = "statement parser tests" >:::
@@ -163,11 +172,7 @@ q[//bargle
 q, b;|},
  ("//bargle\n//argle\n", Ast.STMT_IF("c", 1, Ast.UOP (Ast.CX(Ast.REG "q", Ast.REG "b"))))) ;
        ("gate 1", "gate g a, b { cx a, b; }", ("", Ast.STMT_GATEDECL ("g", [], ["a"; "b"],
-                                                                      [({TA.comments = [""; ""; ""; ""; ""];
-                                                                         startpos =
-                                                                           {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 14};
-                                                                         endpos =
-                                                                           {Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 22}},
+                                                                      [("",
                                                                         Ast.GATE_UOP
                                                                           (Ast.COMPOSITE_GATE ("cx", [],
                                                                                                [Ast.REG "a"; Ast.REG "b"])))]))) ;

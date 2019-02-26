@@ -110,18 +110,18 @@ module Ast = struct
     | MEASURE of id_or_indexed_t * id_or_indexed_t
     | RESET of id_or_indexed_t
 
-  type qop_t =
-    TA.t * raw_qop_t
+  type 'aux qop_t =
+    'aux * raw_qop_t
 
   type raw_gate_op_t =
     GATE_UOP of raw_uop_t
   | GATE_BARRIER of string list
 
-  type gate_op_t =
-    TA.t * raw_gate_op_t
+  type 'aux gate_op_t =
+    'aux * raw_gate_op_t
 
-  type raw_stmt_t =
-    | STMT_GATEDECL of string * string list * string list * gate_op_t list
+  type 'aux raw_stmt_t =
+    | STMT_GATEDECL of string * string list * string list * 'aux gate_op_t list
     | STMT_OPAQUEDECL of string * string list * string list
     | STMT_QOP of raw_qop_t
     | STMT_IF of string * int * raw_qop_t
@@ -129,10 +129,40 @@ module Ast = struct
     | STMT_QREG of string * int
     | STMT_CREG of string * int
 
-  type stmt_t = TA.t * raw_stmt_t
+  type 'aux stmt_t = 'aux * 'aux raw_stmt_t
 
-  type program_t = stmt_t list
+  type 'aux program_t = 'aux stmt_t list
 
+end
+
+module AuxMap = struct
+  type ('a, 'b) mappers_t = {
+      stmt : 'a -> 'a Ast.raw_stmt_t -> 'b ;
+      gop : 'a -> Ast.raw_gate_op_t -> 'b ;
+    }
+
+  let auxmap_gop mappers (aux, raw_gop) =
+    let aux' = mappers.gop aux raw_gop in
+    (aux', raw_gop)
+
+  let auxmap_raw_stmt mappers = function
+    | Ast.STMT_GATEDECL(gateid, formal_params, formal_qregs, gopl) ->
+       Ast.STMT_GATEDECL(gateid, formal_params, formal_qregs,
+                     List.map (auxmap_gop mappers) gopl)
+
+    | Ast.STMT_OPAQUEDECL(a, b, c) -> Ast.STMT_OPAQUEDECL(a, b, c)
+    | Ast.STMT_QOP q -> Ast.STMT_QOP q
+    | Ast.STMT_IF(a, b, c) -> Ast.STMT_IF(a, b, c)
+    | Ast.STMT_BARRIER l -> Ast.STMT_BARRIER l
+    | Ast.STMT_QREG (a,b) -> Ast.STMT_QREG (a,b)
+    | Ast.STMT_CREG (a, b) -> Ast.STMT_CREG (a, b)
+
+  let auxmap_stmt mappers (aux, raw_stmt) =
+    let aux' = mappers.stmt aux raw_stmt in
+    let raw_stmt' = auxmap_raw_stmt mappers raw_stmt in
+    (aux', raw_stmt')
+
+  let auxmap_program mappers l = List.map (auxmap_stmt mappers) l
 end
 
 
