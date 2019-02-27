@@ -268,18 +268,25 @@ let typechecker_tests = "typechecker tests" >:::
 let open TYCHK.Env in
 let open TYCHK in
 let open AST in
-  [
-    test_typecheck ("qreg", "qreg q[1]; qreg r[1];",
-                    { qregs = LM.ofList()["q",1;"r",1] ;
-                      gates = LM.mk() ;
-                      cregs = LM.mk() ;
-                    },
-                    [((), STMT_QREG ("q", 1));
-                     ((), STMT_QREG ("r", 1))]) ;
-    test_typecheck_fail ("qreg fail", "qreg q[1]; qreg q[1];",
-                         "should have caught repeated qreg declaration",
-                         (TypeError (true,"Error file \"\", chars 11-21: qreg q already declared"))) ;
-  ]
+(
+  (List.map test_typecheck [
+       ("qreg", "qreg q[1]; qreg r[1];",
+        { qregs = LM.ofList()["q",1;"r",1] ;
+          gates = LM.mk() ;
+          cregs = LM.mk() ;
+        },
+        [((), STMT_QREG ("q", 1));
+         ((), STMT_QREG ("r", 1))]) ;
+     ]
+  )
+  @
+    (List.map test_typecheck_fail [
+         ("qreg fail", "qreg q[1]; qreg q[1];",
+          "should have caught repeated qreg declaration",
+          (TypeError (true,"Error file \"\", chars 11-21: qreg q already declared"))) ;
+       ]
+    )
+)
 
 (* Run the tests in test suite *)
 let _ =
