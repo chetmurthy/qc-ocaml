@@ -4,7 +4,7 @@ open Misc_functions
 open Qasmsyntax
 open Qasmparser
 
-module PP = struct
+module CSTPP = struct
 
   let header vers = [< 'Printf.sprintf "OPENQASM %s;\n" vers >]
 

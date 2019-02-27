@@ -8,8 +8,8 @@ PACKAGES1=-package camlp5,oUnit,oUnit.advanced,pcre,ocamlgraph -syntax camlp5o
 ML= misc_functions.ml gmap.ml gset.ml coll.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml
 MLI= gmap.mli gset.mli
 
-SRC=qasmlex.ml qasmsyntax_tests.ml coll.ml gmap.ml gset.ml
-SRCP5=qasmparser.ml qasmpp.ml misc_functions.ml qasmsyntax.ml qasmdag0.ml
+SRC=qasmlex.ml qasmsyntax.ml qasmsyntax_tests.ml coll.ml gmap.ml gset.ml
+SRCP5=qasmparser.ml qasmpp.ml misc_functions.ml qasmdag0.ml
 
 CMO= $(ML:.ml=.cmo)
 CMX= $(ML:.ml=.cmx)
@@ -50,11 +50,11 @@ qasmpp.cmo: qasmpp.ml
 qasmpp.cmx: qasmpp.ml
 	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
 
-qasmsyntax.cmo: qasmsyntax.ml
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+#qasmsyntax.cmo: qasmsyntax.ml
+#	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
 
-qasmsyntax.cmx: qasmsyntax.ml
-	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+#qasmsyntax.cmx: qasmsyntax.ml
+#	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
 
 qasmdag0.cmo: qasmdag0.ml
 	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<

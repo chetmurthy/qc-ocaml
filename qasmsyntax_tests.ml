@@ -191,21 +191,21 @@ q, b;|},
 let test_roundtrip_main_buf (name, txt, expect) =
   name >:: (fun ctxt ->
     let rv = full_parse PA.mainprogram txt in
-    let pretty = PP.pp PP.main rv in
+    let pretty = CSTPP.(pp main rv) in
     assert_equal expect pretty
   )
 
 let test_roundtrip_main_file (name, fname, expect) =
   name >:: (fun ctxt ->
     let rv = full_parse_from_file PA.mainprogram fname in
-    let pretty = PP.pp PP.main rv in
+    let pretty = CSTPP.(pp main rv) in
     assert_equal expect pretty
   )
 
 let test_roundtrip_program_file (name, fname, expect) =
   name >:: (fun ctxt ->
     let rv = body_parse_from_file PA.mainprogram fname in
-    let pretty = PP.pp PP.main rv in
+    let pretty = CSTPP.(pp main rv) in
     assert_equal expect pretty
   )
 

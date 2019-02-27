@@ -278,6 +278,6 @@ module DAG = struct
        add_node dag stmt bits
 
     in
-    ()
+    List.fold_left add_stmt (mk()) pl
 
 end
