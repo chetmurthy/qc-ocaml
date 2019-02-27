@@ -176,7 +176,6 @@ module CST = struct
     let program mappers l = List.map (stmt mappers) l
   end
 
-
 end
 
 module PA = struct
@@ -433,12 +432,42 @@ module AST = struct
 
   type 'aux program_t = 'aux stmt_t list
 
+  module AuxMap = struct
+    type ('a, 'b) mappers_t = {
+        stmt : 'a -> 'a raw_stmt_t -> 'b ;
+        gop : 'a -> raw_gate_op_t -> 'b ;
+      }
+
+    let gop mappers (aux, raw_gop) =
+      let aux' = mappers.gop aux raw_gop in
+      (aux', raw_gop)
+
+    let raw_stmt mappers = function
+      | STMT_GATEDECL(gateid, formal_params, formal_qregs, gopl) ->
+         STMT_GATEDECL(gateid, formal_params, formal_qregs,
+                           List.map (gop mappers) gopl)
+
+      | STMT_OPAQUEDECL(a, b, c) -> STMT_OPAQUEDECL(a, b, c)
+      | STMT_QOP q -> STMT_QOP q
+      | STMT_IF(a, b, c) -> STMT_IF(a, b, c)
+      | STMT_BARRIER l -> STMT_BARRIER l
+      | STMT_QREG (a,b) -> STMT_QREG (a,b)
+      | STMT_CREG (a, b) -> STMT_CREG (a, b)
+
+    let stmt mappers (aux, raw_stmt0) =
+      let aux' = mappers.stmt aux raw_stmt0 in
+      let raw_stmt' = raw_stmt mappers raw_stmt0 in
+      (aux', raw_stmt')
+
+    let program mappers l = List.map (stmt mappers) l
+  end
+
 end
 
 module TYCHK = struct
   open Coll
 
-  exception TypeError of string
+  exception TypeError of bool * string
 
   module Env = struct
     type t = {
@@ -446,6 +475,12 @@ module TYCHK = struct
         qregs: (string, int) LM.t ;
         cregs: (string, int) LM.t ;
       }
+
+    let equal e1 e2 =
+      let canon x = List.sort Pervasives.compare x in
+      (e1.gates |> LM.toList |> canon) = (e2.gates |> LM.toList |> canon) &&
+      (e1.qregs |> LM.toList |> canon) = (e2.qregs |> LM.toList |> canon) &&
+      (e1.cregs |> LM.toList |> canon) = (e2.cregs |> LM.toList |> canon)
 
     let mk () = { gates = LM.mk() ; qregs = LM.mk() ; cregs = LM.mk() }
 
@@ -457,29 +492,44 @@ module TYCHK = struct
 
     let must_have_gate envs id =
       if not (has_gate envs id) then
-        raise (TypeError (Printf.sprintf "gate %s not declared" id))
+        raise (TypeError (false, Printf.sprintf "gate %s not declared" id))
 
     let must_not_have_gate envs id =
       if has_gate envs id then
-        raise (TypeError (Printf.sprintf "gate %s already declared" id))
+        raise (TypeError (false, Printf.sprintf "gate %s already declared" id))
 
     let has_creg envs id = LM.in_dom envs.cregs id
     let lookup_creg envs id =
       if has_creg envs id then AST.CREG id
-      else raise (TypeError(Printf.sprintf "creg %s not declared" id))
+      else raise (TypeError(false, Printf.sprintf "creg %s not declared" id))
 
     let must_not_have_creg envs id =
       if has_creg envs id then
-        raise (TypeError(Printf.sprintf "creg %s already declared" id))
+        raise (TypeError(false, Printf.sprintf "creg %s already declared" id))
 
     let has_qreg envs id = LM.in_dom envs.qregs id
     let lookup_qreg envs id =
       if has_qreg envs id then AST.QREG id
-      else raise (TypeError(Printf.sprintf "qreg %s not declared" id))
+      else raise (TypeError(false, Printf.sprintf "qreg %s not declared" id))
 
     let must_not_have_qreg envs id =
       if has_qreg envs id then
-        raise (TypeError(Printf.sprintf "qreg %s already declared" id))
+        raise (TypeError(false, Printf.sprintf "qreg %s already declared" id))
+
+    let auxmap mappers env =
+      let map_gatedecl (a,b,c,gopl) =
+        let rst = AST.STMT_GATEDECL(a,b,c,gopl) in
+        match AST.AuxMap.raw_stmt mappers rst with
+        | AST.STMT_GATEDECL(a,b,c,gopl) -> (a,b,c,gopl)
+        | _ -> assert false in
+
+      let gates =
+        env.gates
+        |> LM.toList
+        |> List.map (fun (k,v) -> (k, map_gatedecl v))
+        |> LM.ofList () in
+
+      { env with gates = gates }
 
   end
 
@@ -508,7 +558,7 @@ module TYCHK = struct
     | CST.REG id -> AST.IT (f envs id)
     | BIT (id, n) -> AST.INDEXED(f envs id, n)
 
-  let cpaarm_fail id = raise (TypeError (Printf.sprintf "classical param not permitted (%s)" id))
+  let cpaarm_fail id = raise (TypeError (false, Printf.sprintf "classical param not permitted (%s)" id))
 
   let raw_uop envs cparam qarg = function
     | CST.U(el, qr) -> AST.U(List.map (_expr cparam) el, qarg qr)
@@ -528,7 +578,7 @@ module TYCHK = struct
 
   let raw_qop envs (cst: CST.raw_qop_t) =
     let cparam id =
-      raise (TypeError(Printf.sprintf "cparams not permitted here (\"%s\")" id)) in
+      raise (TypeError(false, Printf.sprintf "cparams not permitted here (\"%s\")" id)) in
     let qarg x = lookup_or_indexed Env.lookup_qreg envs x in
     let carg x = lookup_or_indexed Env.lookup_creg envs x in
     match cst with
@@ -540,7 +590,17 @@ module TYCHK = struct
     | RESET q -> AST.RESET (qarg q)
 
   let qop envs (aux, cst) =
-    (aux, raw_qop envs cst)
+    try
+      (aux, raw_qop envs cst)
+    with TypeError (false, msg) ->
+      let spos = TokenAux.startpos aux in
+      let epos = TokenAux.endpos aux in
+      let msg = Printf.sprintf "Error file \"%s\", chars %d-%d: %s"
+                  spos.Lexing.pos_fname
+                  spos.Lexing.pos_cnum
+                  epos.Lexing.pos_cnum
+                  msg in
+      raise (TypeError (true, msg))
 
   let raw_stmt envs (cst: 'aux CST.raw_stmt_t) =
     match cst with
@@ -548,13 +608,13 @@ module TYCHK = struct
        Env.must_not_have_gate envs gateid ;
        let cparam id =
          if List.mem id param_formals then AST.CPARAMVAR id
-         else raise (TypeError(Printf.sprintf "cparam %s not declared" id)) in
+         else raise (TypeError(false, Printf.sprintf "cparam %s not declared" id)) in
        let qarg = function
          | CST.REG id ->
             if List.mem id qubit_formals then AST.QUBIT id
-            else raise (TypeError(Printf.sprintf "qarg %s not declared" id))
+            else raise (TypeError(false, Printf.sprintf "qarg %s not declared" id))
          | BIT (id, n) ->
-            raise (TypeError(Printf.sprintf "qarg %s[%n] not permitted in composite-gate definition body" id n)) in
+            raise (TypeError(false, Printf.sprintf "qarg %s[%n] not permitted in composite-gate definition body" id n)) in
 
        AST.STMT_GATEDECL(gateid, param_formals, qubit_formals,
                          List.map (gate_op envs cparam qarg) gopl)
@@ -578,7 +638,18 @@ module TYCHK = struct
        Env.must_not_have_creg envs id ;
        AST.STMT_CREG(id, n)
 
-  let stmt envs (aux, rst) = (aux,raw_stmt envs rst)
+  let stmt envs (aux, rst) =
+    try
+      (aux,raw_stmt envs rst)
+    with TypeError (false, msg) ->
+      let spos = TokenAux.startpos aux in
+      let epos = TokenAux.endpos aux in
+      let msg = Printf.sprintf "Error file \"%s\", chars %d-%d: %s"
+                  spos.Lexing.pos_fname
+                  spos.Lexing.pos_cnum
+                  epos.Lexing.pos_cnum
+                  msg in
+      raise (TypeError (true, msg))
 
   let program l =
     let stmt1 envs cst =
@@ -591,8 +662,10 @@ module TYCHK = struct
           stmt)
       | _ -> (envs, stmt)
     in
-    List.fold_left (fun (envs,acc) stmt ->
-        let (envs, stmt) = stmt1 envs stmt in
-        (envs, stmt::acc))
-      (Env.mk(), []) l
+    let (envs, l) =
+      List.fold_left (fun (envs,acc) stmt ->
+          let (envs, stmt) = stmt1 envs stmt in
+          (envs, stmt::acc))
+        (Env.mk(), []) l
+    in (envs, List.rev l)
 end

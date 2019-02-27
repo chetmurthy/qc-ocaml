@@ -14,6 +14,9 @@
 #require "ocamlgraph" ;;
 
 #load "misc_functions.cmo";;
+#load "gmap.cmo";;
+#load "gset.cmo";;
+#load "coll.cmo";;
 #load "qasmsyntax.cmo";;
 #load "qasmlex.cmo";;
 #load "qasmparser.cmo";;

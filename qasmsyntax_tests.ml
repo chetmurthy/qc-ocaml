@@ -2,6 +2,7 @@
 
 open OUnit2
 open Misc_functions
+open Coll
 open Qasmlex
 open Qasmsyntax
 open Qasmparser
@@ -237,9 +238,47 @@ qreg q[1];
                  full_parse_from_file PA.mainprogram "testdata/example_fail.qasm")
     ) ;
   ]
+let aux2unit_mapper = {
+    AST.AuxMap.stmt = (fun aux _ ->
+      ()
+    ) ;
+    gop = (fun aux _ ->
+      ()
+    )
+  }
+
+let test_typecheck (name, txt, expect_env, expect_ast) =
+  name >:: (fun ctxt ->
+    let pl = body_parse PA.program txt in
+    let (envs, p) = TYCHK.program pl in
+    let p = AST.AuxMap.program aux2unit_mapper p in
+    assert_equal ~cmp:TYCHK.Env.equal expect_env envs ;
+    assert_equal expect_ast p
+  )
+
+let test_typecheck_fail (name, txt, msg, exn) =
+  name >:: (fun ctxt ->
+    let pl = body_parse PA.program txt in
+    assert_raises ~msg exn
+      (fun () ->
+        TYCHK.program pl)
+  )
 
 let typechecker_tests = "typechecker tests" >:::
+let open TYCHK.Env in
+let open TYCHK in
+let open AST in
   [
+    test_typecheck ("qreg", "qreg q[1]; qreg r[1];",
+                    { qregs = LM.ofList()["q",1;"r",1] ;
+                      gates = LM.mk() ;
+                      cregs = LM.mk() ;
+                    },
+                    [((), STMT_QREG ("q", 1));
+                     ((), STMT_QREG ("r", 1))]) ;
+    test_typecheck_fail ("qreg fail", "qreg q[1]; qreg q[1];",
+                         "should have caught repeated qreg declaration",
+                         (TypeError (true,"Error file \"\", chars 11-21: qreg q already declared"))) ;
   ]
 
 (* Run the tests in test suite *)
