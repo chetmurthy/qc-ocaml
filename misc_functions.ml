@@ -166,3 +166,13 @@ let pop l =
     h::tl -> l := tl
   | [] -> invalid_arg "pop"
 let top l = List.hd !l
+
+let do_option f = function
+    Some x -> f x
+  | None -> ()
+
+let comp f g x = f (g x)
+
+let rec distinct = function
+    h::t -> (not (List.mem h t)) & distinct t
+  | _ -> true

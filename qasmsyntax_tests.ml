@@ -252,8 +252,12 @@ let test_typecheck (name, txt, expect_env, expect_ast) =
     let pl = body_parse PA.program txt in
     let (envs, p) = TYCHK.program pl in
     let p = AST.AuxMap.program aux2unit_mapper p in
-    assert_equal ~cmp:TYCHK.Env.equal expect_env envs ;
-    assert_equal expect_ast p
+    do_option (fun expect_env ->
+        assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
+    expect_env ;
+    do_option (fun expect_ast ->
+        assert_equal expect_ast p)
+      expect_ast
   )
 
 let test_typecheck_fail (name, txt, msg, exn) =
@@ -271,18 +275,54 @@ let open AST in
 (
   (List.map test_typecheck [
        ("qreg", "qreg q[1]; qreg r[1];",
-        { qregs = LM.ofList()["q",1;"r",1] ;
-          gates = LM.mk() ;
-          cregs = LM.mk() ;
-        },
-        [((), STMT_QREG ("q", 1));
-         ((), STMT_QREG ("r", 1))]) ;
+        Some { qregs = LM.ofList()["q",1;"r",1] ;
+               gates = LM.mk() ;
+               cregs = LM.mk() ;
+          },
+        Some [((), STMT_QREG ("q", 1));
+              ((), STMT_QREG ("r", 1))]) ;
+
+       ("cx", "qreg q[1]; qreg r[1]; CX q[0], r[0]; CX q, r;",
+        None,
+        None) ;
      ]
   ) @
   (List.map test_typecheck_fail [
        ("qreg fail", "qreg q[1]; qreg q[1];",
         "should have caught repeated qreg declaration",
         (TypeError (true,"Error file \"\", chars 11-21: qreg q already declared"))) ;
+
+       ("CX fail", "qreg q[1]; qreg r[2]; CX q, r;",
+        "should have caught mismatched args to CX",
+        (TypeError (true,"Error file \"\", chars 22-30: registers with different dimensions in qargs"))) ;
+
+       ("CX fail 2", "qreg q[1]; qreg r[2]; CX q, q;",
+        "should have caught mismatched args to CX",
+        (TypeError (true,"Error file \"\", chars 22-30: qargs are not distinct"))) ;
+
+       ("CX fail 3", "gate h a,b,c,d { CX a,a ; }",
+        "should have caught mismatched args to CX",
+        (TypeError (true,"Error file \"\", chars 17-25: qargs are not distinct"))) ;
+
+       ("CX fail 3", "gate h a,b,c,d { CX a,a ; }",
+        "should have caught mismatched args to CX",
+        (TypeError (true,"Error file \"\", chars 17-25: qargs are not distinct"))) ;
+
+       ("gate fail 1", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,q,s[0], s[1];",
+        "should have caught mismatched args to CX",
+        (TypeError (true,"Error file \"\", chars 61-78: qargs are not distinct"))) ;
+
+       ("gate fail 2", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,r,q[0], s[1];",
+        "should have caught mismatched args to CX",
+        (TypeError (true,"Error file \"\", chars 61-78: bit q[0] conflicts with register of same name"))) ;
+
+       ("gate fail 3", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,r,s[0], s[0];",
+        "should have caught mismatched args to CX",
+        (TypeError (true,"Error file \"\", chars 61-78: qargs are not distinct"))) ;
+
+       ("gate fail 3", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,r,s[0], s[2];",
+        "should have caught mismatched args to CX",
+        (TypeError (true,"Error file \"\", chars 61-78: bit s[2] out of dimension [0..2)"))) ;
      ]
   )
 )

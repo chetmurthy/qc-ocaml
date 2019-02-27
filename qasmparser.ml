@@ -499,7 +499,7 @@ module TYCHK = struct
         raise (TypeError (false, Printf.sprintf "gate %s already declared" id))
 
     let has_creg envs id = LM.in_dom envs.cregs id
-    let lookup_creg envs id =
+    let intern_creg envs id =
       if has_creg envs id then AST.CREG id
       else raise (TypeError(false, Printf.sprintf "creg %s not declared" id))
 
@@ -508,8 +508,11 @@ module TYCHK = struct
         raise (TypeError(false, Printf.sprintf "creg %s already declared" id))
 
     let has_qreg envs id = LM.in_dom envs.qregs id
-    let lookup_qreg envs id =
+    let intern_qreg envs id =
       if has_qreg envs id then AST.QREG id
+      else raise (TypeError(false, Printf.sprintf "qreg %s not declared" id))
+    let lookup_qreg envs id =
+      if has_qreg envs id then LM.map envs.qregs id
       else raise (TypeError(false, Printf.sprintf "qreg %s not declared" id))
 
     let must_not_have_qreg envs id =
@@ -553,41 +556,104 @@ module TYCHK = struct
       | SQRT e1 -> AST.SQRT(erec e1)
     in erec cst
 
-  let lookup_or_indexed f envs arg =
+  let intern_or_indexed f envs arg =
     match arg with
     | CST.REG id -> AST.IT (f envs id)
     | BIT (id, n) -> AST.INDEXED(f envs id, n)
 
-  let cpaarm_fail id = raise (TypeError (false, Printf.sprintf "classical param not permitted (%s)" id))
-
-  let raw_uop envs cparam qarg = function
-    | CST.U(el, qr) -> AST.U(List.map (_expr cparam) el, qarg qr)
-    | CX(qr1, qr2) -> AST.CX(qarg qr1, qarg qr2)
+  let raw_uop envs cparam qargs = function
+    | CST.U(el, qr) -> AST.U(List.map (_expr cparam) el, [qr] |> qargs |> List.hd)
+    | CX(qr1, qr2) ->
+       let [qr1; qr2] = qargs [qr1; qr2] in
+       AST.CX(qr1, qr2)
     | COMPOSITE_GATE(gateid, cparam_actuals, qal) ->
        Env.must_have_gate envs gateid ;
-       AST.COMPOSITE_GATE(gateid, List.map (_expr cparam) cparam_actuals, List.map qarg qal)
+       AST.COMPOSITE_GATE(gateid, List.map (_expr cparam) cparam_actuals,
+                          qargs qal)
 
-  let raw_gate_op envs cparam qarg (cst: CST.raw_gate_op_t) =
+  let raw_gate_op envs cparam qargs (cst: CST.raw_gate_op_t) =
     match cst with
     | CST.GATE_UOP u ->
-       AST.GATE_UOP (raw_uop envs cparam qarg u)
-    | GATE_BARRIER l -> AST.GATE_BARRIER(List.map (fun id -> qarg (CST.REG id)) l)
+       AST.GATE_UOP (raw_uop envs cparam qargs u)
+    | GATE_BARRIER l -> AST.GATE_BARRIER(l |> List.map (fun id -> CST.REG id) |> qargs)
 
-  let gate_op envs cparam qarg (aux, cst) =
-    (aux, raw_gate_op envs cparam qarg cst)
+  let gate_op envs cparam qargs (aux, cst) =
+    try
+      (aux, raw_gate_op envs cparam qargs cst)
+    with TypeError (false, msg) ->
+      let spos = TokenAux.startpos aux in
+      let epos = TokenAux.endpos aux in
+      let msg = Printf.sprintf "Error file \"%s\", chars %d-%d: %s"
+                  spos.Lexing.pos_fname
+                  spos.Lexing.pos_cnum
+                  epos.Lexing.pos_cnum
+                  msg in
+      raise (TypeError (true, msg))
+
+    (* to convert and typecheck a list of qargs (register OR bit):
+
+       (0) check they exist in envs.qregs and convert
+
+       (1) check that all qargs are distinct
+
+           --> so all registers are distinct
+           --> all bits are distinct
+
+       (2) check that all registers are of identical dimension
+
+       (3) check that all indexes of BITs are 0 <= index < {dimension of their register}
+
+       (4) check that no register-of-a-BIT is also a register qarg
+
+     *)
+  let convert_qargs envs l =
+    let _qarg x = intern_or_indexed Env.intern_qreg envs x in
+    (*0*)
+    let conv_qargs = List.map _qarg l in
+    (*1*)
+    if not (distinct conv_qargs) then
+      raise (TypeError(false, "qargs are not distinct")) ;
+
+    (*2*)
+    let registers = filter (function (AST.IT _) -> true | _ -> false) conv_qargs  in
+    let register_ids = List.map (fun (AST.IT (AST.QREG id)) -> id) registers in
+    let register_dims = List.map (Env.lookup_qreg envs) register_ids in
+    begin match register_dims with
+    | [] -> ()
+    | h::t ->
+       if not (for_all ((=) h) t) then
+         raise (TypeError(false, "registers with different dimensions in qargs"))
+    end ;
+
+    (*3*)
+    let bits = filter (function (AST.INDEXED _) -> true | _ -> false) conv_qargs  in
+    let bits_data = List.map (function (AST.INDEXED (AST.QREG id, n)) ->
+                                ((id, n), Env.lookup_qreg envs id)) bits in
+    List.iter (fun ((id, n), dimension) ->
+        if not (0 <= n && n < dimension) then
+          raise (TypeError(false, Printf.sprintf "bit %s[%d] out of dimension [0..%d)" id n dimension))
+      ) bits_data ;
+
+    (*4*)
+    List.iter (fun ((id, n), dimension) ->
+        if List.mem id register_ids then
+          raise (TypeError(false, Printf.sprintf "bit %s[%d] conflicts with register of same name" id n)) ;
+      ) bits_data ;
+
+    conv_qargs
 
   let raw_qop envs (cst: CST.raw_qop_t) =
     let cparam id =
       raise (TypeError(false, Printf.sprintf "cparams not permitted here (\"%s\")" id)) in
-    let qarg x = lookup_or_indexed Env.lookup_qreg envs x in
-    let carg x = lookup_or_indexed Env.lookup_creg envs x in
+    let carg x = intern_or_indexed Env.intern_creg envs x in
     match cst with
     | CST.UOP u ->
-       AST.UOP(raw_uop envs cparam qarg u)
+       AST.UOP(raw_uop envs cparam (convert_qargs envs) u)
 
-    | MEASURE(q, c) -> AST.MEASURE(qarg q, carg c)
+    | MEASURE(q, c) ->
+       AST.MEASURE([q] |> convert_qargs envs |> List.hd, carg c)
 
-    | RESET q -> AST.RESET (qarg q)
+    | RESET q -> AST.RESET ([q] |> convert_qargs envs |> List.hd)
 
   let qop envs (aux, cst) =
     try
@@ -609,15 +675,20 @@ module TYCHK = struct
        let cparam id =
          if List.mem id param_formals then AST.CPARAMVAR id
          else raise (TypeError(false, Printf.sprintf "cparam %s not declared" id)) in
-       let qarg = function
+       let _qarg = function
          | CST.REG id ->
             if List.mem id qubit_formals then AST.QUBIT id
             else raise (TypeError(false, Printf.sprintf "qarg %s not declared" id))
          | BIT (id, n) ->
             raise (TypeError(false, Printf.sprintf "qarg %s[%n] not permitted in composite-gate definition body" id n)) in
+       let qargs l =
+         if not (distinct l) then
+           raise (TypeError(false, "qargs are not distinct")) ;
+         List.map _qarg l
+       in
 
        AST.STMT_GATEDECL(gateid, param_formals, qubit_formals,
-                         List.map (gate_op envs cparam qarg) gopl)
+                         List.map (gate_op envs cparam qargs) gopl)
       
     | STMT_OPAQUEDECL(gateid, param_formals, qubit_formals) ->
        AST.STMT_OPAQUEDECL(gateid, param_formals, qubit_formals)
@@ -625,10 +696,10 @@ module TYCHK = struct
     | STMT_QOP q -> AST.STMT_QOP(raw_qop envs q)
 
     | STMT_IF(id, n, q) ->
-       AST.STMT_IF(Env.lookup_creg envs id, n, raw_qop envs q)
+       AST.STMT_IF(Env.intern_creg envs id, n, raw_qop envs q)
 
     | STMT_BARRIER l ->
-       AST.STMT_BARRIER(List.map (lookup_or_indexed Env.lookup_qreg envs) l)
+       AST.STMT_BARRIER(convert_qargs envs l)
 
     | STMT_QREG(id, n) ->
        Env.must_not_have_qreg envs id ;
