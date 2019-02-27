@@ -502,6 +502,9 @@ module TYCHK = struct
     let intern_creg envs id =
       if has_creg envs id then AST.CREG id
       else raise (TypeError(false, Printf.sprintf "creg %s not declared" id))
+    let lookup_creg envs id =
+      if has_creg envs id then LM.map envs.cregs id
+      else raise (TypeError(false, Printf.sprintf "creg %s not declared" id))
 
     let must_not_have_creg envs id =
       if has_creg envs id then

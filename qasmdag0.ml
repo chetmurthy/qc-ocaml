@@ -161,6 +161,57 @@ module DAG = struct
                   | AST.IT(AST.CREG id) -> AST.INDEXED(AST.CREG id, i)) l)
 
 
+  let generate_qop_instances envs = function
+    | AST.UOP (AST.U(params, qarg)) ->
+       let qubit_instances = generate_qubit_instances envs [qarg] in
+       List.map (fun ([qarg] as qargs) ->
+           (AST.UOP (AST.U(params, qarg)),
+            List.map (function AST.INDEXED (qreg, i) -> Q(qreg, i)) qargs
+           )
+         ) qubit_instances
+
+    | AST.UOP (AST.CX (qarg1, qarg2)) ->
+       let qubit_instances = generate_qubit_instances envs [qarg1; qarg2] in
+       List.map (fun [qarg1; qarg2] as qargs ->
+           (AST.UOP (AST.CX (qarg1, qarg2)),
+            List.map (function AST.INDEXED (qreg, i) -> Q(qreg, i)) qargs)                 
+         ) qubit_instances
+
+    | AST.UOP (AST.COMPOSITE_GATE(gateid, actual_params, qargs)) ->
+       let qubit_instances = generate_qubit_instances envs qargs in
+       List.map (fun qargs ->
+           (AST.UOP (AST.COMPOSITE_GATE(gateid, actual_params, qargs)),
+            List.map (function AST.INDEXED (qreg, i) -> Q(qreg, i)) qargs)
+         ) qubit_instances
+
+    | AST.MEASURE(qarg, carg) ->
+       let qubit_instances = generate_qubit_instances envs [qarg] in
+       let cbit_instances = generate_cbit_instances envs [carg] in
+       assert(List.length qubit_instances = List.length cbit_instances) ;
+       let l = combine qubit_instances cbit_instances in
+       let l = List.map (fun ([q],[c]) -> (q,c)) l in
+       List.map (fun (qarg, carg) ->
+           (AST.MEASURE(qarg, carg),
+            [
+              (match qarg with
+               | AST.INDEXED (AST.QREG id, i) -> Q(AST.QREG id, i));
+              (match carg with
+               | AST.INDEXED (AST.CREG id, i) -> C(AST.CREG id, i));
+            ]                 
+           )
+         ) l
+
+    | AST.RESET qarg ->
+       let qubit_instances = generate_qubit_instances envs [qarg] in
+       List.map (fun [qarg] ->
+           (AST.RESET qarg,
+            [
+              (match qarg with
+               | AST.INDEXED (AST.QREG id, i) -> Q(AST.QREG id, i))
+            ]
+           )
+         ) qubit_instances
+
   let make (envs, pl) =
     let rec add_stmt dag stmt =
       match stmt with
@@ -190,78 +241,41 @@ module DAG = struct
         * (3) insert the edge (SRC, QUBIT, DST)
         * (4) remap (QUBIT->DST) in the frontier
         *)
-    | STMT_QOP(AST.UOP (AST.U(params, qarg))) ->
-       let qubit_instances = generate_qubit_instances envs [qarg] in
-       if List.length qubit_instances > 1 then
-         List.fold_left (fun dag [qarg] ->
-             add_stmt dag (STMT_QOP(AST.UOP (AST.U(params, qarg))))
-           ) dag qubit_instances
-       else
-         let qargs = List.hd qubit_instances in
-         let bits = List.map (function AST.INDEXED (qreg, i) -> Q(qreg, i)) qargs in
-         add_node dag stmt bits
 
-    | STMT_QOP(AST.UOP (AST.CX (qarg1, qarg2))) ->
-       let qubit_instances = generate_qubit_instances envs [qarg1; qarg2] in
-       if List.length qubit_instances > 1 then
-         List.fold_left (fun dag [qarg1; qarg2] ->
-             add_stmt dag (AST.STMT_QOP(AST.UOP (AST.CX (qarg1, qarg2)))))
-           dag qubit_instances
-       else
-         let [qarg1; qarg2] as qargs = List.hd qubit_instances in
-         let stmt = AST.STMT_QOP(AST.UOP (AST.CX (qarg1, qarg2))) in
-         let bits = List.map (function AST.INDEXED (qreg, i) -> Q(qreg, i)) qargs in
-         add_node dag stmt bits
+    | STMT_QOP q ->
+       let l = generate_qop_instances envs q in
+       List.fold_left (fun dag (q, bits) ->
+           add_node dag (AST.STMT_QOP q) bits
+         ) dag l
 
-    | STMT_QOP(AST.UOP (AST.COMPOSITE_GATE(gateid, actual_params, qargs))) ->
-       let qubit_instances = generate_qubit_instances envs qargs in
-       if List.length qubit_instances > 1 then
-         List.fold_left (fun dag qargs ->
-             add_stmt dag (AST.STMT_QOP(AST.UOP (AST.COMPOSITE_GATE(gateid, actual_params, qargs)))))
-           dag qubit_instances
-       else
-         let qargs = List.hd qubit_instances in
-         let stmt = AST.STMT_QOP(AST.UOP (AST.COMPOSITE_GATE(gateid, actual_params, qargs))) in
-         let bits = List.map (function AST.INDEXED (qreg, i) -> Q(qreg, i)) qargs in
-         add_node dag stmt bits
+    | STMT_IF (AST.CREG cregid as creg, n, qop) ->
+       let dim = TYCHK.Env.lookup_creg envs cregid in
+       let cbits =
+         (interval 0 (dim-1))
+         |> List.map (function i -> C(AST.CREG cregid, i)) in
+       let l = generate_qop_instances envs qop in
+       let l = List.map (fun (qop, bits) ->
+                   (AST.STMT_IF(creg, n, qop),
+                    cbits @ bits)
+                 ) l in
+       List.fold_left (fun dag (stmt, bits) ->
+           add_node dag stmt bits
+         ) dag l
 
-    | STMT_QOP(AST.MEASURE(qarg, carg)) ->
-       let qubit_instances = generate_qubit_instances envs [qarg] in
-       let cbit_instances = generate_cbit_instances envs [carg] in
-       assert(List.length qubit_instances = List.length cbit_instances) ;
-       let l = combine qubit_instances cbit_instances in
-       let l = List.map (fun ([q],[c]) -> (q,c)) l in
-       if List.length l > 1 then
-         List.fold_left (fun dag (qarg,carg) ->
-             add_stmt dag (STMT_QOP(AST.MEASURE(qarg, carg)))
-           ) dag l
-       else let (qarg, carg) = List.hd l in
-            let stmt = AST.STMT_QOP(AST.MEASURE(qarg, carg)) in
-            let bits = [
-                (match qarg with
-                 | AST.INDEXED (AST.QREG id, i) -> Q(AST.QREG id, i));
-                (match carg with
-                 | AST.INDEXED (AST.CREG id, i) -> C(AST.CREG id, i));
-              ] in
-            add_node dag stmt bits
+    | STMT_BARRIER qargs ->
+       let gen_qubits = function
+         | AST.INDEXED(AST.QREG id, i) -> [Q(AST.QREG id, i)]
+         | AST.IT(AST.QREG id) ->
+            let dim = TYCHK.Env.lookup_qreg envs id in
+            (interval 0 (dim-1))
+            |> List.map (function i -> Q(AST.QREG id, i)) in
 
-    | STMT_QOP(AST.RESET qarg) ->
-       let qubit_instances = generate_qubit_instances envs [qarg] in
-       if List.length qubit_instances > 1 then
-         List.fold_left (fun dag [qarg] ->
-             add_stmt dag (AST.STMT_QOP(AST.RESET qarg))
-           ) dag qubit_instances
-       else let [aqrg] = List.hd qubit_instances in
-            let stmt = AST.STMT_QOP(AST.RESET qarg) in
-            let bits = [
-                (match qarg with
-                 | AST.INDEXED (AST.QREG id, i) -> Q(AST.QREG id, i))
-              ] in
-            add_node dag stmt bits
+       let bits =
+         List.fold_left (fun bits qarg ->
+             bits @ (gen_qubits qarg))
+           [] qargs in
 
-    | STMT_IF (creg, n, op) -> dag
-
-    | STMT_BARRIER l -> dag
+       add_node dag stmt bits
 
     in
     ()
