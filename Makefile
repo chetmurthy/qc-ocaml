@@ -20,6 +20,12 @@ RESULT=libqasm
 
 all: $(RESULT).cma $(RESULT).cmxa
 
+everything::
+	make realclean
+	make .depend
+	make all
+	make test
+
 test:: qasmsyntax_tests.byte
 	./qasmsyntax_tests.byte
 
