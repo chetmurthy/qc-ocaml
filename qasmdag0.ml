@@ -182,17 +182,6 @@ module DAG = struct
        |> List.map (fun i -> (C(AST.CREG id, i)))
        |> List.fold_left add_input dag
 
-    | STMT_QOP(AST.UOP (AST.U(params, AST.IT(AST.QREG id)))) ->
-       (*
-        * If the qarg is a register, generate the N versions at requisite bits and recurse
-        *)
-       let dim = TYCHK.Env.lookup_qreg envs id in
-       (interval 0 (dim-1))
-       |> List.fold_left (fun dag i ->
-              add_stmt dag (AST.STMT_QOP(AST.UOP (AST.U(params, AST.INDEXED(AST.QREG id, i)))))
-            ) dag
-
-    | STMT_QOP(AST.UOP (AST.U(params, AST.INDEXED(AST.QREG id, i)))) ->
        (*
         * If the qarg is a QUBIT:
         *
@@ -201,8 +190,16 @@ module DAG = struct
         * (3) insert the edge (SRC, QUBIT, DST)
         * (4) remap (QUBIT->DST) in the frontier
         *)
-       let bit = Q(AST.QREG id, i) in
-       add_node dag stmt [bit]
+    | STMT_QOP(AST.UOP (AST.U(params, qarg))) ->
+       let qubit_instances = generate_qubit_instances envs [qarg] in
+       if List.length qubit_instances > 1 then
+         List.fold_left (fun dag [qarg] ->
+             add_stmt dag (STMT_QOP(AST.UOP (AST.U(params, qarg))))
+           ) dag qubit_instances
+       else
+         let qargs = List.hd qubit_instances in
+         let bits = List.map (function AST.INDEXED (qreg, i) -> Q(qreg, i)) qargs in
+         add_node dag stmt bits
 
     | STMT_QOP(AST.UOP (AST.CX (qarg1, qarg2))) ->
        let qubit_instances = generate_qubit_instances envs [qarg1; qarg2] in
