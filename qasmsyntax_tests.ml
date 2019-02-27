@@ -278,14 +278,13 @@ let open AST in
         [((), STMT_QREG ("q", 1));
          ((), STMT_QREG ("r", 1))]) ;
      ]
+  ) @
+  (List.map test_typecheck_fail [
+       ("qreg fail", "qreg q[1]; qreg q[1];",
+        "should have caught repeated qreg declaration",
+        (TypeError (true,"Error file \"\", chars 11-21: qreg q already declared"))) ;
+     ]
   )
-  @
-    (List.map test_typecheck_fail [
-         ("qreg fail", "qreg q[1]; qreg q[1];",
-          "should have caught repeated qreg declaration",
-          (TypeError (true,"Error file \"\", chars 11-21: qreg q already declared"))) ;
-       ]
-    )
 )
 
 (* Run the tests in test suite *)
