@@ -174,5 +174,17 @@ let do_option f = function
 let comp f g x = f (g x)
 
 let rec distinct = function
-    h::t -> (not (List.mem h t)) & distinct t
+    h::t -> (not (List.mem h t)) && distinct t
   | _ -> true
+
+let interval n m = 
+  let rec interval_n (l,m) =
+    if n > m then l else interval_n (m::l,pred m)
+  in interval_n ([],m)
+
+let range = interval 1
+
+let swap f a b = f b a
+
+let combine l1 l2 = List.map2 (fun a b -> (a,b)) l1 l2
+let split l = (List.map fst l,List.map snd l)
