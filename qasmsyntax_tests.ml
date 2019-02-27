@@ -252,6 +252,21 @@ let test_typecheck (name, txt, expect_env, expect_ast) =
     let pl = body_parse PA.program txt in
     let (envs, p) = TYCHK.program pl in
     let p = AST.AuxMap.program aux2unit_mapper p in
+    let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
+    do_option (fun expect_env ->
+        assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
+    expect_env ;
+    do_option (fun expect_ast ->
+        assert_equal expect_ast p)
+      expect_ast
+  )
+
+let test_typecheck_file (name, fname, expect_env, expect_ast) =
+  name >:: (fun ctxt ->
+    let _,pl = full_parse_from_file PA.mainprogram fname in
+    let (envs, p) = TYCHK.program pl in
+    let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
+    let p = AST.AuxMap.program aux2unit_mapper p in
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
     expect_env ;
@@ -285,6 +300,12 @@ let open AST in
        ("cx", "qreg q[1]; qreg r[1]; CX q[0], r[0]; CX q, r;",
         None,
         None) ;
+     ]
+  ) @
+  (List.map test_typecheck_file [
+       ("example", "testdata/example.qasm",
+        None,
+       None) ;
      ]
   ) @
   (List.map test_typecheck_fail [

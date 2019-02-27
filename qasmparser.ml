@@ -470,8 +470,8 @@ module TYCHK = struct
   exception TypeError of bool * string
 
   module Env = struct
-    type t = {
-        gates: (string, TA.t AST.gatedecl_t) LM.t ;
+    type 'a t = {
+        gates: (string, 'a AST.gatedecl_t) LM.t ;
         qregs: (string, int) LM.t ;
         cregs: (string, int) LM.t ;
       }
