@@ -4,6 +4,7 @@ open Misc_functions
 open Coll
 open Qasmsyntax
 open Qasmparser
+open Qasmpp
 
 (* The first implementation of a Multigraph DAG.
 
@@ -83,6 +84,32 @@ module DAG = struct
       g : G.t ;
       frontier : (bit_t, int) LM.t ;
     }
+
+  let pr_node_info ~prefix info =
+    match info.label with
+    | INPUT bit -> [< '"<input " ; 'bit_to_string bit ; '">\n" >]
+    | OUTPUT bit -> [< '"<output " ; 'bit_to_string bit ; '">\n" >]
+    | STMT stmt -> ASTPP.raw_stmt stmt
+
+  let pr_node dag (vertex, info) =
+    let el = G.succ_e dag.g vertex in
+    [< '"  " ;
+     'string_of_int vertex
+     ; '" "; pr_node_info ~prefix:"  " info ;
+     prlist (fun (_, elabel, succ_vertex) ->
+         [< '"    " ; 'Printf.sprintf "%s -> %d\n" (bit_to_string elabel) succ_vertex >]
+       ) el ;
+     >]
+
+  let pp dag =
+    let canon x = List.sort Pervasives.compare x in
+
+    [< 'Printf.sprintf "nextid: %d\n" dag.nextid ;
+     '"node_info:\n" ;
+     prlist (fun (n, info) ->
+         pr_node dag (n, info))
+       (dag.node_info |> LM.toList |> canon)
+     >]
 
   let mk () = {
       nextid = 0 ;
@@ -280,5 +307,6 @@ module DAG = struct
     in
     let pl = List.map snd pl in
     List.fold_left add_stmt (mk()) pl
+
 
 end

@@ -108,11 +108,6 @@ let pr_comma = (fun () -> [< '", " >])
     [< '"OPENQASM " ; 'vers ; '";\n" ;
      program l >]
 
-  let pp ppfun arg =
-    let strm = ppfun arg in
-    let l = list_of_stream strm in
-    String.concat "" l
-
 end
 
 module ASTPP = struct
@@ -228,11 +223,6 @@ module ASTPP = struct
   let main (vers, l) =
     [< '"OPENQASM " ; 'vers ; '";\n" ;
      program l >]
-
-  let pp ppfun arg =
-    let strm = ppfun arg in
-    let l = list_of_stream strm in
-    String.concat "" l
 
 end
                  

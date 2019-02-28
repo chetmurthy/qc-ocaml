@@ -21,6 +21,7 @@
 #load "qasmlex.cmo";;
 #load "qasmparser.cmo";;
 #load "qasmpp.cmo";;
+#load "qasmdag0.cmo";;
 #load "qasmsyntax_tests.cmo";;
 
 #print_length 1048576 ;;
@@ -30,6 +31,7 @@ open Qasmsyntax ;;
 open Qasmlex ;;
 open Qasmparser ;;
 open Qasmpp ;;
+open Qasmdag0 ;;
 
 (*
 #trace header ;;

@@ -188,3 +188,8 @@ let swap f a b = f b a
 
 let combine l1 l2 = List.map2 (fun a b -> (a,b)) l1 l2
 let split l = (List.map fst l,List.map snd l)
+
+let pp ppfun arg =
+  let strm = ppfun arg in
+  let l = list_of_stream strm in
+  String.concat "" l
