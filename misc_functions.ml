@@ -104,6 +104,13 @@ let apply_to_in_channel f fna =
       ic
       (fun _ _ -> close_in ic)
 
+let apply_to_out_channel f fna =
+  let oc = try open_out fna with Failure _ -> failwith (Printf.sprintf "Cannot open file %s for write" fna) in
+	try
+	  let rv = f oc
+	  in close_out oc; rv
+	with exc -> (close_out oc; raise exc)
+
 let file_contents fna =
   apply_to_in_channel
     (fun ic ->

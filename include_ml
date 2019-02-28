@@ -12,6 +12,7 @@
 #require "oUnit";;
 #require "oUnit.advanced";;
 #require "ocamlgraph" ;;
+#require "dot" ;;
 
 #load "misc_functions.cmo";;
 #load "gmap.cmo";;

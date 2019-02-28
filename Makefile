@@ -2,8 +2,8 @@
 
 OCAMLFIND=ocamlfind
 OCAMLCFLAGS=-g
-PACKAGES=-package oUnit,oUnit.advanced,pcre,ocamlgraph
-PACKAGES1=-package camlp5,oUnit,oUnit.advanced,pcre,ocamlgraph -syntax camlp5o
+PACKAGES=-package oUnit,oUnit.advanced,pcre,ocamlgraph,dot
+PACKAGES1=-package camlp5,oUnit,oUnit.advanced,pcre,ocamlgraph,dot -syntax camlp5o
 
 ML= misc_functions.ml gmap.ml gset.ml coll.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml
 MLI= gmap.mli gset.mli

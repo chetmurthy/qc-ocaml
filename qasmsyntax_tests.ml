@@ -392,7 +392,7 @@ let test_dag0 (name, txt) =
     let pl = body_parse PA.program txt in
     let (envs, p) = TYCHK.program pl in
     let dag = DAG.make envs p in
-    pp DAG.pp dag ;
+    pp DAG.pp_both dag ;
     ()
   )
 

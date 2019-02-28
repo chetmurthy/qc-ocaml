@@ -119,7 +119,7 @@ module DAG = struct
               [< '"  " ; 'string_of_int vertex ; '" -> " ; 'bit_to_string bit ; '"\n" >]
             ) l
           >]
-  let pp (dag, frontier) =
+  let pp_both (dag, frontier) =
     [< pp_dag dag ; pp_frontier frontier >]
 
   let mk () =
@@ -138,6 +138,19 @@ module DAG = struct
         g = G.add_vertex dag.g nodeid ;
       },
      LM.add frontier (qubit, nodeid))
+
+  let add_output (dag, frontier) qubit =
+    let nodeid = dag.nextid in
+    let src = LM.map frontier qubit in
+    let g = dag.g in
+    let g = G.add_vertex g nodeid in
+    let g = G.add_edge_e g (src, qubit, nodeid) in
+    ({
+        nextid = nodeid + 1 ;
+        node_info = LM.add dag.node_info (nodeid, { label = OUTPUT qubit }) ;
+        g = g ;
+      },
+     LM.rmv frontier qubit)
 
 (*
  * to add a node that touches the argument [bits]:
@@ -317,7 +330,47 @@ module DAG = struct
 
     in
     let pl = List.map snd pl in
-    List.fold_left add_stmt (mk()) pl
+    let dag = mk() in
+    let dag = List.fold_left add_stmt dag pl in
+    let dag = List.fold_left add_output dag (LM.dom (snd dag)) in
+    dag
 
+  let dot dag =
+    let open Odot in
+    let dot_vertex_0 v acc =
+      let color, label = match (LM.map dag.node_info v).label with
+        | INPUT bit -> ("green", bit_to_string bit)
+        | OUTPUT bit -> ("red", bit_to_string bit)
+        | STMT stmt -> ("lightblue", pp ASTPP.raw_stmt stmt) in
+
+      (Stmt_node ((Simple_id (string_of_int v), None),
+                      [(Simple_id "color", Some (Simple_id "black"));
+                       (Simple_id "fillcolor", Some (Simple_id color));
+                       (Simple_id "label", Some (Double_quoted_id label));
+                       (Simple_id "style", Some (Simple_id "filled"));
+        ]) :: acc) in
+    let dot_edge_0 (s, label, d) acc =
+      (Stmt_edge
+        (Edge_node_id (Simple_id (string_of_int s), None),
+         [Edge_node_id (Simple_id (string_of_int d), None)],
+         [
+           (Simple_id "label", Some (Double_quoted_id (bit_to_string label)));
+        ]) :: acc) in
+
+    let l =
+      []
+      |> G.fold_vertex dot_vertex_0 dag.g
+      |> G.fold_edges_e dot_edge_0 dag.g
+      |> List.rev in
+    let l = 
+      (Odot.Stmt_attr
+         (Odot.Attr_node
+            [(Odot.Simple_id "label", Some (Odot.Double_quoted_id "\\N"))])) :: l in
+
+    {strict = false; kind = Digraph; id = Some (Simple_id "G");
+     stmt_list = l }
+
+  let dot_to_file fname p =
+    apply_to_out_channel (fun oc -> Odot.print oc p) fname
 
 end
