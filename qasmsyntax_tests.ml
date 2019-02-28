@@ -417,7 +417,6 @@ let dag0_tests = "dag0 tests" >:::
     )
   )
 
-
 (* Run the tests in test suite *)
 let _ =
 if invoked_as "qasmsyntax_tests" then

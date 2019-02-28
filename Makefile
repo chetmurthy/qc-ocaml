@@ -8,7 +8,7 @@ PACKAGES1=-package camlp5,oUnit,oUnit.advanced,pcre,ocamlgraph,dot -syntax camlp
 ML= misc_functions.ml gmap.ml gset.ml coll.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml
 MLI= gmap.mli gset.mli
 
-SRC=qasmlex.ml qasmsyntax.ml qasmsyntax_tests.ml coll.ml gmap.ml gset.ml
+SRC=qasmlex.ml qasmsyntax.ml coll.ml gmap.ml gset.ml qasmsyntax_tests.ml large_tests.ml
 SRCP5=qasmparser.ml qasmpp.ml misc_functions.ml qasmdag0.ml
 
 CMO= $(ML:.ml=.cmo)
@@ -17,14 +17,18 @@ CMI= $(ML:.ml=.cmi)
 OBJECTS = $(CMO) $(CMX) $(CMI)
 
 RESULT=libqasm
+TESTS=qasmsyntax_tests.byte large_tests.byte
 
-all: $(RESULT).cma $(RESULT).cmxa
+all: $(RESULT).cma $(RESULT).cmxa $(TESTS)
 
 everything::
 	make realclean
 	make .depend
 	make all
 	make test
+
+large-test: large_tests.byte
+	./large_tests.byte
 
 test:: qasmsyntax_tests.byte
 	./qasmsyntax_tests.byte
@@ -36,6 +40,9 @@ $(RESULT).cmxa: $(CMX)
 	$(OCAMLFIND) ocamlopt -a -o $(RESULT).cmxa $(CMX)
 
 qasmsyntax_tests.byte: $(RESULT).cma qasmsyntax_tests.cmo
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -linkpkg -linkall -o $@ $^
+
+large_tests.byte: $(RESULT).cma large_tests.cmo
 	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -linkpkg -linkall -o $@ $^
 
 qasmparser.cmo: qasmparser.ml

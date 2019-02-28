@@ -17,7 +17,7 @@ let id_regexp  = lc_alpha (lc_alpha|digit|uc_alpha|'_')*
 let mantissa = ((digit+ '.' digit*) | (digit* '.' digit+))
 let exponent = ['e' 'E'] ['+' '-']? digit+
 let real_regexp = mantissa exponent?
-let integer_regexp = '-'? digit+
+let integer_regexp = digit+
 
 let comment_regexp = "//" [^ '\r' '\n']* newline
 
