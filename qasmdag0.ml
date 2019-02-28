@@ -335,13 +335,27 @@ module DAG = struct
     let dag = List.fold_left add_output dag (LM.dom (snd dag)) in
     dag
 
-  let dot dag =
+  let rec stmt_to_label ~terse stmt =
+    if not terse then pp ASTPP.raw_stmt stmt
+    else match stmt with
+         | AST.STMT_QOP(AST.UOP (AST.U _)) -> "U"
+         | AST.STMT_QOP(AST.UOP (AST.CX _)) -> "CX"
+         | AST.STMT_QOP(AST.UOP (AST.COMPOSITE_GATE(gateid, _,_))) -> gateid
+         | AST.STMT_QOP(AST.MEASURE _) -> "measure"
+         | AST.STMT_QOP(AST.RESET _) -> "reset"
+         | AST.STMT_IF (_,_, qop) ->
+            "if/"^(stmt_to_label ~terse (AST.STMT_QOP qop))
+         | AST.STMT_BARRIER _ -> "barrier"
+
+         | AST.STMT_GATEDECL _ | STMT_OPAQUEDECL _| STMT_QREG _ | STMT_CREG _ -> assert false
+
+  let dot ?(terse=true) dag =
     let open Odot in
     let dot_vertex_0 v acc =
       let color, label = match (LM.map dag.node_info v).label with
         | INPUT bit -> ("green", bit_to_string bit)
         | OUTPUT bit -> ("red", bit_to_string bit)
-        | STMT stmt -> ("lightblue", pp ASTPP.raw_stmt stmt) in
+        | STMT stmt -> ("lightblue", stmt_to_label ~terse stmt) in
 
       (Stmt_node ((Simple_id (string_of_int v), None),
                       [(Simple_id "color", Some (Simple_id "black"));
