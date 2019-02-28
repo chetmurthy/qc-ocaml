@@ -82,7 +82,6 @@ module DAG = struct
       nextid: int ;
       node_info : (int, node_info_t) LM.t ;
       g : G.t ;
-      frontier : (bit_t, int) LM.t ;
     }
 
   let pr_node_info ~prefix info =
@@ -101,7 +100,7 @@ module DAG = struct
        ) el ;
      >]
 
-  let pp dag =
+  let pp_dag dag =
     let canon x = List.sort Pervasives.compare x in
 
     [< 'Printf.sprintf "nextid: %d\n" dag.nextid ;
@@ -111,21 +110,34 @@ module DAG = struct
        (dag.node_info |> LM.toList |> canon)
      >]
 
-  let mk () = {
-      nextid = 0 ;
-      node_info = LM.mk() ;
-      g = G.empty ;
-      frontier = LM.mk() ;
-    }
+  let pp_frontier m =
+    let canon x = List.sort Pervasives.compare x in
+    let l = m |> LM.toList |> canon in
+    if l = [] then [< >]
+    else [< '"frontier:\n" ;
+          prlist (fun (bit, vertex) ->
+              [< '"  " ; 'string_of_int vertex ; '" -> " ; 'bit_to_string bit ; '"\n" >]
+            ) l
+          >]
+  let pp (dag, frontier) =
+    [< pp_dag dag ; pp_frontier frontier >]
 
-  let add_input dag qubit =
+  let mk () =
+    ({
+        nextid = 0 ;
+        node_info = LM.mk() ;
+        g = G.empty ;
+      },
+     LM.mk())
+
+  let add_input (dag, frontier) qubit =
     let nodeid = dag.nextid in
-    {
-      nextid = nodeid + 1 ;
-      node_info = LM.add dag.node_info (nodeid, { label = INPUT qubit }) ;
-      g = G.add_vertex dag.g nodeid ;
-      frontier = LM.add dag.frontier (qubit, nodeid) ;
-    }
+    ({
+        nextid = nodeid + 1 ;
+        node_info = LM.add dag.node_info (nodeid, { label = INPUT qubit }) ;
+        g = G.add_vertex dag.g nodeid ;
+      },
+     LM.add frontier (qubit, nodeid))
 
 (*
  * to add a node that touches the argument [bits]:
@@ -137,25 +149,24 @@ module DAG = struct
  *   (4) remap (QUBIT->DST) in the frontier
  
  *)
-  let add_node dag stmt bits =
+  let add_node (dag, frontier) stmt bits =
     let nodeid = dag.nextid in
     let bits_edges =
       List.map (fun bit ->
-          (bit, LM.map dag.frontier bit))
+          (bit, LM.map frontier bit))
         bits in
-    {
-      nextid = nodeid + 1 ;
-      node_info = LM.add dag.node_info (nodeid, { label = STMT stmt }) ;
-      g =
-        dag.g
-        |> swap G.add_vertex nodeid
-        |> swap (List.fold_left (fun dag (bit, srcnode) ->
-                     G.add_edge_e dag (G.E.create srcnode bit nodeid)
-                   )) bits_edges ;
-      frontier =
-        List.fold_left (fun f bit ->
-            LM.remap f bit nodeid) dag.frontier bits ;
-    }
+    ({
+        nextid = nodeid + 1 ;
+        node_info = LM.add dag.node_info (nodeid, { label = STMT stmt }) ;
+        g =
+          dag.g
+          |> swap G.add_vertex nodeid
+          |> swap (List.fold_left (fun dag (bit, srcnode) ->
+                       G.add_edge_e dag (G.E.create srcnode bit nodeid)
+               )) bits_edges ;
+      },
+     List.fold_left (fun f bit ->
+         LM.remap f bit nodeid) frontier bits)
 
   let generate_qubit_instances envs l =
     if for_all (function AST.INDEXED _ -> true | _ -> false) l then
