@@ -275,6 +275,39 @@ let test_typecheck_file (name, fname, expect_env, expect_ast) =
       expect_ast
   )
 
+
+let test_typecheck_roundtrip (name, txt, expect_env, expect) =
+  name >:: (fun ctxt ->
+    let pl = body_parse PA.program txt in
+    let (envs, p) = TYCHK.program pl in
+    let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
+    let pretty_p = ASTPP.(pp program p) in
+
+    do_option (fun expect_env ->
+        assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
+    expect_env ;
+    do_option (fun expect ->
+        assert_equal expect pretty_p)
+      expect
+  )
+
+
+let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
+  name >:: (fun ctxt ->
+    let vers,pl = full_parse_from_file PA.mainprogram fname in
+    let (envs, p) = TYCHK.program pl in
+    let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
+    let pretty_p = ASTPP.(pp main (vers, p)) in
+
+    do_option (fun expect_env ->
+        assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
+    expect_env ;
+    do_option (fun expect ->
+        assert_equal expect pretty_p)
+      expect
+  )
+
+
 let test_typecheck_fail (name, txt, msg, exn) =
   name >:: (fun ctxt ->
     let pl = body_parse PA.program txt in
@@ -346,7 +379,17 @@ let open AST in
         (TypeError (true,"Error file \"\", chars 61-78: bit s[2] out of dimension [0..2)"))) ;
      ]
   )
+  @
+  (List.map test_typecheck_roundtrip_file [
+       ("example", "testdata/example.qasm", None, None) ;
+     ]
+  )
 )
+
+let dag0_tests = "dag0 tests" >:::
+  [
+  ]
+
 
 (* Run the tests in test suite *)
 let _ =
@@ -354,6 +397,6 @@ if invoked_as "qasmsyntax_tests" then
   run_test_tt_main ("all_tests" >::: [
         misc_tests ; lexer_tests; expr_parser_tests;
         statement_parser_tests; parser_tests;
-        typechecker_tests;
+        typechecker_tests; dag0_tests ;
     ])
 ;;
