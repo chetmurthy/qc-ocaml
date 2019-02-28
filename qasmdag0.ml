@@ -153,11 +153,11 @@ module DAG = struct
         try_find (function
             | AST.IT (AST.CREG id) -> id
             | _ -> failwith "caught") l in
-      let dim = TYCHK.Env.lookup_qreg envs regid in
+      let dim = TYCHK.Env.lookup_creg envs regid in
       (interval 0 (dim-1))
        |> List.map (fun i ->
               List.map (function
-                  | AST.INDEXED _ as qarg -> qarg
+                  | AST.INDEXED _ as carg -> carg
                   | AST.IT(AST.CREG id) -> AST.INDEXED(AST.CREG id, i)) l)
 
 
@@ -212,7 +212,7 @@ module DAG = struct
            )
          ) qubit_instances
 
-  let make (envs, pl) =
+  let make envs pl =
     let rec add_stmt dag stmt =
       match stmt with
     | AST.STMT_GATEDECL _ | STMT_OPAQUEDECL _ -> dag
@@ -278,6 +278,7 @@ module DAG = struct
        add_node dag stmt bits
 
     in
+    let pl = List.map snd pl in
     List.fold_left add_stmt (mk()) pl
 
 end

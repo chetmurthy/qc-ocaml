@@ -7,6 +7,7 @@ open Qasmlex
 open Qasmsyntax
 open Qasmparser
 open Qasmpp
+open Qasmdag0
 
 let misc_tests = "misc tests" >:::
   [
@@ -386,9 +387,34 @@ let open AST in
   )
 )
 
+let test_dag0 (name, txt) =
+  name >:: (fun ctxt ->
+    let pl = body_parse PA.program txt in
+    let (envs, p) = TYCHK.program pl in
+    let dag = DAG.make envs p in
+    ()
+  )
+
+let test_dag0_file (name, fname) =
+  name >:: (fun ctxt ->
+    let vers,pl = full_parse_from_file PA.mainprogram fname in
+    let (envs, p) = TYCHK.program pl in
+    let dag = DAG.make envs p in
+    ()
+  )
+
 let dag0_tests = "dag0 tests" >:::
-  [
-  ]
+  (
+    (List.map test_dag0 [
+         ("qreg",  "qreg q[1]; qreg r[1];") ;
+       ] ;
+    )
+    @
+    (List.map test_dag0_file [
+         ("example",  "testdata/example.qasm") ;
+       ] ;
+    )
+  )
 
 
 (* Run the tests in test suite *)
