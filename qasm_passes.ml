@@ -119,6 +119,15 @@ let unroll1 envs dag node =
             ) dag.DAG.g (LM.dom frontier) in
   { dag with DAG.g = g }
 
+let select_unroll_nodes ~except dag =
+  LM.fold (fun acc (n, info) ->
+      match info.DAG.label with
+      | DAG.INPUT _ | OUTPUT _ -> acc
+      | DAG.STMT(AST.STMT_QOP (AST.UOP (AST.COMPOSITE_GATE (gateid, _, _)))) when not (List.mem gateid except) ->
+         n::acc
+      | _ -> acc
+    ) [] dag.DAG.node_info
+
 let unroll ?except ?only envs dag =
   let except =
     match except, only with
@@ -127,4 +136,12 @@ let unroll ?except ?only envs dag =
     | Some except, None -> except
     | None, Some only ->
        subtract (LM.dom envs.TYCHK.Env.gates) only in
-  ()
+  let rec unrec dag =
+    let l = select_unroll_nodes ~except dag in
+    if l = [] then dag
+    else
+      let dag = List.fold_left (fun dag n ->
+                    unroll1 envs dag n
+                  ) dag l in
+      unrec dag
+  in unrec dag
