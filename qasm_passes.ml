@@ -15,6 +15,8 @@ open Qasmdag0
  * If we specify [~only], it is converted into [~except]
  *)
 
+module Unroll = struct
+
 let subst_expr cparamenv e =
   let rec subst1 = function
     | AST.ID (AST.CPARAMVAR id) -> LM.map cparamenv id
@@ -128,7 +130,7 @@ let select_unroll_nodes ~except dag =
       | _ -> acc
     ) [] dag.DAG.node_info
 
-let unroll ?except ?only envs dag =
+let execute ?except ?only envs dag =
   let except =
     match except, only with
     | None, None -> failwith "must specify AT LEAST one of either ~except or ~only"
@@ -145,3 +147,5 @@ let unroll ?except ?only envs dag =
                   ) dag l in
       unrec dag
   in unrec dag
+
+end
