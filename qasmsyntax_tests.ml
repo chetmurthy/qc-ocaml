@@ -8,6 +8,7 @@ open Qasmsyntax
 open Qasmparser
 open Qasmpp
 open Qasmdag0
+open Qasm_passes
 
 let misc_tests = "misc tests" >:::
   [
@@ -436,6 +437,30 @@ let dag0_tests = "dag0 tests" >:::
     ]
   )
 
+let unroll ~only txt =
+  let pl = body_parse PA.program txt in
+  let (envs, p) = TYCHK.program pl in
+  let (dag, _) = DAG.make envs p in
+  let dag = Unroll.execute ~only envs dag in
+  let pl = DAG.to_ast envs dag in  
+  pp ASTPP.program pl
+
+let test_unroll (name, only, txt, expect) =
+  name >:: (fun ctxt ->
+    let txt = unroll ~only txt in
+    assert_equal txt expect
+  )
+
+let unroll_tests = "unroll tests" >:::
+  (
+    (List.map test_unroll [
+         ("unroll 0", ["g"],
+          "gate g a, b { CX a, b; } qreg q[2]; g q[0], q[1]; ",
+          "qreg q[2];\nCX q[0], q[1];\n")
+       ]
+    )
+  )
+
 (* Run the tests in test suite *)
 let _ =
 if invoked_as "qasmsyntax_tests" then
@@ -443,5 +468,6 @@ if invoked_as "qasmsyntax_tests" then
         misc_tests ; lexer_tests; expr_parser_tests;
         statement_parser_tests; parser_tests;
         typechecker_tests; dag0_tests ;
+        unroll_tests ;
     ])
 ;;

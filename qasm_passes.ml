@@ -99,6 +99,10 @@ let unroll1 envs dag node =
   let g = List.fold_left G.remove_edge_e g pred_edges in
   let g = List.fold_left G.remove_edge_e g succ_edges in
   let g = G.remove_vertex g node in
+  let dag = {
+      dag with DAG.g = g;
+               node_info = LM.rmv dag.DAG.node_info node ;
+    } in
   let frontier =
     let frontier = List.map (fun (src, edgelabel, dst) ->
                        assert (dst = node) ;
@@ -111,7 +115,6 @@ let unroll1 envs dag node =
                      (edgelabel, dst)
                    ) succ_edges in
     LM.ofList() target in
-  let dag = { dag with DAG.g = g } in
   let (dag, frontier) =
     List.fold_left (fun dag (_, stmt) -> (DAG.add_stmt envs) dag stmt) (dag, frontier) stmts in
   let canon x = List.sort Pervasives.compare x in
