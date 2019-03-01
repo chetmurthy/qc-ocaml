@@ -28,7 +28,7 @@ open Qasmpp
 (* representation of a node -- must be hashable *)
 module Node = struct
    type t = int
-   let compare = Pervasives.compare
+   let compare (v1: t) (v2: t) = Pervasives.compare v1 v2
    let hash = Hashtbl.hash
    let equal = (=)
 end
@@ -55,6 +55,65 @@ module G = Graph.Persistent.Digraph.ConcreteLabeled(Node)(Edge)
 
 (* more modules available, e.g. graph traversal with depth-first-search *)
 module D = Graph.Traverse.Dfs(G)
+
+(* Stable Tsort
+ *
+ * We have two datastructures we use for the algorithm:
+ *
+ * (a) [todo]: this holds a list of zero-indegree vertexes
+ *
+ * (b) [indegree]: this is a map from vertex to indegree, for vertexes of NONZERO indegree
+ *
+ * If at any time, indegree is not empty, but todo is empty, we have a failure (b/c there's a cycle)
+ *
+ * Algorithm:
+ *
+ * (1) basis case: iterate across vertexes, populating [todo] and [indegree]
+ *
+ * (2) step case:
+ *     (a) grab [todo] list as [t]
+ *     (b) zero [todo] list
+ *     (c) for each vertex [v] in [t], decrement [indegree v]
+ *         if [indegree v] is zero, delete from [indegree] and insert into [todo]
+ *     (d) sort [t]
+ *     (e) deliver [v] in [t] to [f]
+ *
+ *)
+
+let tsort ~compare f g acc =
+  let todo = ref [] in
+  let indegree = Hashtbl.create 97 in
+
+  G.iter_vertex (fun v ->
+      let d = G.in_degree g v in
+      if d = 0 then push todo v
+      else Hashtbl.add indegree v d
+    ) g;
+
+  let rec dorec acc =
+    if !todo = [] then
+      if Hashtbl.length indegree = 0 then acc
+      else failwith "tsort: DAG was cyclic!"
+    else
+    let work = !todo in
+    todo := [] ;
+    List.iter (fun src ->
+        G.iter_succ_e (fun (_, _, dst) ->
+            if not (Hashtbl.mem indegree dst) then failwith "tsort: DAG was cyclic" ;
+            let d = Hashtbl.find indegree dst in
+            if d = 1 then begin
+                Hashtbl.remove indegree dst ;
+                push todo dst
+              end
+            else
+              Hashtbl.replace indegree dst (d-1)
+          ) g src
+      ) work ;
+    let work = List.sort compare work in
+    let acc = List.fold_left (fun acc v -> f v acc) acc work in
+    dorec acc
+
+  in dorec acc
 
 (* module for creating dot-files *)
 module Dot = Graph.Graphviz.Dot(struct
@@ -386,5 +445,33 @@ module DAG = struct
 
   let dot_to_file fname p =
     apply_to_out_channel (fun oc -> Odot.print oc p) fname
+
+  let compare dag a b =
+    let a_info = LM.map dag.node_info a in
+    let b_info = LM.map dag.node_info b in
+    Pervasives.compare (a_info, a) (b_info, b)
+
+  let tsort dag =
+    []
+    |> tsort ~compare:(compare dag) (fun v l -> v::l) dag.g
+    |> List.rev
+
+  let to_ast envs dag =
+    let canon x = List.sort Pervasives.compare x in
+    let open TYCHK in
+    let nodel = tsort dag in
+    let stmts =
+      List.fold_left (fun acc n ->
+          match (LM.map dag.node_info n).label with
+          | INPUT _|OUTPUT _ -> acc
+          | STMT stmt -> (TA.mt, stmt)::acc) [] nodel in
+    let stmts = List.rev stmts in
+    let qregdecls = List.map (fun (id, dim) ->
+                        (TA.mt, AST.STMT_QREG(id, dim)))
+                  (LM.toList envs.Env.qregs) in
+    let cregdecls = List.map (fun (id, dim) ->
+                        (TA.mt, AST.STMT_CREG(id, dim)))
+                  (LM.toList envs.Env.cregs) in
+    (canon qregdecls) @ (canon cregdecls) @ stmts
 
 end

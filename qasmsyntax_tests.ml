@@ -387,11 +387,22 @@ let open AST in
   )
 )
 
+let to_dag0 txt =
+  let pl = body_parse PA.program txt in
+  let (envs, p) = TYCHK.program pl in
+  let dag = DAG.make envs p in
+  dag
+
+let parse_to_dag0_to_ast txt =
+  let pl = body_parse PA.program txt in
+  let (envs, p) = TYCHK.program pl in
+  let (dag, _) = DAG.make envs p in
+  let pl = DAG.to_ast envs dag in  
+  pp ASTPP.program pl
+
 let test_dag0 (name, txt) =
   name >:: (fun ctxt ->
-    let pl = body_parse PA.program txt in
-    let (envs, p) = TYCHK.program pl in
-    let dag = DAG.make envs p in
+    let dag = to_dag0 txt in
     pp DAG.pp_both dag ;
     ()
   )
@@ -415,6 +426,14 @@ let dag0_tests = "dag0 tests" >:::
          ("example",  "testdata/example.qasm") ;
        ] ;
     )
+    @
+    [
+      "tsort" >:: (fun ctxt ->
+        let atxt = {| qreg r[2] ; CX r[0], r[1] ; qreg q[2] ; CX q[0], q[1] ; |} in
+        let btxt = {| qreg q[2] ; CX q[0], q[1] ; qreg r[2] ; CX r[0], r[1] ; |} in
+        assert_equal (parse_to_dag0_to_ast atxt) (parse_to_dag0_to_ast btxt)
+      )
+    ]
   )
 
 (* Run the tests in test suite *)

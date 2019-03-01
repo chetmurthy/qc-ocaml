@@ -43,32 +43,33 @@ open Qasmdag0 ;;
 #trace grab_include ;;
 #trace eat_include_suffix_1 ;;
 #trace cleanws ;;
+
+#trace TS.choose ;;
+#trace TS.Q.choose ;;
+#trace Node.compare ;;#trace Node.compare ;;
+#trace DAG.compare ;;
  *)
 
 (*
-let ll = make_body_lexer {|
-// argle
-qreg q[2];
 
-h q[// bargle
-0];
-|}
- ;;
- *)
-
-
-(*
-let ll = make_lexer {|OPENQASM 2.0;
-include "qelib1.inc";
-qreg q[2];
-
-h q[0];
-CX q[0],q[1];
-|} ;;
-
- *)
-(*
-let ll = make_body_lexer {| 0.e+0 |}
+let pl = body_parse PA.program {| qreg q[2] ; CX q[0], q[1] ; qreg r[2] ; CX r[0], r[1] ; |} in
+let (envs, pl) = TYCHK.program pl in
+    let (dag, _) = DAG.make envs pl in
+print_string (pp DAG.pp_dag dag) ;
+print_newline () ;
+let pl = DAG.to_ast envs dag in
+print_string (pp ASTPP.program pl) ;
+DAG.tsort dag
 ;;
-      
+
+let pl = body_parse PA.program {| qreg r[2] ; CX r[0], r[1] ; qreg q[2] ; CX q[0], q[1] ; |} in
+let (envs, pl) = TYCHK.program pl in
+    let (dag, _) = DAG.make envs pl in
+print_string (pp DAG.pp_dag dag) ;
+print_newline () ;
+let pl = DAG.to_ast envs dag in
+print_string (pp ASTPP.program pl) ;
+DAG.tsort dag
+;;
+
  *)
