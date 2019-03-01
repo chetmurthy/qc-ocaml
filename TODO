@@ -1,8 +1,8 @@
 
-* implement topological sort that returns groups of nodes instead of
+* [DONE] implement topological sort that returns groups of nodes instead of
    node-by- node
 
-* DAG0 -> AST converter
+* [DONE] DAG0 -> AST converter
 
 * composite-gate-unroller
 

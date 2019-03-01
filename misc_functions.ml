@@ -200,3 +200,9 @@ let pp ppfun arg =
   let strm = ppfun arg in
   let l = list_of_stream strm in
   String.concat "" l
+
+let intersect l1 l2 = filter (fun x -> List.mem x l2) l1
+
+let diff_set l1 l2 =
+  if l2 = [] then l1 else filter (fun x -> not (List.mem x l2)) l1
+let subtract = diff_set
