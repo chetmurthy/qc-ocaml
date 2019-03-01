@@ -233,8 +233,8 @@ module DAG = struct
         g =
           dag.g
           |> swap G.add_vertex nodeid
-          |> swap (List.fold_left (fun dag (bit, srcnode) ->
-                       G.add_edge_e dag (G.E.create srcnode bit nodeid)
+          |> swap (List.fold_left (fun g (bit, srcnode) ->
+                       G.add_edge_e g (G.E.create srcnode bit nodeid)
                )) bits_edges ;
       },
      List.fold_left (fun f bit ->
@@ -322,9 +322,8 @@ module DAG = struct
            )
          ) qubit_instances
 
-  let make envs pl =
-    let rec add_stmt dag stmt =
-      match stmt with
+  let rec add_stmt envs dag stmt =
+    match stmt with
     | AST.STMT_GATEDECL _ | STMT_OPAQUEDECL _ -> dag
 
     | STMT_QREG(id, n) ->
@@ -343,14 +342,14 @@ module DAG = struct
        |> List.map (fun i -> (C(AST.CREG id, i)))
        |> List.fold_left add_input dag
 
-       (*
-        * If the qarg is a QUBIT:
-        *
-        * (1) find the SRC node in the frontier
-        * (2) insert this stmt as the DST node
-        * (3) insert the edge (SRC, QUBIT, DST)
-        * (4) remap (QUBIT->DST) in the frontier
-        *)
+    (*
+     * If the qarg is a QUBIT:
+     *
+     * (1) find the SRC node in the frontier
+     * (2) insert this stmt as the DST node
+     * (3) insert the edge (SRC, QUBIT, DST)
+     * (4) remap (QUBIT->DST) in the frontier
+     *)
 
     | STMT_QOP q ->
        let l = generate_qop_instances envs q in
@@ -387,10 +386,10 @@ module DAG = struct
 
        add_node dag stmt bits
 
-    in
+  let make envs pl =
     let pl = List.map snd pl in
     let dag = mk() in
-    let dag = List.fold_left add_stmt dag pl in
+    let dag = List.fold_left (add_stmt envs) dag pl in
     let dag = List.fold_left add_output dag (LM.dom (snd dag)) in
     dag
 

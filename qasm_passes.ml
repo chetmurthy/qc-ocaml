@@ -109,8 +109,15 @@ let unroll1 envs dag node =
                      (edgelabel, dst)
                    ) succ_edges in
     LM.ofList() target in
-  ()
-
+  let dag = { dag with DAG.g = g } in
+  let (dag, frontier) =
+    List.fold_left (fun dag (_, stmt) -> (DAG.add_stmt envs) dag stmt) (dag, frontier) stmts in
+  let canon x = List.sort Pervasives.compare x in
+  assert (canon (LM.dom frontier) = canon (LM.dom target)) ;
+  let g = List.fold_left (fun g edgelabel ->
+              G.add_edge_e g (G.E.create (LM.map frontier edgelabel) edgelabel (LM.map target edgelabel))
+            ) dag.DAG.g (LM.dom frontier) in
+  { dag with DAG.g = g }
 
 let unroll ?except ?only envs dag =
   let except =
