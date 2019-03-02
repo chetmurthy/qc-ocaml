@@ -4,5 +4,7 @@
 
 * [DONE] DAG0 -> AST converter
 
-* composite-gate-unroller
+* [DONE] composite-gate-unroller
 
+* ocamldot cannot be installed by opam, but can be from build-tree.
+   Figure this out

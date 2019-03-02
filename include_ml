@@ -8,11 +8,19 @@
 
 #use "topfind";;
 
+#require "containers";;
 #require "pcre";;
 #require "oUnit";;
 #require "oUnit.advanced";;
 #require "ocamlgraph" ;;
 #require "dot" ;;
+#require "netstring" ;;
+#require "netzip" ;;
+#require "netclient" ;;
+#require "netclient,nettls-gnutls" ;;
+#require "yojson" ;;
+#require "ppx_deriving_yojson" ;;
+#require "inifiles" ;;
 
 #load "misc_functions.cmo";;
 #load "gmap.cmo";;
@@ -24,6 +32,7 @@
 #load "qasmpp.cmo";;
 #load "qasmdag0.cmo";;
 #load "qasm_passes.cmo";;
+#load "qrpc_api.cmo";;
 #load "qasmsyntax_tests.cmo";;
 
 #print_length 1048576 ;;

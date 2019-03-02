@@ -2,13 +2,13 @@
 
 OCAMLFIND=ocamlfind
 OCAMLCFLAGS=-g
-PACKAGES=-package oUnit,oUnit.advanced,pcre,ocamlgraph,dot
-PACKAGES1=-package camlp5,oUnit,oUnit.advanced,pcre,ocamlgraph,dot -syntax camlp5o
+PACKAGES=ppx_deriving_yojson,oUnit,oUnit.advanced,pcre,ocamlgraph,dot,yojson,containers,inifiles
+PACKAGESP5=camlp5,$(PACKAGES) -syntax camlp5o
 
-ML= misc_functions.ml gmap.ml gset.ml coll.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml qasm_passes.ml
+ML= misc_functions.ml gmap.ml gset.ml coll.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml qasm_passes.ml qrpc_api.ml
 MLI= gmap.mli gset.mli
 
-SRC=qasmlex.ml qasmsyntax.ml coll.ml gmap.ml gset.ml qasmsyntax_tests.ml large_tests.ml
+SRC=qasmlex.ml qasmsyntax.ml coll.ml gmap.ml gset.ml qasmsyntax_tests.ml large_tests.ml qrpc_api.ml
 SRCP5=qasmparser.ml qasmpp.ml misc_functions.ml qasmdag0.ml qasm_passes.ml
 
 CMO= $(ML:.ml=.cmo)
@@ -40,46 +40,22 @@ $(RESULT).cmxa: $(CMX)
 	$(OCAMLFIND) ocamlopt -a -o $(RESULT).cmxa $(CMX)
 
 qasmsyntax_tests.byte: $(RESULT).cma qasmsyntax_tests.cmo
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -linkpkg -linkall -o $@ $^
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) -package $(PACKAGES) -linkpkg -linkall -o $@ $^
 
 large_tests.byte: $(RESULT).cma large_tests.cmo
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -linkpkg -linkall -o $@ $^
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) -package $(PACKAGES) -linkpkg -linkall -o $@ $^
 
-qasmparser.cmo: qasmparser.ml
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+$(SRC:.ml=.cmo): %.cmo: %.ml
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) -package $(PACKAGES) -c $<
 
-qasmparser.cmx: qasmparser.ml
-	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+$(SRC:.ml=.cmx): %.cmx: %.ml
+	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) -package $(PACKAGES) -c $<
 
-qasmpp.cmo: qasmpp.ml
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+$(SRCP5:.ml=.cmo): %.cmo: %.ml
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) -package $(PACKAGESP5) -c $<
 
-qasmpp.cmx: qasmpp.ml
-	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
-
-#qasmsyntax.cmo: qasmsyntax.ml
-#	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
-
-#qasmsyntax.cmx: qasmsyntax.ml
-#	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
-
-qasmdag0.cmo: qasmdag0.ml
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
-
-qasmdag0.cmx: qasmdag0.ml
-	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
-
-qasm_passes.cmo: qasm_passes.ml
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
-
-qasm_passes.cmx: qasm_passes.ml
-	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
-
-misc_functions.cmo: misc_functions.ml
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES1) -c $<
-
-misc_functions.cmx: misc_functions.ml
-	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES1) -c $<
+$(SRCP5:.ml=.cmx): %.cmx: %.ml
+	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) -package $(PACKAGESP5) -c $<
 
 clean::
 	rm -f *.cm* *.o *.a *.byte *.opt qasmlex.ml oUnit*
@@ -89,22 +65,16 @@ realclean:: clean
 
 .SUFFIXES: .cmi .cmo .cmx .ml .mli .mll
 
-.ml.cmo:
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -c $<
-
 .mll.ml:
 	ocamllex $<
 
-.ml.cmx:
-	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) $(PACKAGES) -c $<
-
 .mli.cmi:
-	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) $(PACKAGES) -c $<
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) -package $(PACKAGES) -c $<
 
 .NOTPARALLEL:
 
 .depend: $(SRC) $(SRCP5)
-	$(OCAMLFIND) ocamldep $(PACKAGES) $(SRC) > .depend.NEW && \
-	$(OCAMLFIND) ocamldep $(PACKAGES1) $(SRCP5) >> .depend.NEW && \
+	$(OCAMLFIND) ocamldep -package $(PACKAGES) $(SRC) > .depend.NEW && \
+	$(OCAMLFIND) ocamldep -package $(PACKAGESP5) $(SRCP5) >> .depend.NEW && \
 	mv .depend.NEW .depend
 -include .depend
