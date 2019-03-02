@@ -461,6 +461,26 @@ let unroll_tests = "unroll tests" >:::
     )
   )
 
+open Qrpc_api
+let credentials_tests = "credentials tests" >:::
+  [
+    "basic url" >:: (fun ctxt ->
+      let url = "foo" in
+      assert_equal (url, None, None, None)
+        (Credentials._unify_ibmq_url url)
+    ) ;
+    "works 0" >:: (fun ctxt ->
+      let url = "https://q-console-api.mybluemix.net/api/Hubs/ibmq/Groups/qc-ware/Projects/default" in
+      assert_equal (url, Some "ibmq", Some "qc-ware", Some "default")
+        (Credentials._unify_ibmq_url url)
+    ) ;
+    "works 1" >:: (fun ctxt ->
+      let url = "https://quantumexperience.ng.bluemix.net/api" in
+      assert_equal (url, None, None, None)
+        (Credentials._unify_ibmq_url url)
+    ) ;
+  ]
+
 (* Run the tests in test suite *)
 let _ =
 if invoked_as "qc_tests" then
@@ -469,5 +489,6 @@ if invoked_as "qc_tests" then
         statement_parser_tests; parser_tests;
         typechecker_tests; dag0_tests ;
         unroll_tests ;
+        credentials_tests ;
     ])
 ;;
