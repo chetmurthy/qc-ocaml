@@ -474,6 +474,11 @@ let credentials_tests = "credentials tests" >:::
       assert_equal (url, Some "ibmq", Some "qc-ware", Some "default")
         (Credentials._unify_ibmq_url url)
     ) ;
+    "works 0b" >:: (fun ctxt ->
+      let url = "https://Q-CONSOLE-API.MYBLUEMIX.NET/API/HUBS/IBMQ/GROUPS/QC-WARE/PROJECTS/DEFAULT" in
+      assert_equal (url, Some "IBMQ", Some "QC-WARE", Some "DEFAULT")
+        (Credentials._unify_ibmq_url url)
+    ) ;
     "works 1" >:: (fun ctxt ->
       let url = "https://quantumexperience.ng.bluemix.net/api" in
       assert_equal (url, None, None, None)

@@ -5,16 +5,10 @@ module Configfile = struct
 end
 
 module Credentials = struct
-  let _REGEX_IBMQ_HUBS = Pcre.regexp (
+  let _REGEX_IBMQ_HUBS = Pcre.regexp ~flags:[`CASELESS] (
       "(http[s]://.+/api)"^
         "/Hubs/([^/]+)/Groups/([^/]+)/Projects/([^/]+)"
     )
-     
-(*
- * an exmaple:
-
- * "https://quantumexperience.ng.bluemix.net/api/Hubs/hub0/Groups/group1/Projects/project2"
- *)
         
   let _unify_ibmq_url ?hub ?group ?project url =
     try
@@ -31,6 +25,10 @@ module Credentials = struct
   type single_t ={
       token : string ;
       url : string ;
+      hub : string option ;
+      group : string option ;
+      project : string option ;
+      verify : bool ;
     }
 end
 
