@@ -463,7 +463,7 @@ let unroll_tests = "unroll tests" >:::
 
 (* Run the tests in test suite *)
 let _ =
-if invoked_as "qasmsyntax_tests" then
+if invoked_as "qc_tests" then
   run_test_tt_main ("all_tests" >::: [
         misc_tests ; lexer_tests; expr_parser_tests;
         statement_parser_tests; parser_tests;
