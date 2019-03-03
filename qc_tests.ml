@@ -485,7 +485,9 @@ let credentials_tests = "credentials tests" >:::
         (Credentials.Single._unify_ibmq_url (url, None, None, None))
     ) ;
     "credentials 0" >:: (fun ctxt ->
-      assert_equal (Credentials.mk ~fname:"testdata/qiskitrc.chet" ())
+      let accts = Credentials.mk() in
+      Credentials.add_rcfile ~fname:"testdata/qiskitrc.chet" accts ;
+      assert_equal (Credentials.export accts)
         [("ibmq",
           {Qrpc_api.Credentials.Single.token =
              "4d128c911fa9b7624a0073f29c72eaba59d2206fe68049cdd06c9cd49f508479a918eef102035dc9be98e83be9cbac495f34ec863274324dcf21a06cfa10e27b";
@@ -493,7 +495,9 @@ let credentials_tests = "credentials tests" >:::
            group = None; project = None; verify = true})]
     ) ;
     "credentials 1" >:: (fun ctxt ->
-      assert_equal (Credentials.mk ~fname:"testdata/qiskitrc.2" ())
+      let accts = Credentials.mk() in
+      Credentials.add_rcfile ~fname:"testdata/qiskitrc.2" accts ;
+      assert_equal (Credentials.export accts)
         [("ibmq",
           {Qrpc_api.Credentials.Single.token = "975c";
            url = "https://quantumexperience.ng.bluemix.net/api"; hub = None;
@@ -508,7 +512,9 @@ let credentials_tests = "credentials tests" >:::
     "credentials 2 busted" >:: (fun ctxt ->
       assert_raises ~msg:"we're going with verify field is required"
         (Failure("invalid ini file section ibmq (no verify attribute)"))
-        (fun () -> Credentials.mk ~fname:"testdata/qiskitrc.2.BUSTED" ())
+        (fun () ->
+          let accts = Credentials.mk() in
+          Credentials.add_rcfile ~fname:"testdata/qiskitrc.2.BUSTED" accts)
     ) ;
   ]
 

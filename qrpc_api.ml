@@ -32,7 +32,7 @@ module Credentials = struct
             (url, hub, group, project)
          | _ -> (url, None, None, None))
 
-    type t ={
+    type t = {
         token : string ;
         url : string ;
         hub : string option ;
@@ -72,18 +72,26 @@ module Credentials = struct
 
   end
 
-    let mk ?(fname=_DEFAULT_QISKITRC_FILE) () =
-      let ini = Configfile.read fname in
-      let sects = ini # sects in
-      List.fold_left (fun cmap sect ->
-          LM.add cmap (sect, Single.mk ini sect))
-      (LM.mk()) sects
+  type t = (string, Single.t) MLM.t
 
-  type t = (string option * string option * string option, Single.t) LM.t
+  let mk() = (MLM.mk() : t)
+  let add_rcfile ?(fname=_DEFAULT_QISKITRC_FILE) accts =
+    let ini = Configfile.read fname in
+    let sects = ini # sects in
+    List.iter (fun sect ->
+        MLM.add accts (sect, Single.mk ini sect))
+       sects
+
+  let export accts =
+    accts
+    |> MLM.toList
+    |> List.sort Pervasives.compare
 
 end
 
-type token_t = {
+
+
+type session_token_t = {
     id: string ;
     ttl: int ;
     created: string ;
