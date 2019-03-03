@@ -2,7 +2,7 @@
 
 OCAMLFIND=ocamlfind
 OCAMLCFLAGS=-g
-PACKAGES=ppx_deriving_yojson,oUnit,oUnit.advanced,pcre,ocamlgraph,dot,yojson,containers,inifiles
+PACKAGES=nettls-gnutls,netclient,ppx_deriving_yojson,ppx_sexp_conv,oUnit,oUnit.advanced,pcre,ocamlgraph,dot,yojson,containers,inifiles
 PACKAGESP5=camlp5,$(PACKAGES) -syntax camlp5o
 
 ML= misc_functions.ml gmap.ml gset.ml coll.ml qasmsyntax.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml qasm_passes.ml qrpc_api.ml
