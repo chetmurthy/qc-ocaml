@@ -176,10 +176,10 @@ set-cookie-header = "Set-Cookie:" SP set-cookie-string
 
 let semi_space = Pcre.regexp "; "
                
-let cookie_string_re = Pcre.regexp "([^=]+)=([\x21\x23-\x2B\x2D-\x3A\xx3C-\x5B\x%x5D-\x7E]*|\"[\x21\x23-\x2B\x2D-\x3A\xx3C-\x5B\x%x5D-\x7E]*\")"
+let cookie_string_re = Pcre.regexp "([^=]+)=([^\"]*|\"[^\"]+\")"
 
-let _OWS_left_re = Pcre.regexp ~flags:[`DOTALL] "^(?:(?:\r\n)? )*(\S.*)$"
-let _OWS_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*\S)(?:(?:\r\n)? )*$"
+let _OWS_left_re = Pcre.regexp ~flags:[`DOTALL] "^(?:(?:\\r\\n)? )*(\\S.*)$"
+let _OWS_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*\\S)(?:(?:\\r\\n)? )*$"
 
 let clean_ows s =
   let rv1 = Pcre.extract ~rex:_OWS_left_re s in
@@ -187,14 +187,46 @@ let clean_ows s =
   let rv2 = Pcre.extract ~rex:_OWS_right_re s in
   rv2.(1)
 
+let parse_cookie_pair pair =
+  let a = Pcre.extract ~rex:cookie_string_re pair in
+  (a.(1), a.(2))
+
 let parse_cookie s =
   let s = clean_ows s in
   let l = Pcre.split ~rex:semi_space s in
-  List.map (fun pair ->
-      let a = Pcre.extract ~rex:cookie_string_re pair in
-      (a.(1), a.(2))
-    ) l
+  List.map parse_cookie_pair l
 
+type cookie_attribute_t =
+  | Expires of string
+  | MaxAge of string
+  | Domain of string
+  | Path of string
+  | Secure
+  | HttpOnly
+  | Extension of string
+
+let split_av_re = Pcre.regexp "(Expires|Max-Age|Domain|Path)=(.*)"
+
+let parse_cookie_av s =
+  try
+    let p = Pcre.extract ~rex:split_av_re s in
+    let k = p.(1) in
+    let v = p.(2) in
+    match k with
+  | "Expires" -> Expires v
+  | "Max-Age" -> MaxAge v
+  | "Domain" -> Domain v
+  | "Path" -> Path v
+  | _ -> Extension s
+  with Not_found ->
+        if s = "Secure" then Secure
+        else if s = "HttpOnly" then HttpOnly
+        else Extension s
+
+let parse_set_cookie s =
+  let cookie_pair::avl = Pcre.split ~rex:semi_space s in
+  let (k,v) = parse_cookie_pair cookie_pair in
+  (k,v,List.map parse_cookie_av avl)
 end
 
 module Session  = struct
