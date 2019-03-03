@@ -47,6 +47,7 @@ open Qasmparser ;;
 open Qasmpp ;;
 open Qasmdag0 ;;
 open Qasm_passes ;;
+open Qc_layout ;;
 open Qrpc_types ;;
 open Qrpc_api ;;
 

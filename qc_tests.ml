@@ -518,6 +518,33 @@ let credentials_tests = "credentials tests" >:::
     ) ;
   ]
 
+open Qc_layout
+let layout_tests = "layout tests" >:::
+  [
+    "bfs" >:: (fun ctxt ->
+      let cmap = [( 1,  0);
+       ( 1,  2);
+       ( 2,  3);
+       ( 4,  3);
+       ( 4, 10);
+       ( 5,  4);
+       ( 5,  6);
+       ( 5,  9);
+       ( 6,  8);
+       ( 7,  8);
+       ( 9,  8);
+       ( 9, 10);
+       (11,  3);
+       (11, 10);
+       (11, 12);
+       (12,  2);
+       (13,  1);
+       (13, 12)] in
+      let g = Layout.cmap_to_graph cmap in
+      assert_equal (Layout.bfs g 0) [0; 1; 2; 13; 3; 12; 4; 11; 5; 10; 6; 9; 8; 7]
+    )
+  ]
+
 (* Run the tests in test suite *)
 let _ =
 if invoked_as "qc_tests" then
@@ -527,5 +554,6 @@ if invoked_as "qc_tests" then
         typechecker_tests; dag0_tests ;
         unroll_tests ;
         credentials_tests ;
+        layout_tests ;
     ])
 ;;
