@@ -88,7 +88,8 @@ DAG.tsort dag
 let accounts = Credentials.mk() ;;
 Credentials.add_rcfile accounts ;;
 let session = Session.mk ~key:"ibmq" accounts ;;
-
+Session.obtain_token session ;;
+Session.available_backends session ;;
 
  *)
 

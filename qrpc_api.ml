@@ -115,6 +115,21 @@ let post ~headers params url =
   pipeline # run() ;
   call
 
+let get ~headers params url =
+  let url =
+    match params with
+    | [] -> url
+    | l ->
+       Printf.sprintf "%s?%s" url
+         (String.concat "&" (List.map (fun (k,v) -> Printf.sprintf "%s=%s" k v) l)) in
+  
+  let call = new get url in
+  call # set_request_header (Netmime.basic_mime_header headers) ;
+  let pipeline = new pipeline in
+  pipeline # add call;
+  pipeline # run() ;
+  call
+
 end
 
 module Cookie = struct
@@ -266,6 +281,33 @@ let obtain_token session =
     |> token_t_of_yojson
     |> CCResult.get_exn in
   session.token <- Some token
+
+let get_backends_url session =
+  let open Credentials in
+  let open Single in
+  let account = session.account in
+  match account.hub, account.group, account.project with
+  | Some hub, Some group, Some project ->
+     Printf.sprintf "%s/Network/%s/Groups/%s/Projects/%s/devices/v/1"
+       account.url hub group project
+  | _ -> Printf.sprintf "%s/Backends/v/1" account.url
+
+let access_token session =
+  match session.token with
+  | None -> failwith "access_token: no token (did you forget to run obtain_token?)"
+  | Some t -> t.id
+
+let available_backends session =
+  let url = get_backends_url session in
+  let headers = [
+      ("User-Agent", "python-requests/2.21.0") ;
+      ("Accept", "*/*") ;
+      ("x-qx-client-application", "qiskit-api-py") ;
+    ] in
+  let token = access_token session in
+  let call = RPC.get ~headers ["access_token", token] url in
+  let resp_body = call # get_resp_body() in
+  resp_body
 
 end
 
