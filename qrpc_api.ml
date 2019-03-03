@@ -240,18 +240,32 @@ type token_t = {
 
 type t = {
     account : Credentials.Single.t ;
-    cookies: (string, string) MHM.t ;
     mutable token : token_t option ;
   }
 
-let mk account = {
+let mk ~key accounts =
+  let account = MLM.map accounts key in
+  {
     account ;
-    cookies = MHM.mk 23 ;
     token = None ;
   }
 
 let obtain_token session =
-  ()
+  let url = session.account.Credentials.Single.url ^ "/users/loginWithToken" in
+  let headers = [
+      ("User-Agent", "python-requests/2.21.0") ;
+      ("Accept", "*/*") ;
+      ("x-qx-client-application", "qiskit-api-py") ;
+    ] in
+  let apiToken = session.account.Credentials.Single.token in
+  let call = RPC.post ~headers ["apiToken", apiToken] url in
+  let resp_body = call # get_resp_body() in
+  let token =
+    resp_body
+    |> Yojson.Safe.from_string
+    |> token_t_of_yojson
+    |> CCResult.get_exn in
+  session.token <- Some token
 
 end
 

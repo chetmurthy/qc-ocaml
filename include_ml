@@ -85,4 +85,10 @@ print_string (pp ASTPP.program pl) ;
 DAG.tsort dag
 ;;
 
+let accounts = Credentials.mk() ;;
+Credentials.add_rcfile accounts ;;
+let session = Session.mk ~key:"ibmq" accounts ;;
+
+
  *)
+
