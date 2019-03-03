@@ -50,7 +50,10 @@ module Credentials = struct
       with Invalid_element _ ->
         None
 
-    let mk ini sect =
+    let mk ~url ?(hub=None) ?(group=None) ?(project=None) ~verify ~token =
+      { token ; url ; hub ; group ; project ; verify }
+
+    let mk_from_ini ini sect =
       let url =
         match get ini sect "url" with
         | None -> _DEFAULT_IBMQ_URL_PREFIX
@@ -68,7 +71,7 @@ module Credentials = struct
         match get ini sect "token" with
         | None -> failwith (Printf.sprintf "invalid ini file section %s (no token attribute)" sect)
         | Some s -> s in
-      { token ; url ; hub ; group ; project ; verify }
+      mk ~token ~url ~hub ~group ~project ~verify
 
   end
 
@@ -79,7 +82,7 @@ module Credentials = struct
     let ini = Configfile.read fname in
     let sects = ini # sects in
     List.iter (fun sect ->
-        MLM.add accts (sect, Single.mk ini sect))
+        MLM.add accts (sect, Single.mk_from_ini ini sect))
        sects
 
   let export accts =
@@ -87,16 +90,23 @@ module Credentials = struct
     |> MLM.toList
     |> List.sort Pervasives.compare
 
+  let add_new ~key ~url ~token accts =
+    let scred = Single.mk ~url ~token in
+    MLM.add accts (key, scred)
 end
 
+module Session  = struct
 
-
-type session_token_t = {
+type token_t = {
     id: string ;
     ttl: int ;
     created: string ;
     userId: string;
   } [@@deriving yojson]
+
+
+
+end
 
 (*
 DEBUG:qiskit.providers.ibmq.api.ibmqconnector:response body: b'{"id":"VuZbTHbbJIKvGMnvwkO67gK6Ni8uXsdrziQp68L3OdHHIgiaeyGiEsZFvdB0zWp1","ttl":1209600,"created":"2019-03-02T20:33:44.525Z","userId":"5c7773071c6030005246cf46"}'  
