@@ -24,6 +24,7 @@ open Qasmpp
 
  *)
 
+module DAG = struct
 
 (* representation of a node -- must be hashable *)
 module Node = struct
@@ -127,7 +128,6 @@ module Dot = Graph.Graphviz.Dot(struct
   let graph_attributes _ = []
                end)
 
-module DAG = struct
   type node_label_t =
     | INPUT of bit_t
     | OUTPUT of bit_t
