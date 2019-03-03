@@ -1,0 +1,7 @@
+[ibmq_ibmq_qc-ware_default]
+token = dcbd
+url = https://q-console-api.mybluemix.net/api/Hubs/ibmq/Groups/qc-ware/Projects/default
+verify = True
+
+[ibmq]
+token = 975c

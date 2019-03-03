@@ -467,22 +467,48 @@ let credentials_tests = "credentials tests" >:::
     "basic url" >:: (fun ctxt ->
       let url = "foo" in
       assert_equal (url, None, None, None)
-        (Credentials._unify_ibmq_url url)
+        (Credentials.Single._unify_ibmq_url (url, None, None, None))
     ) ;
-    "works 0" >:: (fun ctxt ->
+    "single 0" >:: (fun ctxt ->
       let url = "https://q-console-api.mybluemix.net/api/Hubs/ibmq/Groups/qc-ware/Projects/default" in
       assert_equal (url, Some "ibmq", Some "qc-ware", Some "default")
-        (Credentials._unify_ibmq_url url)
+        (Credentials.Single._unify_ibmq_url (url, None, None, None))
     ) ;
-    "works 0b" >:: (fun ctxt ->
+    "single 0b" >:: (fun ctxt ->
       let url = "https://Q-CONSOLE-API.MYBLUEMIX.NET/API/HUBS/IBMQ/GROUPS/QC-WARE/PROJECTS/DEFAULT" in
       assert_equal (url, Some "IBMQ", Some "QC-WARE", Some "DEFAULT")
-        (Credentials._unify_ibmq_url url)
+        (Credentials.Single._unify_ibmq_url (url, None, None, None))
     ) ;
-    "works 1" >:: (fun ctxt ->
+    "single 1" >:: (fun ctxt ->
       let url = "https://quantumexperience.ng.bluemix.net/api" in
       assert_equal (url, None, None, None)
-        (Credentials._unify_ibmq_url url)
+        (Credentials.Single._unify_ibmq_url (url, None, None, None))
+    ) ;
+    "credentials 0" >:: (fun ctxt ->
+      assert_equal (Credentials.mk ~fname:"testdata/qiskitrc.chet" ())
+        [("ibmq",
+          {Qrpc_api.Credentials.Single.token =
+             "4d128c911fa9b7624a0073f29c72eaba59d2206fe68049cdd06c9cd49f508479a918eef102035dc9be98e83be9cbac495f34ec863274324dcf21a06cfa10e27b";
+           url = "https://quantumexperience.ng.bluemix.net/api"; hub = None;
+           group = None; project = None; verify = true})]
+    ) ;
+    "credentials 1" >:: (fun ctxt ->
+      assert_equal (Credentials.mk ~fname:"testdata/qiskitrc.2" ())
+        [("ibmq",
+          {Qrpc_api.Credentials.Single.token = "975c";
+           url = "https://quantumexperience.ng.bluemix.net/api"; hub = None;
+           group = None; project = None; verify = true});
+         ("ibmq_ibmq_qc-ware_default",
+          {Qrpc_api.Credentials.Single.token = "dcbd";
+           url =
+             "https://q-console-api.mybluemix.net/api/Hubs/ibmq/Groups/qc-ware/Projects/default";
+           hub = Some "ibmq"; group = Some "qc-ware"; project = Some "default";
+           verify = true})]
+    ) ;
+    "credentials 2 busted" >:: (fun ctxt ->
+      assert_raises ~msg:"we're going with verify field is required"
+        (Failure("invalid ini file section ibmq (no verify attribute)"))
+        (fun () -> Credentials.mk ~fname:"testdata/qiskitrc.2.BUSTED" ())
     ) ;
   ]
 

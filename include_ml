@@ -33,7 +33,7 @@
 #load "qasmdag0.cmo";;
 #load "qasm_passes.cmo";;
 #load "qrpc_api.cmo";;
-#load "qasmsyntax_tests.cmo";;
+#load "qc_tests.cmo";;
 
 #print_length 1048576 ;;
 
@@ -44,6 +44,7 @@ open Qasmparser ;;
 open Qasmpp ;;
 open Qasmdag0 ;;
 open Qasm_passes ;;
+open Qrpc_api ;;
 
 (*
 #trace header ;;
