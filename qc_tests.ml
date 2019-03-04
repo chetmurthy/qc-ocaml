@@ -545,7 +545,7 @@ let layout_tests = "layout tests" >:::
     )
   ]
 
-open Qc_emitjson
+open Qobj_compile
 
 let fuzzy_float_compare f1 f2 =
   match f1, f2 with
@@ -553,7 +553,7 @@ let fuzzy_float_compare f1 f2 =
   | 3.14159265358979, 3.14159265358979312  -> 0
   | _ -> Pervasives.compare f1 f2
 
-let emitjson_tests = "emit json tests" >:::
+let compile_tests = "compile tests" >:::
   [
     "basis" >:: (fun ctxt ->
       let (envs, dag) = to_dag0 {|
@@ -603,6 +603,6 @@ if invoked_as "qc_tests" then
         typechecker_tests; dag0_tests ;
         unroll_tests ;
         credentials_tests ;
-        layout_tests ; emitjson_tests ;
+        layout_tests ; compile_tests ;
     ])
 ;;
