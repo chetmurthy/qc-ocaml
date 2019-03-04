@@ -16,7 +16,8 @@ open Qobj_types
 module JSON = struct
 
   type state_t = {
-      circuit : Experiment.t ;
+      circuit_header : Experiment.header_t ;
+      circuit_instructions : Instruction.t list ;
       _number_of_qubits : int ;
       _number_of_clbits : int ;
       _qreg_sizes : (string * int) list ;
@@ -38,19 +39,17 @@ module JSON = struct
   let mk envs =
     let basis = mk_basis envs in
     {
-      circuit = {
-        instructions = [] ;
-        config = None ;
-        header = {
-            name = None ;
-            n_qubits = 0 ;
-            memory_slots = 0 ;
-            qubit_labels = [] ;
-            clbit_labels = [] ;
-            qreg_sizes = [] ;
-            creg_sizes = [] ;
-          } ;
-      } ;
+      circuit_instructions = [] ;
+      circuit_header = {
+          name = None ;
+          n_qubits = 0 ;
+          memory_slots = 0 ;
+          qubit_labels = [] ;
+          clbit_labels = [] ;
+          qreg_sizes = [] ;
+          creg_sizes = [] ;
+          compiled_circuit_qasm = None ;
+        } ;
       _number_of_qubits  = 0 ;
       _number_of_clbits  = 0 ;
       _qreg_sizes = [] ;
@@ -69,15 +68,6 @@ module JSON = struct
         (interval 0 (size-1))
         |> List.map (fun j -> (name, j))
       ) in
-    let circuit = {
-        st.circuit with
-        header = {
-          st.circuit.header with
-          memory_slots = _number_of_clbits ;
-          creg_sizes = _creg_sizes ;
-          clbit_labels = _clbit_order ;
-        }
-      } in
     {
       st with
       _creg_sizes ;
@@ -88,7 +78,13 @@ module JSON = struct
         |> List.fold_left (fun m j ->
                LM.add m ((name, j), st._number_of_clbits + j))
              st._cbit_order_internal ;
-      circuit ;
+      circuit_header = {
+          st.circuit_header with
+          memory_slots = _number_of_clbits ;
+          creg_sizes = _creg_sizes ;
+          clbit_labels = _clbit_order ;
+          compiled_circuit_qasm = None ;
+        }
     }
 
   let add_qreg st (name, size) =
@@ -98,15 +94,6 @@ module JSON = struct
         (interval 0 (size-1))
         |> List.map (fun j -> (name, j))
       ) in
-    let circuit = {
-        st.circuit with
-        header = {
-          st.circuit.header with
-          n_qubits = _number_of_qubits ;
-          qreg_sizes = _qreg_sizes ;
-          qubit_labels = _qubit_order ;
-        }
-      } in
     {
       st with
       _qreg_sizes ;
@@ -117,7 +104,12 @@ module JSON = struct
         |> List.fold_left (fun m j ->
                LM.add m ((name, j), st._number_of_qubits + j))
              st._qubit_order_internal ;
-      circuit ;
+      circuit_header = {
+          st.circuit_header with
+          n_qubits = _number_of_qubits ;
+          qreg_sizes = _qreg_sizes ;
+          qubit_labels = _qubit_order ;
+        }
     }
 
   let raw_uop_name = function
@@ -198,10 +190,7 @@ module JSON = struct
       } in
     {
       st with
-      circuit = {
-        st.circuit with
-        instructions = st.circuit.instructions @ [gate_instruction] ;
-      }
+      circuit_instructions = st.circuit_instructions @ [gate_instruction] ;
     }
 
   let to_json envs dag =
@@ -215,10 +204,34 @@ module JSON = struct
           | INPUT _| OUTPUT _ -> st
           | STMT stmt -> add_stmt st stmt)
         st nodel in
-    st.circuit
+    let config = ExperimentConfig.{
+        n_qubits = LM.fold (fun acc (_, dim) -> acc + dim) 0 envs.TYCHK.Env.qregs ;
+        memory_slots = LM.fold (fun acc (_, dim) -> acc + dim) 0 envs.TYCHK.Env.cregs ;
+      } in
+    let ast = DAG.to_ast envs dag in
+    let qasm = pp ASTPP.main ("2.0", ast) in
+    let header = {
+        st.circuit_header with
+        compiled_circuit_qasm = Some qasm ;
+      } in
+    Experiment.{
+        header ;
+        instructions = st.circuit_instructions ;
+        config = Some config ;
+    }
 end
 
 module Compile = struct
+
+  let circuit_to_experiment ~name envs dag =
+    let circuit = JSON.to_json envs (fst dag) in
+    {
+      circuit with
+      Experiment.header = {
+        circuit.header with
+        name = Some name ;
+      }
+    }
 
   let circuit_to_qobj ~backend_name ~shots ~max_credits ?qobj_id ?basis_gates ?coupling_map ?seed ~memory (envs, dag) =
     let config =

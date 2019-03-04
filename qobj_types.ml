@@ -29,6 +29,7 @@ module Experiment = struct
       creg_sizes : (string * int) list ;
       qubit_labels : (string * int) list ;
       clbit_labels : (string * int) list ;
+      compiled_circuit_qasm : (string option [@default None]) ;
     } [@@deriving yojson, sexp]
 
   type t = {

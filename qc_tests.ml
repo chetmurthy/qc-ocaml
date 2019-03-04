@@ -547,11 +547,13 @@ let layout_tests = "layout tests" >:::
 
 open Qobj_compile
 
-let fuzzy_float_compare f1 f2 =
+let (fuzzy_compare: Yojson_helpers.user_comparator_t) = fun ~cmp0 f1 f2 ->
   match f1, f2 with
-  | 3.14159265358979312, 3.14159265358979 -> 0
-  | 3.14159265358979, 3.14159265358979312  -> 0
-  | _ -> Pervasives.compare f1 f2
+  | `Float 3.14159265358979312, `Float 3.14159265358979 -> true
+  | `Float 3.14159265358979, `Float 3.14159265358979312  -> true
+  | `String s1, `String s2 ->
+     starts_with ~pat:"OPENQASM" s1 && starts_with ~pat:"OPENQASM" s2 
+  | _ -> false
 
 let compile_tests = "compile tests" >:::
   [
@@ -586,11 +588,196 @@ barrier q[0],q[1];
 measure q[1] -> c0[1];
 measure q[0] -> c0[0];
 |} in
-        let circuit = JSON.to_json envs (fst dag) in
-        let expected_circuit_txt = {| {"instructions": [{"name": "u2", "params": [0.0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [1], "memory": []}, {"name": "cx", "params": [], "texparams": [], "qubits": [1, 0], "memory": []}, {"name": "u2", "params": [0.0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [0], "memory": []}, {"name": "u2", "params": [0.0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [1], "memory": []}, {"name": "barrier", "params": [], "texparams": [], "qubits": [0, 1], "memory": []}, {"name": "measure", "params": [], "texparams": [], "qubits": [0], "memory": [0]}, {"name": "measure", "params": [], "texparams": [], "qubits": [1], "memory": [1]}], "header": {"n_qubits": 14, "memory_slots": 2, "qubit_labels": [["q", 0], ["q", 1], ["q", 2], ["q", 3], ["q", 4], ["q", 5], ["q", 6], ["q", 7], ["q", 8], ["q", 9], ["q", 10], ["q", 11], ["q", 12], ["q", 13]], "clbit_labels": [["c0", 0], ["c0", 1]], "qreg_sizes": [["q", 14]], "creg_sizes": [["c0", 2]]}}|} in
+        let circuit = Compile.circuit_to_experiment  ~name:"circuit0" envs dag in
+        let expected_circuit_txt =
+          {|
+{
+      "config": {
+        "memory_slots": 2,
+        "n_qubits": 14
+      },
+      "header": {
+        "clbit_labels": [
+          [
+            "c0",
+            0
+          ],
+          [
+            "c0",
+            1
+          ]
+        ],
+        "compiled_circuit_qasm": "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[14];\ncreg c0[2];\nu2(0,pi) q[1];\ncx q[1],q[0];\nu2(0,pi) q[1];\nu2(0,pi) q[0];\nbarrier q[0],q[1];\nmeasure q[1] -> c0[1];\nmeasure q[0] -> c0[0];\n",
+        "creg_sizes": [
+          [
+            "c0",
+            2
+          ]
+        ],
+        "memory_slots": 2,
+        "n_qubits": 14,
+        "name": "circuit0",
+        "qreg_sizes": [
+          [
+            "q",
+            14
+          ]
+        ],
+        "qubit_labels": [
+          [
+            "q",
+            0
+          ],
+          [
+            "q",
+            1
+          ],
+          [
+            "q",
+            2
+          ],
+          [
+            "q",
+            3
+          ],
+          [
+            "q",
+            4
+          ],
+          [
+            "q",
+            5
+          ],
+          [
+            "q",
+            6
+          ],
+          [
+            "q",
+            7
+          ],
+          [
+            "q",
+            8
+          ],
+          [
+            "q",
+            9
+          ],
+          [
+            "q",
+            10
+          ],
+          [
+            "q",
+            11
+          ],
+          [
+            "q",
+            12
+          ],
+          [
+            "q",
+            13
+          ]
+        ]
+      },
+      "instructions": [
+        {
+          "memory": [],
+          "name": "u2",
+          "params": [
+            0.0,
+            3.141592653589793
+          ],
+          "qubits": [
+            1
+          ],
+          "texparams": [
+            "0",
+            "\\pi"
+          ]
+        },
+        {
+          "memory": [],
+          "name": "cx",
+          "params": [],
+          "qubits": [
+            1,
+            0
+          ],
+          "texparams": []
+        },
+        {
+          "memory": [],
+          "name": "u2",
+          "params": [
+            0.0,
+            3.141592653589793
+          ],
+          "qubits": [
+            0
+          ],
+          "texparams": [
+            "0",
+            "\\pi"
+          ]
+        },
+        {
+          "memory": [],
+          "name": "u2",
+          "params": [
+            0.0,
+            3.141592653589793
+          ],
+          "qubits": [
+            1
+          ],
+          "texparams": [
+            "0",
+            "\\pi"
+          ]
+        },
+        {
+          "memory": [],
+          "name": "barrier",
+          "params": [],
+          "qubits": [
+            0,
+            1
+          ],
+          "texparams": []
+        },
+        {
+          "memory": [
+            0
+          ],
+          "name": "measure",
+          "params": [],
+          "qubits": [
+            0
+          ],
+          "texparams": []
+        },
+        {
+          "memory": [
+            1
+          ],
+          "name": "measure",
+          "params": [],
+          "qubits": [
+            1
+          ],
+          "texparams": []
+        }
+      ]
+    }
+|}
+ in
         let expected_circuit_json = Yojson.Safe.from_string expected_circuit_txt in
-        assert_equal ~cmp:(Yojson_functions.compare ~floatcmp:fuzzy_float_compare)
-          (circuit |> Qobj_types.Experiment.to_yojson) expected_circuit_json
+        assert_equal ~cmp:(Yojson_helpers.compare ~explain:true ~usercmp:fuzzy_compare)
+          (circuit |> Qobj_types.Experiment.to_yojson |> Yojson_helpers.canon)
+          (expected_circuit_json |> Yojson_helpers.canon)
     )
   ]
 

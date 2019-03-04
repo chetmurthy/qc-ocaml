@@ -174,6 +174,10 @@ let pop l =
   | [] -> invalid_arg "pop"
 let top l = List.hd !l
 
+let map_option f = function
+    None -> None
+  | Some x -> Some(f x)
+
 let do_option f = function
     Some x -> f x
   | None -> ()
@@ -206,3 +210,19 @@ let intersect l1 l2 = filter (fun x -> List.mem x l2) l1
 let diff_set l1 l2 =
   if l2 = [] then l1 else filter (fun x -> not (List.mem x l2)) l1
 let subtract = diff_set
+
+let starts_with ?(improper=false) ~pat s =
+  let slen = String.length s in
+  let patlen = String.length pat in
+    if slen < patlen || (slen = patlen && not improper) then
+      false
+    else
+      (String.sub s 0 patlen) = pat
+
+let ends_with ~pat s =
+  let slen = String.length s in
+  let patlen = String.length pat in
+    if slen < patlen then
+      false
+    else
+      (String.sub s (slen-patlen) patlen) = pat
