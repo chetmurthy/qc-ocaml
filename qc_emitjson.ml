@@ -1,5 +1,7 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
+open Sexplib0.Sexp_conv
+
 open Misc_functions
 open Coll
 open Qc_environment
@@ -19,7 +21,7 @@ module JSON = struct
       clbit_labels : (string * int) list ;
       qreg_sizes : (string * int) list ;
       creg_sizes : (string * int) list ;
-    }
+    } [@@deriving yojson, sexp]
 
   type instruction_t = {
       name : string ;
@@ -27,12 +29,12 @@ module JSON = struct
       texparams : string list ;
       qubits : int list ;
       memory : int list ;
-    }
+    } [@@deriving yojson, sexp]
 
   type circuit_t = {
       instructions : instruction_t list ;
       header : header_t ;
-    }
+    } [@@deriving yojson, sexp]
 
   type state_t = {
       circuit : circuit_t ;
