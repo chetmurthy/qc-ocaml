@@ -129,7 +129,8 @@ module JSON = struct
       circuit ;
     }
 
-  let add_stmt st stmt = st
+  let add_stmt st stmt =
+    st
 
   let to_json envs dag =
     let st = mk envs in

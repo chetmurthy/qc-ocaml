@@ -34,7 +34,9 @@
 #load "qasmdag0.cmo";;
 #load "qasm_passes.cmo";;
 #load "qc_layout.cmo";;
+#load "qc_environment.cmo";;
 #load "qrpc_types.cmo";;
+#load "qc_emitjson.cmo";;
 #load "qrpc_api.cmo";;
 #load "qc_tests.cmo";;
 

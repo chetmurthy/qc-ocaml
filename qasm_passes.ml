@@ -28,7 +28,7 @@ let subst_expr cparamenv e =
     | MUL (e1, e2) -> AST.MUL(subst1 e1, subst1 e2)
     | DIV (e1, e2) -> AST.DIV(subst1 e1, subst1 e2)
     | UMINUS e -> AST.UMINUS (subst1 e)
-    | XOR (e1, e2) -> AST.XOR(subst1 e1, subst1 e2)
+    | POW (e1, e2) -> AST.POW(subst1 e1, subst1 e2)
     | SIN e -> AST.SIN (subst1 e)
     | COS e -> AST.COS (subst1 e)
     | TAN e -> AST.TAN (subst1 e)

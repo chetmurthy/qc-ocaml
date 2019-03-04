@@ -126,7 +126,7 @@ module CST = struct
   | MUL of expr * expr
   | DIV of expr * expr
   | UMINUS of expr
-  | XOR of expr * expr
+  | POW of expr * expr
   | SIN of expr
   | COS of expr
   | TAN of expr
@@ -203,6 +203,7 @@ module CST = struct
   end
 
 end
+
 module AST = struct
   type param_var_t =
     | CPARAM of string
@@ -224,7 +225,7 @@ module AST = struct
     | MUL of 'paramvar expr * 'paramvar expr
     | DIV of 'paramvar expr * 'paramvar expr
     | UMINUS of 'paramvar expr
-    | XOR of 'paramvar expr * 'paramvar expr
+    | POW of 'paramvar expr * 'paramvar expr
     | SIN of 'paramvar expr
     | COS of 'paramvar expr
     | TAN of 'paramvar expr
@@ -397,7 +398,7 @@ module TYCHK = struct
       | MUL(e1, e2) -> AST.MUL(erec e1, erec e2)
       | DIV(e1, e2) -> AST.DIV(erec e1, erec e2)
       | UMINUS e1 -> AST.UMINUS(erec e1)
-      | XOR(e1, e2) -> AST.XOR(erec e1, erec e2)
+      | POW(e1, e2) -> AST.POW(erec e1, erec e2)
       | SIN e1 -> AST.SIN(erec e1)
       | COS e1 -> AST.COS(erec e1)
       | TAN e1 -> AST.TAN(erec e1)

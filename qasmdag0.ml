@@ -4,7 +4,6 @@ open Misc_functions
 open Coll
 open Qc_environment
 open Qasmsyntax
-open Qasmsyntax
 open Qasmparser
 open Qasmpp
 

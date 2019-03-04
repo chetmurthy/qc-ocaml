@@ -123,7 +123,7 @@ let rec expr0 = parser
 and expr1 = parser
 | [< (aux1, e1)=expr0 ;
    rv=(parser
-       | [< '(aux2, T_CARET) ; (aux3, e2)=expr1 >] -> (TA.appendlist [aux1; aux2; aux3], CST.XOR(e1, e2))
+       | [< '(aux2, T_CARET) ; (aux3, e2)=expr1 >] -> (TA.appendlist [aux1; aux2; aux3], CST.POW(e1, e2))
       | [< >] -> (aux1, e1)) >] -> rv
 
 and expr2 = parser

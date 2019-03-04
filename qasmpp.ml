@@ -22,7 +22,7 @@ module CSTPP = struct
     | e -> [< '"(" ; expr e ; '")" >]
 
   and expr1 = function
-    | CST.XOR(e1, e2) -> [< expr0 e1 ; '" ^ " ; expr1 e2 >]
+    | CST.POW(e1, e2) -> [< expr0 e1 ; '" ^ " ; expr1 e2 >]
     | e -> expr0 e
 
   and expr2 = function
@@ -129,7 +129,7 @@ module ASTPP = struct
       | e -> [< '"(" ; expr e ; '")" >]
 
     and expr1 = function
-      | AST.XOR(e1, e2) -> [< expr0 e1 ; '" ^ " ; expr1 e2 >]
+      | AST.POW(e1, e2) -> [< expr0 e1 ; '" ^ " ; expr1 e2 >]
       | e -> expr0 e
 
     and expr2 = function
