@@ -85,7 +85,7 @@ module JSON = struct
     let _creg_sizes = st._creg_sizes @ [(name, size)] in
     let _number_of_clbits = st._number_of_clbits + size in
     let _clbit_order = st._clbit_order @ (
-        (interval 0 size)
+        (interval 0 (size-1))
         |> List.map (fun j -> (name, j))
       ) in
     let circuit = {
@@ -103,7 +103,7 @@ module JSON = struct
       _clbit_order ;
       _number_of_clbits ;
       _cbit_order_internal =
-        (interval 0 size)
+        (interval 0 (size-1))
         |> List.fold_left (fun m j ->
                LM.add m ((name, j), st._number_of_clbits + j))
              st._cbit_order_internal ;
@@ -114,7 +114,7 @@ module JSON = struct
     let _qreg_sizes = st._qreg_sizes @ [(name, size)] in
     let _number_of_qubits = st._number_of_qubits + size in
     let _qubit_order = st._qubit_order @ (
-        (interval 0 size)
+        (interval 0 (size-1))
         |> List.map (fun j -> (name, j))
       ) in
     let circuit = {
@@ -132,7 +132,7 @@ module JSON = struct
       _qubit_order ;
       _number_of_qubits ;
       _qubit_order_internal =
-        (interval 0 size)
+        (interval 0 (size-1))
         |> List.fold_left (fun m j ->
                LM.add m ((name, j), st._number_of_qubits + j))
              st._qubit_order_internal ;
@@ -231,9 +231,11 @@ module JSON = struct
     let st = List.fold_left add_qreg st envs.TYCHK.Env.qregs in
     let st = List.fold_left add_creg st envs.TYCHK.Env.cregs in
     let nodel = DAG.tsort dag in
-    List.fold_left (fun st n ->
-        match (LM.map dag.node_info n).label with
-        | INPUT _| OUTPUT _ -> st
-        | STMT stmt -> add_stmt st stmt)
-      st nodel
+    let st =
+      List.fold_left (fun st n ->
+          match (LM.map dag.node_info n).label with
+          | INPUT _| OUTPUT _ -> st
+          | STMT stmt -> add_stmt st stmt)
+        st nodel in
+    st.circuit
 end

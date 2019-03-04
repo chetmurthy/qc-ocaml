@@ -416,8 +416,6 @@ let test_dag0_file (name, fname) =
     ()
   )
 
-open Qc_emitjson
-
 let dag0_tests = "dag0 tests" >:::
   (
     (List.map test_dag0 [
@@ -435,23 +433,6 @@ let dag0_tests = "dag0 tests" >:::
         let atxt = {| qreg r[2] ; CX r[0], r[1] ; qreg q[2] ; CX q[0], q[1] ; |} in
         let btxt = {| qreg q[2] ; CX q[0], q[1] ; qreg r[2] ; CX r[0], r[1] ; |} in
         assert_equal (parse_to_dag0_to_ast atxt) (parse_to_dag0_to_ast btxt)
-      ) ;
-      "basis" >:: (fun ctxt ->
-        let (envs, dag) = to_dag0 {|
-include "testdata/qelib1.inc";
-qreg q[14];
-creg c0[2];
-u2(0,pi) q[1];
-cx q[1],q[0];
-u2(0,pi) q[1];
-u2(0,pi) q[0];
-barrier q[0],q[1];
-measure q[1] -> c0[1];
-measure q[0] -> c0[0];
-|} in
-        let expected_basis = [("U", (1, 0, 3)); ("CX", (2, 0, 0)); ("measure", (1, 1, 0)); ("reset", (1, 0, 0)); ("barrier", (-1, 0, 0)); ("u3", (1, 0, 3)); ("u2", (1, 0, 2)); ("u1", (1, 0, 1)); ("cx", (2, 0, 0)); ("id", (1, 0, 0)); ("u0", (1, 0, 1)); ("x", (1, 0, 0)); ("y", (1, 0, 0)); ("z", (1, 0, 0)); ("h", (1, 0, 0)); ("s", (1, 0, 0)); ("sdg", (1, 0, 0)); ("t", (1, 0, 0)); ("tdg", (1, 0, 0)); ("rx", (1, 0, 1)); ("ry", (1, 0, 1)); ("rz", (1, 0, 1)); ("cz", (2, 0, 0)); ("cy", (2, 0, 0)); ("swap", (2, 0, 0)); ("ch", (2, 0, 0)); ("ccx", (3, 0, 0)); ("cswap", (3, 0, 0)); ("crz", (2, 0, 1)); ("cu1", (2, 0, 1)); ("cu3", (2, 0, 3)); ("rzz", (2, 0, 1))] in
-        let canon l = List.sort Pervasives.compare l in
-        assert_equal (canon (JSON.mk_basis envs)) (canon expected_basis) ;
       ) ;
     ]
   )
@@ -564,6 +545,48 @@ let layout_tests = "layout tests" >:::
     )
   ]
 
+open Qc_emitjson
+
+let emitjson_tests = "emit json tests" >:::
+  [
+    "basis" >:: (fun ctxt ->
+      let (envs, dag) = to_dag0 {|
+                                 include "testdata/qelib1.inc";
+                                 qreg q[14];
+                                 creg c0[2];
+                                 u2(0,pi) q[1];
+                                 cx q[1],q[0];
+                                 u2(0,pi) q[1];
+                                 u2(0,pi) q[0];
+                                 barrier q[0],q[1];
+                                 measure q[1] -> c0[1];
+                                 measure q[0] -> c0[0];
+                                 |} in
+      let expected_basis = [("U", (1, 0, 3)); ("CX", (2, 0, 0)); ("measure", (1, 1, 0)); ("reset", (1, 0, 0)); ("barrier", (-1, 0, 0)); ("u3", (1, 0, 3)); ("u2", (1, 0, 2)); ("u1", (1, 0, 1)); ("cx", (2, 0, 0)); ("id", (1, 0, 0)); ("u0", (1, 0, 1)); ("x", (1, 0, 0)); ("y", (1, 0, 0)); ("z", (1, 0, 0)); ("h", (1, 0, 0)); ("s", (1, 0, 0)); ("sdg", (1, 0, 0)); ("t", (1, 0, 0)); ("tdg", (1, 0, 0)); ("rx", (1, 0, 1)); ("ry", (1, 0, 1)); ("rz", (1, 0, 1)); ("cz", (2, 0, 0)); ("cy", (2, 0, 0)); ("swap", (2, 0, 0)); ("ch", (2, 0, 0)); ("ccx", (3, 0, 0)); ("cswap", (3, 0, 0)); ("crz", (2, 0, 1)); ("cu1", (2, 0, 1)); ("cu3", (2, 0, 3)); ("rzz", (2, 0, 1))] in
+      let canon l = List.sort Pervasives.compare l in
+      assert_equal (canon (JSON.mk_basis envs)) (canon expected_basis) ;
+    ) ;
+
+    "emit 0" >:: (fun ctxt ->
+        let (envs, dag) = to_dag0 {|
+include "testdata/qelib1.inc";
+qreg q[14];
+creg c0[2];
+u2(0,pi) q[1];
+cx q[1],q[0];
+u2(0,pi) q[1];
+u2(0,pi) q[0];
+barrier q[0],q[1];
+measure q[1] -> c0[1];
+measure q[0] -> c0[0];
+|} in
+        let circuit = JSON.to_json envs (fst dag) in
+        let expected_circuit_txt = {| {"instructions": [{"name": "u2", "params": [0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [1], "memory": []}, {"name": "cx", "params": [], "texparams": [], "qubits": [1, 0], "memory": []}, {"name": "u2", "params": [0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [0], "memory": []}, {"name": "u2", "params": [0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [1], "memory": []}, {"name": "barrier", "params": [], "texparams": [], "qubits": [0, 1], "memory": []}, {"name": "measure", "params": [], "texparams": [], "qubits": [0], "memory": [0]}, {"name": "measure", "params": [], "texparams": [], "qubits": [1], "memory": [1]}], "header": {"n_qubits": 14, "memory_slots": 2, "qubit_labels": [["q", 0], ["q", 1], ["q", 2], ["q", 3], ["q", 4], ["q", 5], ["q", 6], ["q", 7], ["q", 8], ["q", 9], ["q", 10], ["q", 11], ["q", 12], ["q", 13]], "clbit_labels": [["c0", 0], ["c0", 1]], "qreg_sizes": [["q", 14]], "creg_sizes": [["c0", 2]]}}|} in
+        let expected_circuit_json = Yojson.Safe.from_string expected_circuit_txt in
+        assert_equal (circuit |> JSON.circuit_t_to_yojson) expected_circuit_json
+    )
+  ]
+
 (* Run the tests in test suite *)
 let _ =
 if invoked_as "qc_tests" then
@@ -573,6 +596,6 @@ if invoked_as "qc_tests" then
         typechecker_tests; dag0_tests ;
         unroll_tests ;
         credentials_tests ;
-        layout_tests ;
+        layout_tests ; emitjson_tests ;
     ])
 ;;

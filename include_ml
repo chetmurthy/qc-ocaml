@@ -36,6 +36,7 @@
 #load "qc_layout.cmo";;
 #load "qc_environment.cmo";;
 #load "qrpc_types.cmo";;
+#load "qc_symbolic.cmo";;
 #load "qc_emitjson.cmo";;
 #load "qrpc_api.cmo";;
 #load "qc_tests.cmo";;
@@ -50,8 +51,11 @@ open Qasmpp ;;
 open Qasmdag0 ;;
 open Qasm_passes ;;
 open Qc_layout ;;
+open Qc_symbolic ;;
+open Qc_emitjson ;;
 open Qrpc_types ;;
 open Qrpc_api ;;
+open Qc_tests ;;
 
 (*
 #trace header ;;
