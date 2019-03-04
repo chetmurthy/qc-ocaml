@@ -416,6 +416,8 @@ let test_dag0_file (name, fname) =
     ()
   )
 
+open Qc_emitjson
+
 let dag0_tests = "dag0 tests" >:::
   (
     (List.map test_dag0 [
@@ -449,7 +451,7 @@ measure q[0] -> c0[0];
 |} in
         let expected_basis = [("U", (1, 0, 3)); ("CX", (2, 0, 0)); ("measure", (1, 1, 0)); ("reset", (1, 0, 0)); ("barrier", (-1, 0, 0)); ("u3", (1, 0, 3)); ("u2", (1, 0, 2)); ("u1", (1, 0, 1)); ("cx", (2, 0, 0)); ("id", (1, 0, 0)); ("u0", (1, 0, 1)); ("x", (1, 0, 0)); ("y", (1, 0, 0)); ("z", (1, 0, 0)); ("h", (1, 0, 0)); ("s", (1, 0, 0)); ("sdg", (1, 0, 0)); ("t", (1, 0, 0)); ("tdg", (1, 0, 0)); ("rx", (1, 0, 1)); ("ry", (1, 0, 1)); ("rz", (1, 0, 1)); ("cz", (2, 0, 0)); ("cy", (2, 0, 0)); ("swap", (2, 0, 0)); ("ch", (2, 0, 0)); ("ccx", (3, 0, 0)); ("cswap", (3, 0, 0)); ("crz", (2, 0, 1)); ("cu1", (2, 0, 1)); ("cu3", (2, 0, 3)); ("rzz", (2, 0, 1))] in
         let canon l = List.sort Pervasives.compare l in
-        assert_equal (canon (DAG.JSON.mk_basis envs)) (canon expected_basis) ;
+        assert_equal (canon (JSON.mk_basis envs)) (canon expected_basis) ;
       ) ;
     ]
   )
