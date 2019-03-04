@@ -590,7 +590,7 @@ measure q[0] -> c0[0];
         let expected_circuit_txt = {| {"instructions": [{"name": "u2", "params": [0.0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [1], "memory": []}, {"name": "cx", "params": [], "texparams": [], "qubits": [1, 0], "memory": []}, {"name": "u2", "params": [0.0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [0], "memory": []}, {"name": "u2", "params": [0.0, 3.14159265358979], "texparams": ["0", "\\pi"], "qubits": [1], "memory": []}, {"name": "barrier", "params": [], "texparams": [], "qubits": [0, 1], "memory": []}, {"name": "measure", "params": [], "texparams": [], "qubits": [0], "memory": [0]}, {"name": "measure", "params": [], "texparams": [], "qubits": [1], "memory": [1]}], "header": {"n_qubits": 14, "memory_slots": 2, "qubit_labels": [["q", 0], ["q", 1], ["q", 2], ["q", 3], ["q", 4], ["q", 5], ["q", 6], ["q", 7], ["q", 8], ["q", 9], ["q", 10], ["q", 11], ["q", 12], ["q", 13]], "clbit_labels": [["c0", 0], ["c0", 1]], "qreg_sizes": [["q", 14]], "creg_sizes": [["c0", 2]]}}|} in
         let expected_circuit_json = Yojson.Safe.from_string expected_circuit_txt in
         assert_equal ~cmp:(Yojson_functions.compare ~floatcmp:fuzzy_float_compare)
-          (circuit |> JSON.circuit_t_to_yojson) expected_circuit_json
+          (circuit |> Qobj_types.Experiment.to_yojson) expected_circuit_json
     )
   ]
 

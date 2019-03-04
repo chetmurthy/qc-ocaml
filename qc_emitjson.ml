@@ -11,33 +11,12 @@ open Qasmparser
 open Qasmdag0
 open Qasmpp
 open Qc_symbolic
+open Qobj_types
 
 module JSON = struct
 
-  type header_t = {
-      n_qubits: int ;
-      memory_slots: int ;
-      qubit_labels : (string * int) list ;
-      clbit_labels : (string * int) list ;
-      qreg_sizes : (string * int) list ;
-      creg_sizes : (string * int) list ;
-    } [@@deriving yojson, sexp]
-
-  type instruction_t = {
-      name : string ;
-      params : float list ;
-      texparams : string list ;
-      qubits : int list ;
-      memory : int list ;
-    } [@@deriving yojson, sexp]
-
-  type circuit_t = {
-      instructions : instruction_t list ;
-      header : header_t ;
-    } [@@deriving yojson, sexp]
-
   type state_t = {
-      circuit : circuit_t ;
+      circuit : Experiment.t ;
       _number_of_qubits : int ;
       _number_of_clbits : int ;
       _qreg_sizes : (string * int) list ;
@@ -61,7 +40,9 @@ module JSON = struct
     {
       circuit = {
         instructions = [] ;
+        config = None ;
         header = {
+            name = None ;
             n_qubits = 0 ;
             memory_slots = 0 ;
             qubit_labels = [] ;
@@ -211,7 +192,7 @@ module JSON = struct
           | AST.INDEXED(AST.CREG name, i) ->
              LM.map st._cbit_order_internal (name, i)) cargs in
     let params = raw_stmt_params stmt in
-    let gate_instruction = {
+    let gate_instruction = Instruction.{
         name ;
         params = List.map Eval.expr params ;
         texparams = List.map Latex.expr params ;
