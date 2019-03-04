@@ -37,3 +37,30 @@ module Experiment = struct
       instructions : Instruction.t list ;
     } [@@deriving yojson, sexp]
 end
+
+module Qobj = struct
+  type config_t = {
+      max_credits : int ;
+      memory_slots : int ;
+      n_qubits : int ;
+      seed : (int [@default 1]) ;
+      shots : int ;
+      memory : bool ;
+    } [@@deriving yojson, sexp]
+
+  type experiment_type_t = QASM | PULSE [@@deriving yojson, sexp]
+
+  type header_t = {
+      backend_name : string ;
+      backend_version : (string option  [@default None]);
+    } [@@deriving yojson, sexp]
+
+  type t = {
+      config : config_t ;
+      experiments : Experiment.t list ;
+      header : header_t ;
+      qobj_id : string ;
+      schema_version : string ;
+      _type : (experiment_type_t [@key "type"])
+    } [@@deriving yojson, sexp]
+end

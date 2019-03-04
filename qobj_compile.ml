@@ -175,9 +175,6 @@ module JSON = struct
     | STMT_IF (_, _, q) -> assert false
     | STMT_BARRIER _ | STMT_QREG _ | STMT_CREG _ -> []
 
-
-
-
   let add_stmt st stmt =
     let name = raw_stmt_name stmt in
     let (qargs, cargs) = raw_stmt_args stmt in
@@ -219,4 +216,36 @@ module JSON = struct
           | STMT stmt -> add_stmt st stmt)
         st nodel in
     st.circuit
+end
+
+module Compile = struct
+
+  let circuit_to_qobj ~backend_name ~shots ~max_credits ?qobj_id ?basis_gates ?coupling_map ?seed ~memory (envs, dag) =
+    let config =
+      Qobj.{
+          n_qubits = 0 ;
+          seed = (match seed with Some n -> n | None -> 1) ;
+          max_credits ;
+          memory_slots = 0 ;
+          shots ;
+          memory ;
+      } in
+    let qobj_id = match qobj_id with
+      | Some id -> id
+      | None -> Uuidm.(to_string (v `V4)) in
+    let header = Qobj.{
+        backend_name ;
+        backend_version = None ;
+                 } in
+    let experiment = JSON.to_json envs dag in
+    let qobj =
+      Qobj.{
+          qobj_id ;
+          config ;
+          experiments = [experiment] ;
+          header ;
+          _type = QASM ;
+          schema_version = Defaults._QOBJ_VERSION ;
+      } in
+    ()
 end

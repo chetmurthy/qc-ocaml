@@ -21,4 +21,7 @@ module Defaults = struct
         ("measure", (1, 1, 0));
         ("reset", (1, 0, 0))
       ]
+
+    let _QOBJ_VERSION = "1.0.0"
+
 end
