@@ -24,6 +24,7 @@
 #require "inifiles" ;;
 
 #load "misc_functions.cmo";;
+#load "yojson_functions.cmo";;
 #load "gmap.cmo";;
 #load "gset.cmo";;
 #load "coll.cmo";;
