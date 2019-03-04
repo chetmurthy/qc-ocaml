@@ -2,7 +2,7 @@
 
 open Qasmsyntax
 
-module Expr = struct
+module Eval = struct
 
   let rec expr = function
     | AST.ID _ -> assert false

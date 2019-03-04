@@ -8,7 +8,7 @@ open Qasmsyntax
 open Qasmparser
 open Qasmdag0
 open Qasmpp
-
+open Qc_symbolic
 
 module JSON = struct
 
@@ -21,8 +21,16 @@ module JSON = struct
       creg_sizes : (string * int) list ;
     }
 
+  type instruction_t = {
+      name : string ;
+      params : float list ;
+      texparams : string list ;
+      qubits : int list ;
+      memory : int list ;
+    }
+
   type circuit_t = {
-      instructions : unit list ;
+      instructions : instruction_t list ;
       header : header_t ;
     }
 
@@ -129,8 +137,92 @@ module JSON = struct
       circuit ;
     }
 
+  let raw_uop_name = function
+    | AST.U _ -> "U"
+    | CX _ -> "CX"
+    | COMPOSITE_GATE (gateid, _, _) -> gateid
+
+  let raw_qop_name = function
+    | AST.UOP u -> raw_uop_name u
+    | MEASURE _ -> "measure"
+    | RESET _ -> "reset"
+
+  let raw_stmt_name = function
+    | AST.STMT_GATEDECL _ -> assert false
+    | STMT_OPAQUEDECL _ -> assert false
+    | STMT_QOP q -> raw_qop_name q
+    | STMT_IF (_, _, q) -> raw_qop_name q
+    | STMT_BARRIER _ -> "barrier"
+    | STMT_QREG _ -> assert false
+    | STMT_CREG _ -> assert false
+
+  let raw_uop_args = function
+    | AST.U (_, q) -> ([q], [])
+    | CX (a, b) -> ([a;b], [])
+    | COMPOSITE_GATE (gateid, _, ql) -> (ql, [])
+
+  let raw_qop_args = function
+    | AST.UOP u -> raw_uop_args u
+    | MEASURE (q,c) -> ([q], [c])
+    | RESET q -> ([q], [])
+
+  let raw_stmt_args = function
+    | AST.STMT_GATEDECL _ -> assert false
+    | STMT_OPAQUEDECL _ -> assert false
+    | STMT_QOP q -> raw_qop_args q
+    | STMT_IF (_, _, q) -> assert false
+    | STMT_BARRIER l -> (l, [])
+    | STMT_QREG _ -> assert false
+    | STMT_CREG _ -> assert false
+
+
+  let raw_uop_params = function
+    | AST.U (l, _) -> l
+    | CX _ -> []
+    | COMPOSITE_GATE (gateid, params, _) -> params
+
+  let raw_qop_params = function
+    | AST.UOP u -> raw_uop_params u
+    | MEASURE _ | RESET _ -> []
+
+  let raw_stmt_params = function
+    | AST.STMT_GATEDECL _ -> assert false
+    | STMT_OPAQUEDECL _ -> assert false
+    | STMT_QOP q -> raw_qop_params q
+    | STMT_IF (_, _, q) -> assert false
+    | STMT_BARRIER _ | STMT_QREG _ | STMT_CREG _ -> []
+
+
+
+
   let add_stmt st stmt =
-    st
+    let name = raw_stmt_name stmt in
+    let (qargs, cargs) = raw_stmt_args stmt in
+    let qubit_indices =
+      List.map (function
+          | AST.IT _ -> assert false
+          | AST.INDEXED(AST.QREG name, i) ->
+             LM.map st._qubit_order_internal (name, i)) qargs in
+    let clbit_indices =
+      List.map (function
+          | AST.IT _ -> assert false
+          | AST.INDEXED(AST.CREG name, i) ->
+             LM.map st._cbit_order_internal (name, i)) cargs in
+    let params = raw_stmt_params stmt in
+    let gate_instruction = {
+        name ;
+        params = List.map Eval.expr params ;
+        texparams = List.map Latex.expr params ;
+        qubits = qubit_indices ;
+        memory = clbit_indices ;
+      } in
+    {
+      st with
+      circuit = {
+        st.circuit with
+        instructions = st.circuit.instructions @ [gate_instruction] ;
+      }
+    }
 
   let to_json envs dag =
     let st = mk envs in
