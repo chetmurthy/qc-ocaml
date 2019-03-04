@@ -397,14 +397,14 @@ let to_dag0 txt =
 let parse_to_dag0_to_ast txt =
   let pl = body_parse PA.program txt in
   let (envs, p) = TYCHK.program pl in
-  let (dag, _) = DAG.make envs p in
+  let dag = DAG.make envs p in
   let pl = DAG.to_ast envs dag in  
   pp ASTPP.program pl
 
 let test_dag0 (name, txt) =
   name >:: (fun ctxt ->
     let _,dag = to_dag0 txt in
-    pp DAG.pp_both dag ;
+    pp DAG.pp_dag dag ;
     ()
   )
 
@@ -440,7 +440,7 @@ let dag0_tests = "dag0 tests" >:::
 let unroll ~only txt =
   let pl = body_parse PA.program txt in
   let (envs, p) = TYCHK.program pl in
-  let (dag, _) = DAG.make envs p in
+  let dag = DAG.make envs p in
   let dag = Unroll.execute ~only envs dag in
   let pl = DAG.to_ast envs dag in  
   pp ASTPP.program pl

@@ -226,3 +226,7 @@ let ends_with ~pat s =
       false
     else
       (String.sub s (slen-patlen) patlen) = pat
+
+let pr_option f = function
+    None -> [< >]
+  | Some v -> f v

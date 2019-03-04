@@ -93,16 +93,11 @@ let unroll1 envs dag node =
   let cparamenv = LM.ofList() (combine formal_params actual_params) in
   let qubitenv = LM.ofList() (combine formal_qargs actual_qargs) in
   let stmts = List.map (subst_gop cparamenv qubitenv) gate_body in
-  let pred_edges = DAG.G.pred_e dag.g node in
-  let succ_edges = DAG.G.succ_e dag.g node in
-  let g = dag.g in
-  let g = List.fold_left DAG.G.remove_edge_e g pred_edges in
-  let g = List.fold_left DAG.G.remove_edge_e g succ_edges in
-  let g = DAG.G.remove_vertex g node in
-  let dag = {
-      dag with DAG.g = g;
-               node_info = LM.rmv dag.DAG.node_info node ;
-    } in
+  let pred_edges = DAG.pred_e dag node in
+  let succ_edges = DAG.succ_e dag node in
+  let dag = List.fold_left DAG.remove_edge_e dag pred_edges in
+  let dag = List.fold_left DAG.remove_edge_e dag succ_edges in
+  let dag = DAG.remove_vertex dag node in
   let frontier =
     let frontier = List.map (fun (src, edgelabel, dst) ->
                        assert (dst = node) ;
@@ -115,14 +110,13 @@ let unroll1 envs dag node =
                      (edgelabel, dst)
                    ) succ_edges in
     LM.ofList() target in
-  let (dag, frontier) =
-    List.fold_left (fun dag (_, stmt) -> (DAG.add_stmt envs) dag stmt) (dag, frontier) stmts in
-  let canon x = List.sort Pervasives.compare x in
-  assert (canon (LM.dom frontier) = canon (LM.dom target)) ;
-  let g = List.fold_left (fun g edgelabel ->
-              DAG.G.add_edge_e g (DAG.G.E.create (LM.map frontier edgelabel) edgelabel (LM.map target edgelabel))
-            ) dag.DAG.g (LM.dom frontier) in
-  { dag with DAG.g = g }
+  let odag = DAG.reopen_dag ~frontier ~target dag in
+  let odag =
+    List.fold_left (fun odag (_, stmt) -> (DAG.add_stmt envs) odag stmt) odag stmts in
+  let remaining_edges = LM.dom odag.frontier in
+  let odag =
+    List.fold_left DAG.close_frontier_1 odag remaining_edges in
+  DAG.close_odag odag
 
 let select_unroll_nodes ~except dag =
   LM.fold (fun acc (n, info) ->

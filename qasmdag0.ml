@@ -144,6 +144,12 @@ module Dot = Graph.Graphviz.Dot(struct
       g : G.t ;
     }
 
+  type open_dag_t = {
+      dag : t ;
+      frontier : (bit_t, int) Coll.LM.t ;
+      target : (bit_t, int) Coll.LM.t option ;
+    }
+
   let pr_node_info ~prefix info =
     match info.label with
     | INPUT bit -> [< '"<input " ; 'bit_to_string bit ; '">\n" >]
@@ -170,47 +176,81 @@ module Dot = Graph.Graphviz.Dot(struct
        (dag.node_info |> LM.toList |> canon)
      >]
 
-  let pp_frontier m =
+  let pp_half_edges name m =
     let canon x = List.sort Pervasives.compare x in
     let l = m |> LM.toList |> canon in
     if l = [] then [< >]
-    else [< '"frontier:\n" ;
+    else [< 'name ; '":\n" ;
           prlist (fun (bit, vertex) ->
               [< '"  " ; 'string_of_int vertex ; '" -> " ; 'bit_to_string bit ; '"\n" >]
             ) l
           >]
-  let pp_both (dag, frontier) =
-    [< pp_dag dag ; pp_frontier frontier >]
 
-  let mk () =
-    ({
+  let pp_open_dag odag =
+    [< pp_dag odag.dag ; pp_half_edges "frontier" odag.frontier ; pr_option (pp_half_edges "target") odag.target >]
+
+  let mk_open_dag () =
+    {
+      dag = {
         nextid = 0 ;
         node_info = LM.mk() ;
         g = G.empty ;
-      },
-     LM.mk())
+      } ;
+      frontier = LM.mk() ;
+      target = None ;
+    }
 
-  let add_input (dag, frontier) qubit =
-    let nodeid = dag.nextid in
-    ({
+  let pred_e dag v = G.pred_e dag.g v
+  let succ_e dag v = G.succ_e dag.g v
+
+  let remove_edge_e dag e =
+    {
+      dag with
+      g = G.remove_edge_e dag.g e ;
+    }
+
+  let add_edge_e dag e =
+    {
+      dag with
+      g = G.add_edge_e dag.g e ;
+    }
+
+  let remove_vertex dag node =
+    {
+      dag with
+      g = G.remove_vertex dag.g node ;
+      node_info = LM.rmv dag.node_info node ;
+    }
+
+  let add_input odag qubit =
+    assert (None = odag.target) ;
+    let nodeid = odag.dag.nextid in
+    {
+      odag with
+      dag = {
         nextid = nodeid + 1 ;
-        node_info = LM.add dag.node_info (nodeid, { label = INPUT qubit }) ;
-        g = G.add_vertex dag.g nodeid ;
-      },
-     LM.add frontier (qubit, nodeid))
+        node_info = LM.add odag.dag.node_info (nodeid, { label = INPUT qubit }) ;
+        g = G.add_vertex odag.dag.g nodeid ;
+      } ;
+      frontier = LM.add odag.frontier (qubit, nodeid) ;
+    }
 
-  let add_output (dag, frontier) qubit =
-    let nodeid = dag.nextid in
-    let src = LM.map frontier qubit in
-    let g = dag.g in
+  let add_output odag qubit =
+    assert (None = odag.target) ;
+    let nodeid = odag.dag.nextid in
+    let src = LM.map odag.frontier qubit in
+    let g = odag.dag.g in
     let g = G.add_vertex g nodeid in
     let g = G.add_edge_e g (src, qubit, nodeid) in
-    ({
+    {
+      odag with
+      dag = {
         nextid = nodeid + 1 ;
-        node_info = LM.add dag.node_info (nodeid, { label = OUTPUT qubit }) ;
+        node_info = LM.add odag.dag.node_info (nodeid, { label = OUTPUT qubit }) ;
         g = g ;
-      },
-     LM.rmv frontier qubit)
+      } ;
+      frontier = LM.rmv odag.frontier qubit ;
+    }
 
 (*
  * to add a node that touches the argument [bits]:
@@ -222,39 +262,42 @@ module Dot = Graph.Graphviz.Dot(struct
  *   (4) remap (QUBIT->DST) in the frontier
  
  *)
-  let add_node (dag, frontier) stmt bits =
-    let nodeid = dag.nextid in
+  let add_node odag stmt bits =
+    let nodeid = odag.dag.nextid in
     let bits_edges =
       List.map (fun bit ->
-          (bit, LM.map frontier bit))
+          (bit, LM.map odag.frontier bit))
         bits in
-    ({
+    {
+      odag with
+      dag = {
         nextid = nodeid + 1 ;
-        node_info = LM.add dag.node_info (nodeid, { label = STMT stmt }) ;
+        node_info = LM.add odag.dag.node_info (nodeid, { label = STMT stmt }) ;
         g =
-          dag.g
+          odag.dag.g
           |> swap G.add_vertex nodeid
           |> swap (List.fold_left (fun g (bit, srcnode) ->
                        G.add_edge_e g (G.E.create srcnode bit nodeid)
                )) bits_edges ;
-      },
-     List.fold_left (fun f bit ->
-         LM.remap f bit nodeid) frontier bits)
+      };
+      frontier = List.fold_left (fun f bit ->
+                     LM.remap f bit nodeid) odag.frontier bits;
+    }
 
-  let generate_qubit_instances envs l =
-    if for_all (function AST.INDEXED _ -> true | _ -> false) l then
-      [l]
-    else
-      let regid =
-        try_find (function
-            | AST.IT (AST.QREG id) -> id
-            | _ -> failwith "caught") l in
-      let dim = TYCHK.Env.lookup_qreg envs regid in
-      (interval 0 (dim-1))
-       |> List.map (fun i ->
-              List.map (function
-                  | AST.INDEXED _ as qarg -> qarg
-                  | AST.IT(AST.QREG id) -> AST.INDEXED(AST.QREG id, i)) l)
+let generate_qubit_instances envs l =
+  if for_all (function AST.INDEXED _ -> true | _ -> false) l then
+    [l]
+  else
+    let regid =
+      try_find (function
+          | AST.IT (AST.QREG id) -> id
+          | _ -> failwith "caught") l in
+    let dim = TYCHK.Env.lookup_qreg envs regid in
+    (interval 0 (dim-1))
+    |> List.map (fun i ->
+           List.map (function
+               | AST.INDEXED _ as qarg -> qarg
+               | AST.IT(AST.QREG id) -> AST.INDEXED(AST.QREG id, i)) l)
 
   let generate_cbit_instances envs l =
     if for_all (function AST.INDEXED _ -> true | _ -> false) l then
@@ -323,9 +366,9 @@ module Dot = Graph.Graphviz.Dot(struct
            )
          ) qubit_instances
 
-  let rec add_stmt envs dag stmt =
+  let rec add_stmt envs odag stmt =
     match stmt with
-    | AST.STMT_GATEDECL _ | STMT_OPAQUEDECL _ -> dag
+    | AST.STMT_GATEDECL _ | STMT_OPAQUEDECL _ -> odag
 
     | STMT_QREG(id, n) ->
        (* for each {c,qu}bit:
@@ -336,12 +379,12 @@ module Dot = Graph.Graphviz.Dot(struct
 
        (interval 0 (n-1))
        |> List.map (fun i -> (Q(AST.QREG id, i)))
-       |> List.fold_left add_input dag
+       |> List.fold_left add_input odag
 
     | STMT_CREG (id, n) ->
        (interval 0 (n-1))
        |> List.map (fun i -> (C(AST.CREG id, i)))
-       |> List.fold_left add_input dag
+       |> List.fold_left add_input odag
 
     (*
      * If the qarg is a QUBIT:
@@ -354,9 +397,9 @@ module Dot = Graph.Graphviz.Dot(struct
 
     | STMT_QOP q ->
        let l = generate_qop_instances envs q in
-       List.fold_left (fun dag (q, bits) ->
-           add_node dag (AST.STMT_QOP q) bits
-         ) dag l
+       List.fold_left (fun odag (q, bits) ->
+           add_node odag (AST.STMT_QOP q) bits
+         ) odag l
 
     | STMT_IF (AST.CREG cregid as creg, n, qop) ->
        let dim = TYCHK.Env.lookup_creg envs cregid in
@@ -368,9 +411,9 @@ module Dot = Graph.Graphviz.Dot(struct
                    (AST.STMT_IF(creg, n, qop),
                     cbits @ bits)
                  ) l in
-       List.fold_left (fun dag (stmt, bits) ->
-           add_node dag stmt bits
-         ) dag l
+       List.fold_left (fun odag (stmt, bits) ->
+           add_node odag stmt bits
+         ) odag l
 
     | STMT_BARRIER qargs ->
        let gen_qubits = function
@@ -385,14 +428,42 @@ module Dot = Graph.Graphviz.Dot(struct
              bits @ (gen_qubits qarg))
            [] qargs in
 
-       add_node dag stmt bits
+       add_node odag stmt bits
+
+  let close_frontier_1 odag edgelabel =
+    let canon x = List.sort Pervasives.compare x in
+    assert(None <> odag.target) ;
+    match odag.target with
+    | None -> assert false
+    | Some target ->
+       assert (canon (LM.dom odag.frontier) = canon (LM.dom target)) ;
+       let src = LM.map odag.frontier edgelabel in
+       let dst = LM.map target edgelabel in
+       {
+         odag with
+         dag = add_edge_e odag.dag (G.E.create src edgelabel dst) ;
+         frontier = LM.rmv odag.frontier edgelabel ;
+         target = Some (LM.rmv target edgelabel) ;
+       }
+
+  let close_odag odag =
+    assert(LM.empty odag.frontier) ;
+    assert(match odag.target with None -> true | Some m -> LM.empty m) ;
+    odag.dag
+
+  let reopen_dag ?(frontier=[]) ?(target=[]) dag =
+    {
+      dag ;
+      frontier = LM.ofList() frontier ;
+      target = Some (LM.ofList() target) ;
+    }
 
   let make envs pl =
     let pl = List.map snd pl in
-    let dag = mk() in
-    let dag = List.fold_left (add_stmt envs) dag pl in
-    let dag = List.fold_left add_output dag (LM.dom (snd dag)) in
-    dag
+    let odag = mk_open_dag() in
+    let odag = List.fold_left (add_stmt envs) odag pl in
+    let odag = List.fold_left add_output odag (LM.dom odag.frontier) in
+    close_odag odag
 
   let rec stmt_to_label ~terse stmt =
     if not terse then pp ASTPP.raw_stmt stmt

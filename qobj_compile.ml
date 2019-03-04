@@ -224,7 +224,7 @@ end
 module Compile = struct
 
   let circuit_to_experiment ~name envs dag =
-    let circuit = JSON.to_json envs (fst dag) in
+    let circuit = JSON.to_json envs dag in
     {
       circuit with
       Experiment.header = {
@@ -233,7 +233,7 @@ module Compile = struct
       }
     }
 
-  let circuit_to_qobj ~backend_name ~shots ~max_credits ?qobj_id ?basis_gates ?coupling_map ?seed ~memory (envs, dag) =
+  let circuit_to_qobj ~name ~backend_name ~shots ~max_credits ?qobj_id ?basis_gates ?coupling_map ?seed ~memory (envs, dag) =
     let config =
       Qobj.{
           n_qubits = 0 ;
@@ -250,7 +250,7 @@ module Compile = struct
         backend_name ;
         backend_version = None ;
                  } in
-    let experiment = JSON.to_json envs dag in
+    let experiment = circuit_to_experiment ~name envs dag in
     let qobj =
       Qobj.{
           qobj_id ;
