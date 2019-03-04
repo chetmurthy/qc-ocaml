@@ -392,7 +392,7 @@ let to_dag0 txt =
   let pl = body_parse PA.program txt in
   let (envs, p) = TYCHK.program pl in
   let dag = DAG.make envs p in
-  dag
+  (envs, dag)
 
 let parse_to_dag0_to_ast txt =
   let pl = body_parse PA.program txt in
@@ -403,7 +403,7 @@ let parse_to_dag0_to_ast txt =
 
 let test_dag0 (name, txt) =
   name >:: (fun ctxt ->
-    let dag = to_dag0 txt in
+    let _,dag = to_dag0 txt in
     pp DAG.pp_both dag ;
     ()
   )
@@ -433,7 +433,24 @@ let dag0_tests = "dag0 tests" >:::
         let atxt = {| qreg r[2] ; CX r[0], r[1] ; qreg q[2] ; CX q[0], q[1] ; |} in
         let btxt = {| qreg q[2] ; CX q[0], q[1] ; qreg r[2] ; CX r[0], r[1] ; |} in
         assert_equal (parse_to_dag0_to_ast atxt) (parse_to_dag0_to_ast btxt)
-      )
+      ) ;
+      "basis" >:: (fun ctxt ->
+        let (envs, dag) = to_dag0 {|
+include "testdata/qelib1.inc";
+qreg q[14];
+creg c0[2];
+u2(0,pi) q[1];
+cx q[1],q[0];
+u2(0,pi) q[1];
+u2(0,pi) q[0];
+barrier q[0],q[1];
+measure q[1] -> c0[1];
+measure q[0] -> c0[0];
+|} in
+        let expected_basis = [("U", (1, 0, 3)); ("CX", (2, 0, 0)); ("measure", (1, 1, 0)); ("reset", (1, 0, 0)); ("barrier", (-1, 0, 0)); ("u3", (1, 0, 3)); ("u2", (1, 0, 2)); ("u1", (1, 0, 1)); ("cx", (2, 0, 0)); ("id", (1, 0, 0)); ("u0", (1, 0, 1)); ("x", (1, 0, 0)); ("y", (1, 0, 0)); ("z", (1, 0, 0)); ("h", (1, 0, 0)); ("s", (1, 0, 0)); ("sdg", (1, 0, 0)); ("t", (1, 0, 0)); ("tdg", (1, 0, 0)); ("rx", (1, 0, 1)); ("ry", (1, 0, 1)); ("rz", (1, 0, 1)); ("cz", (2, 0, 0)); ("cy", (2, 0, 0)); ("swap", (2, 0, 0)); ("ch", (2, 0, 0)); ("ccx", (3, 0, 0)); ("cswap", (3, 0, 0)); ("crz", (2, 0, 1)); ("cu1", (2, 0, 1)); ("cu3", (2, 0, 3)); ("rzz", (2, 0, 1))] in
+        let canon l = List.sort Pervasives.compare l in
+        assert_equal (canon (DAG.JSON.mk_basis envs)) (canon expected_basis) ;
+      ) ;
     ]
   )
 
