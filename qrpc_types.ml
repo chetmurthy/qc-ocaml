@@ -211,3 +211,22 @@ module CancelResult = struct
       cancelled : bool ;
     } [@@deriving yojson]
 end
+
+module IBMJob = struct
+  type backend_info_t = {
+      name : string ;
+    } [@@deriving yojson, sexp]
+
+  type t = {
+      qObject : Qobj.t ;
+      backend : backend_info_t ;
+    } [@@deriving yojson, sexp]
+
+  let make_job ~backend_name qobj =
+    let j = {
+        qObject = qobj ;
+        backend = { name = backend_name } ;
+  } in
+    j
+
+end

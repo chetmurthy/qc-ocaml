@@ -294,4 +294,28 @@ let cancel_job id_job session =
     |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.cancel_job"
     |> Rresult.R.error 
 
+let cancel_job id_job session =
+  let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
+  let token = Session.access_token session in
+  let headers = [
+      ("User-Agent", "python-requests/2.21.0") ;
+      ("Accept", "*/*") ;
+      ("x-qx-client-application", "qiskit-api-py") ;
+    ] in
+  let url = url ^ "/" ^ id_job ^ "/cancel" in
+  try
+    let call = RPC.post ~headers [("access_token", token)] url in
+    let resp_body = call # get_resp_body() in
+    resp_body
+    |> Yojson.Safe.from_string
+    |> CancelResult.of_yojson
+    |> error_to_failure ~msg:"CancelResult.of_yojson"
+    |> Rresult.R.ok
+  with Nethttp_client.Http_error (code, body) ->
+    Exc.warn (Printf.sprintf "Job.cancel_job: HTTP error code %d, body=%s" code body) ;
+    body
+    |> Yojson.Safe.from_string
+    |> APIError.of_yojson
+    |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.cancel_job"
+    |> Rresult.R.error 
 end
