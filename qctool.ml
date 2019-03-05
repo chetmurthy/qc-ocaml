@@ -85,6 +85,40 @@ module AvailableBackends = struct
     (term, info)
 end
 
+module ShowJob = struct
+  type t = {
+      rcfile : string option ;
+      (** specify rcfile location *)
+
+      key : string option ;
+      (** specify section in rcfile *)
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      job_id : string ;
+      (** job id to show *)
+
+    } [@@deriving cmdliner,show]
+
+  let do_show_job p =
+    let { rcfile ; key ; debug ; job_id } = p in
+    let session = Login.(login { rcfile ; key ; debug }) in
+    let j = Job.get_status_job job_id session in
+
+    match j with
+    | Result.Ok st ->
+       let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
+       Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate
+    | Result.Error apierror ->
+       ()
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_show_job $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "show_job" in
+    (term, info)
+end
+
 module ListJobs = struct
   type t = {
       rcfile : string option ;
@@ -159,6 +193,7 @@ if invoked_as "qctool" then
                              Login.cmd;
                              AvailableBackends.cmd;
                              ListJobs.cmd;
+                             ShowJob.cmd;
                              (cmd1_term, cmd1_info); (cmd2_term, cmd2_info); (cmd3_term, cmd3_info)])
 
 ;;
