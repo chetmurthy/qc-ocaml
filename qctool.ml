@@ -143,12 +143,14 @@ module ListJobs = struct
     let session = Login.(login { rcfile ; key ; debug }) in
     let l = Job.get_status_jobs ~backend session in
 
-    if not verbose then
+    if verbose then
       List.iter ShortJobStatus.(fun { kind ; status ; creationDate ; id } ->
-      Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate
+      Printf.printf "%s : %s\n\t%s @ %s\n" id status kind creationDate
         ) l
     else
-      Printf.printf "You really don't want to see a verbose dump\n"
+      List.iter ShortJobStatus.(fun { id } ->
+      Printf.printf "%s\n" id
+        ) l
 
   let cmd =
     let term = Cmdliner.Term.(const do_list_jobs $ cmdliner_term ()) in
