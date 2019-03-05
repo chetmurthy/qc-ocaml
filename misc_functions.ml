@@ -182,6 +182,9 @@ let do_option f = function
     Some x -> f x
   | None -> ()
 
+let isSome = function Some _ -> true | None -> false
+let outSome (Some n) = n
+
 let comp f g x = f (g x)
 
 let rec distinct = function

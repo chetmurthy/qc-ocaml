@@ -147,7 +147,7 @@ module Dot = Graph.Graphviz.Dot(struct
   type open_dag_t = {
       dag : t ;
       frontier : (bit_t, int) Coll.LM.t ;
-      target : (bit_t, int) Coll.LM.t option ;
+      target : (bit_t, int) Coll.LM.t ;
     }
 
   let pr_node_info ~prefix info =
@@ -187,7 +187,7 @@ module Dot = Graph.Graphviz.Dot(struct
           >]
 
   let pp_open_dag odag =
-    [< pp_dag odag.dag ; pp_half_edges "frontier" odag.frontier ; pr_option (pp_half_edges "target") odag.target >]
+    [< pp_dag odag.dag ; pp_half_edges "frontier" odag.frontier ; pp_half_edges "target" odag.target >]
 
   let mk_open_dag () =
     {
@@ -197,7 +197,7 @@ module Dot = Graph.Graphviz.Dot(struct
         g = G.empty ;
       } ;
       frontier = LM.mk() ;
-      target = None ;
+      target = LM.mk() ;
     }
 
   let pred_e dag v = G.pred_e dag.g v
@@ -222,34 +222,24 @@ module Dot = Graph.Graphviz.Dot(struct
       node_info = LM.rmv dag.node_info node ;
     }
 
-  let add_input odag qubit =
-    assert (None = odag.target) ;
-    let nodeid = odag.dag.nextid in
-    {
-      odag with
-      dag = {
+  let add_vertex dag info =
+    let nodeid = dag.nextid in
+    ({
+        dag with
         nextid = nodeid + 1 ;
-        node_info = LM.add odag.dag.node_info (nodeid, { label = INPUT qubit }) ;
-        g = G.add_vertex odag.dag.g nodeid ;
-      } ;
-      frontier = LM.add odag.frontier (qubit, nodeid) ;
-    }
+        node_info = LM.add dag.node_info (nodeid, info) ;
+        g = G.add_vertex dag.g nodeid ;
+      },
+     nodeid)
 
-  let add_output odag qubit =
-    assert (None = odag.target) ;
-    let nodeid = odag.dag.nextid in
-    let src = LM.map odag.frontier qubit in
-    let g = odag.dag.g in
-    let g = G.add_vertex g nodeid in
-    let g = G.add_edge_e g (src, qubit, nodeid) in
+  let add_bit odag qubit =
+    let dag = odag.dag in
+    let (dag, input_nodeid) = add_vertex dag { label = INPUT qubit } in
+    let (dag, output_nodeid) = add_vertex dag { label = OUTPUT qubit } in
     {
-      odag with
-      dag = {
-        nextid = nodeid + 1 ;
-        node_info = LM.add odag.dag.node_info (nodeid, { label = OUTPUT qubit }) ;
-        g = g ;
-      } ;
-      frontier = LM.rmv odag.frontier qubit ;
+      dag ;
+      frontier = LM.add odag.frontier (qubit, input_nodeid) ;
+      target = LM.add odag.target (qubit, output_nodeid) ;
     }
 
 (*
@@ -370,30 +360,17 @@ let generate_qubit_instances envs l =
     match stmt with
     | AST.STMT_GATEDECL _ | STMT_OPAQUEDECL _ -> odag
 
+    (* already got added from envs; just check that envs is right *)
     | STMT_QREG(id, n) ->
-       (* for each {c,qu}bit:
-        * (1) create an INPUT(bit) node NID
-        * (2) add it to the graph
-        * (3) add a bit->NID to the frontier
-        *)
+       assert (LM.in_dom envs.TYCHK.Env.qregs id) ;
+       assert (LM.map envs.TYCHK.Env.qregs id = n) ;
+       odag
 
-       (interval 0 (n-1))
-       |> List.map (fun i -> (Q(AST.QREG id, i)))
-       |> List.fold_left add_input odag
-
+    (* already got added from envs; just check that envs is right *)
     | STMT_CREG (id, n) ->
-       (interval 0 (n-1))
-       |> List.map (fun i -> (C(AST.CREG id, i)))
-       |> List.fold_left add_input odag
-
-    (*
-     * If the qarg is a QUBIT:
-     *
-     * (1) find the SRC node in the frontier
-     * (2) insert this stmt as the DST node
-     * (3) insert the edge (SRC, QUBIT, DST)
-     * (4) remap (QUBIT->DST) in the frontier
-     *)
+       assert (LM.in_dom envs.TYCHK.Env.cregs id) ;
+       assert (LM.map envs.TYCHK.Env.cregs id = n) ;
+       odag
 
     | STMT_QOP q ->
        let l = generate_qop_instances envs q in
@@ -432,37 +409,48 @@ let generate_qubit_instances envs l =
 
   let close_frontier_1 odag edgelabel =
     let canon x = List.sort Pervasives.compare x in
-    assert(None <> odag.target) ;
-    match odag.target with
-    | None -> assert false
-    | Some target ->
-       assert (canon (LM.dom odag.frontier) = canon (LM.dom target)) ;
-       let src = LM.map odag.frontier edgelabel in
-       let dst = LM.map target edgelabel in
-       {
-         odag with
-         dag = add_edge_e odag.dag (G.E.create src edgelabel dst) ;
-         frontier = LM.rmv odag.frontier edgelabel ;
-         target = Some (LM.rmv target edgelabel) ;
-       }
+    assert (canon (LM.dom odag.frontier) = canon (LM.dom odag.target)) ;
+    let src = LM.map odag.frontier edgelabel in
+    let dst = LM.map odag.target edgelabel in
+    {
+      odag with
+      dag = add_edge_e odag.dag (G.E.create src edgelabel dst) ;
+      frontier = LM.rmv odag.frontier edgelabel ;
+      target = LM.rmv odag.target edgelabel ;
+    }
 
   let close_odag odag =
     assert(LM.empty odag.frontier) ;
-    assert(match odag.target with None -> true | Some m -> LM.empty m) ;
+    assert(LM.empty odag.target) ;
     odag.dag
 
   let reopen_dag ?(frontier=[]) ?(target=[]) dag =
     {
       dag ;
       frontier = LM.ofList() frontier ;
-      target = Some (LM.ofList() target) ;
+      target = LM.ofList() target ;
     }
 
   let make envs pl =
     let pl = List.map snd pl in
     let odag = mk_open_dag() in
+    let qubits =
+      LM.fold (fun acc (id, dim) ->
+          (interval 0 (dim-1))
+          |> List.fold_left (fun acc i -> (Q(AST.QREG id, i))::acc) acc) [] envs.TYCHK.Env.qregs in
+    let clbits =
+      LM.fold (fun acc (id, dim) ->
+          (interval 0 (dim-1))
+          |> List.fold_left (fun acc i -> (C(AST.CREG id, i))::acc) acc) [] envs.TYCHK.Env.cregs in
+    let qubits = List.sort Pervasives.compare qubits in
+    let clbits = List.sort Pervasives.compare clbits in
+
+    let odag = List.fold_left add_bit odag (qubits@clbits) in
+
     let odag = List.fold_left (add_stmt envs) odag pl in
-    let odag = List.fold_left add_output odag (LM.dom odag.frontier) in
+    let remaining_edges = LM.dom odag.frontier in
+    let odag =
+      List.fold_left close_frontier_1 odag remaining_edges in
     close_odag odag
 
   let rec stmt_to_label ~terse stmt =
