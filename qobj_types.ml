@@ -49,7 +49,18 @@ module Qobj = struct
       memory : bool ;
     } [@@deriving yojson, sexp]
 
-  type experiment_type_t = QASM | PULSE [@@deriving yojson, sexp]
+  type experiment_type_t =
+    | QASM
+    | PULSE [@@deriving sexp]
+
+  let experiment_type_t_to_yojson = function
+    | QASM -> `String "QASM"
+    | PULSE -> `String "PULSE"
+
+  let experiment_type_t_of_yojson = function
+    | `String "QASM" -> Result.Ok QASM
+    | `String "PULSE" -> Result.Ok PULSE
+    | _ -> Result.Error "Qobj_types.Qobj.experiment_type_t"
 
   type header_t = {
       backend_name : string ;
@@ -62,6 +73,6 @@ module Qobj = struct
       header : header_t ;
       qobj_id : string ;
       schema_version : string ;
-      _type : (experiment_type_t [@key "type"])
+      _type : experiment_type_t [@key "type"] ;
     } [@@deriving yojson, sexp]
 end

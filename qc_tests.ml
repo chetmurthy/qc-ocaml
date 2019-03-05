@@ -586,7 +586,17 @@ let compile_tests = "compile tests" >:::
         let expected_circuit_json = Yojson.Safe.from_string expected_circuit_txt in
         assert_equal ~cmp:(Yojson_helpers.compare ~explain:true ~usercmp:fuzzy_compare)
           (circuit |> Qobj_types.Experiment.to_yojson |> Yojson_helpers.canon)
-          (expected_circuit_json |> Yojson_helpers.canon)
+          (expected_circuit_json |> Yojson_helpers.canon) ;
+
+        let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:"ibmq_16_melbourne"
+                     ~shots:1024 ~max_credits:10 ~qobj_id:"168a65c1-f83b-4346-8643-6aa9eea59234"
+                     ~memory:false ["circuit0",envs, dag] in
+        let expected_qobj_txt = file_contents "testdata/qobj/bell0.qobj" in
+        let expected_qobj_json = Yojson.Safe.from_string expected_qobj_txt in
+        assert_equal ~cmp:(Yojson_helpers.compare ~explain:true ~usercmp:fuzzy_compare)
+          (qobj |> Qobj_types.Qobj.to_yojson |> Yojson_helpers.canon)
+          (expected_qobj_json |> Yojson_helpers.canon) ;
+
     )
   ]
 

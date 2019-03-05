@@ -233,32 +233,37 @@ module Compile = struct
       }
     }
 
-  let circuit_to_qobj ~name ~backend_name ~shots ~max_credits ?qobj_id ?basis_gates ?coupling_map ?seed ~memory (envs, dag) =
-    let config =
-      Qobj.{
-          n_qubits = 0 ;
-          seed = (match seed with Some n -> n | None -> 1) ;
-          max_credits ;
-          memory_slots = 0 ;
-          shots ;
-          memory ;
-      } in
+  let circuits_to_qobj ~backend_name ~shots ~max_credits ?qobj_id ?seed ~memory name_envs_dag_list =
     let qobj_id = match qobj_id with
       | Some id -> id
       | None -> Uuidm.(to_string (v `V4)) in
     let header = Qobj.{
-        backend_name ;
-        backend_version = None ;
+          backend_name ;
+          backend_version = None ;
                  } in
-    let experiment = circuit_to_experiment ~name envs dag in
+    let experiments = List.map (fun (name, envs, dag) ->
+                          circuit_to_experiment ~name envs dag) name_envs_dag_list in
+    let memory_slots = List.fold_left max 0
+                     (List.map (fun e -> Qobj.((outSome e.Experiment.config).memory_slots)) experiments) in
+    let n_qubits = List.fold_left max 0
+                     (List.map (fun e -> Qobj.((outSome e.Experiment.config).n_qubits)) experiments) in
+    let config =
+      Qobj.{
+          n_qubits ;
+          seed = (match seed with Some n -> n | None -> 1) ;
+          max_credits ;
+          memory_slots ;
+          shots ;
+          memory ;
+      } in
     let qobj =
       Qobj.{
           qobj_id ;
           config ;
-          experiments = [experiment] ;
+          experiments = experiments ;
           header ;
           _type = QASM ;
           schema_version = Defaults._QOBJ_VERSION ;
       } in
-    ()
+    qobj
 end
