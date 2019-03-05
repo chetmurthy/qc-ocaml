@@ -222,7 +222,7 @@ module Job = struct
       where : job_query_where_t ;
     }  [@@deriving yojson, sexp]
 
-let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend ~session =
+let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
   let token = Session.access_token session in
   let headers = [
@@ -240,4 +240,7 @@ let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend ~session =
   let call = RPC.get ~headers [("access_token", token); ("filter", query_s)] url in
   let resp_body = call # get_resp_body() in
   resp_body
+  |> Yojson.Safe.from_string
+  |> JobStatus.list_t_of_yojson
+  |> error_to_failure ~msg:"JobStatus.list_t_of_yojson"
 end

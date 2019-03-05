@@ -1,4 +1,5 @@
 open Sexplib0.Sexp_conv
+open Qobj_types
 
 module CouplingMap = struct
   type t = int list list [@@deriving yojson, sexp]
@@ -82,4 +83,100 @@ end
 
 module BackendConfig = struct
   type t = CoreConfig.t list [@@deriving yojson, sexp]
+end
+
+module BackendDescriptor = struct
+  type t = {
+      id : string ;
+      name : string ;
+    } [@@deriving yojson, sexp]
+end
+
+module IPInfo = struct
+  type t = {
+      ip : string ;
+      country : string ;
+      continent : string ;
+    } [@@deriving yojson, sexp]
+end
+
+
+module ResultObj = struct
+  type shots_t =
+    COUNT of int
+  | RANGE of int * int
+           
+  let shots_t_to_yojson = function
+    | COUNT n -> `Int n
+    | RANGE(n,m) -> `List[`Int n; `Int m]
+
+  let shots_t_of_yojson = function
+    | `Int n -> Result.Ok(COUNT n)
+    | `List[`Int n; `Int m] -> Result.Ok(RANGE(n,m))
+    | _ -> Result.Error "ResultObj.shot_t_of_yojson"
+
+  type data_t = {
+      counts : (Yojson.Safe.json option [@default None]) ;
+      snapshots : (Yojson.Safe.json option [@default None]) ;
+      memory : (Yojson.Safe.json option [@default None]) ;
+      statevector : (Yojson.Safe.json option [@default None]) ;
+      unitary : (Yojson.Safe.json option [@default None]) ;
+    } [@@deriving yojson]
+
+  type t = {
+      shots : shots_t ;
+      success : bool ;
+      header : Experiment.header_t ;
+      data : data_t ;
+      status : (string option [@default None]) ;
+      job_id : (string option [@default None]) ;
+      seed : (int option [@default None]) ;
+      meas_return : (string option [@default None]) ;
+    } [@@deriving yojson]
+end
+
+module QObjResult = struct
+  type t = {
+      backend_name : string ;
+      backend_version : string ;
+      qobj_id : string ;
+      job_id : string ;
+      results : ResultObj.t list ;
+
+      status : (string option [@default None]) ;
+      date : (string option [@default None]) ;
+      success : bool ;
+      header : Yojson.Safe.json ;
+      execution_id : string ;
+      
+    } [@@deriving yojson]
+end
+
+module JobStatus = struct
+
+  type job_state_t = {
+      status : string ;
+      executionId : string ;
+      result : (string option [@default None]) ;
+    } [@@deriving yojson]
+
+
+  type t = {
+      qasms: job_state_t list ;
+      qObject : Qobj.t ;
+      qObjectResult : (QObjResult.t option [@default None]) ;
+      kind: string ;
+      shots : int ;
+      backend : BackendDescriptor.t ;
+      status : string ;
+      maxCredits : int ;
+      usedCredits : int ;
+      creationDate : string ;
+      deleted : bool ;
+      ip : IPInfo.t ;
+      id : string ;
+      userId : string ;
+    } [@@deriving yojson]
+
+  type list_t = t list [@@deriving yojson]
 end

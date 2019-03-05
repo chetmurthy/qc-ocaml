@@ -37,9 +37,9 @@
 #load "qasm_passes.cmo";;
 #load "qc_layout.cmo";;
 #load "qc_environment.cmo";;
+#load "qobj_types.cmo";;
 #load "qrpc_types.cmo";;
 #load "qc_symbolic.cmo";;
-#load "qobj_types.cmo";;
 #load "qobj_compile.cmo";;
 #load "qrpc_api.cmo";;
 #load "qc_tests.cmo";;
