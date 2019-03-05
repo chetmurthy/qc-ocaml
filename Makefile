@@ -5,10 +5,10 @@ OCAMLCFLAGS=-g
 PACKAGES=uuidm,nettls-gnutls,netclient,ppx_deriving_yojson,ppx_sexp_conv,oUnit,oUnit.advanced,pcre,ocamlgraph,dot,yojson,containers,inifiles
 PACKAGESP5=camlp5,$(PACKAGES) -syntax camlp5o
 
-ML= misc_functions.ml yojson_helpers.ml gmap.ml gset.ml coll.ml qc_environment.ml qasmsyntax.ml qc_symbolic.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml qasm_passes.ml qc_layout.ml qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml
+ML= misc_functions.ml yojson_helpers.ml gmap.ml gset.ml coll.ml qc_environment.ml qasmsyntax.ml qc_symbolic.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml qasm_passes.ml qc_layout.ml qobj_types.ml qobj_compile.ml qc_execute.ml qrpc_types.ml qrpc_api.ml
 MLI= gmap.mli gset.mli
 
-SRC=yojson_helpers.ml qc_environment.ml qasmlex.ml qasmsyntax.ml qc_symbolic.ml coll.ml gmap.ml gset.ml qc_tests.ml large_tests.ml qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml
+SRC=yojson_helpers.ml qc_environment.ml qasmlex.ml qasmsyntax.ml qc_symbolic.ml coll.ml gmap.ml gset.ml qc_tests.ml large_tests.ml qobj_types.ml qobj_compile.ml qc_execute.ml qrpc_types.ml qrpc_api.ml
 SRCP5=qasmparser.ml qasmpp.ml misc_functions.ml qasmdag0.ml qasm_passes.ml qc_layout.ml
 
 CMO= $(ML:.ml=.cmo)
