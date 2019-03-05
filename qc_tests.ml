@@ -408,11 +408,15 @@ let test_dag0 (name, txt) =
     ()
   )
 
+
+let dag0_from_file fname =
+  let vers,pl = full_parse_from_file PA.mainprogram fname in
+  let (envs, p) = TYCHK.program pl in
+  (envs, DAG.make envs p)
+
 let test_dag0_file (name, fname) =
   name >:: (fun ctxt ->
-    let vers,pl = full_parse_from_file PA.mainprogram fname in
-    let (envs, p) = TYCHK.program pl in
-    let dag = DAG.make envs p in
+    let (envs, dag) = dag0_from_file fname in
     ()
   )
 
@@ -576,204 +580,9 @@ let compile_tests = "compile tests" >:::
     ) ;
 
     "emit 0" >:: (fun ctxt ->
-        let (envs, dag) = to_dag0 {|
-include "testdata/qelib1.inc";
-qreg q[14];
-creg c0[2];
-u2(0,pi) q[1];
-cx q[1],q[0];
-u2(0,pi) q[1];
-u2(0,pi) q[0];
-barrier q[0],q[1];
-measure q[1] -> c0[1];
-measure q[0] -> c0[0];
-|} in
+        let (envs, dag) = dag0_from_file "testdata/qobj/bell0.qasm" in
         let circuit = Compile.circuit_to_experiment  ~name:"circuit0" envs dag in
-        let expected_circuit_txt =
-          {|
-{
-      "config": {
-        "memory_slots": 2,
-        "n_qubits": 14
-      },
-      "header": {
-        "clbit_labels": [
-          [
-            "c0",
-            0
-          ],
-          [
-            "c0",
-            1
-          ]
-        ],
-        "compiled_circuit_qasm": "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[14];\ncreg c0[2];\nu2(0,pi) q[1];\ncx q[1],q[0];\nu2(0,pi) q[1];\nu2(0,pi) q[0];\nbarrier q[0],q[1];\nmeasure q[1] -> c0[1];\nmeasure q[0] -> c0[0];\n",
-        "creg_sizes": [
-          [
-            "c0",
-            2
-          ]
-        ],
-        "memory_slots": 2,
-        "n_qubits": 14,
-        "name": "circuit0",
-        "qreg_sizes": [
-          [
-            "q",
-            14
-          ]
-        ],
-        "qubit_labels": [
-          [
-            "q",
-            0
-          ],
-          [
-            "q",
-            1
-          ],
-          [
-            "q",
-            2
-          ],
-          [
-            "q",
-            3
-          ],
-          [
-            "q",
-            4
-          ],
-          [
-            "q",
-            5
-          ],
-          [
-            "q",
-            6
-          ],
-          [
-            "q",
-            7
-          ],
-          [
-            "q",
-            8
-          ],
-          [
-            "q",
-            9
-          ],
-          [
-            "q",
-            10
-          ],
-          [
-            "q",
-            11
-          ],
-          [
-            "q",
-            12
-          ],
-          [
-            "q",
-            13
-          ]
-        ]
-      },
-      "instructions": [
-        {
-          "memory": [],
-          "name": "u2",
-          "params": [
-            0.0,
-            3.141592653589793
-          ],
-          "qubits": [
-            1
-          ],
-          "texparams": [
-            "0",
-            "\\pi"
-          ]
-        },
-        {
-          "memory": [],
-          "name": "cx",
-          "params": [],
-          "qubits": [
-            1,
-            0
-          ],
-          "texparams": []
-        },
-        {
-          "memory": [],
-          "name": "u2",
-          "params": [
-            0.0,
-            3.141592653589793
-          ],
-          "qubits": [
-            0
-          ],
-          "texparams": [
-            "0",
-            "\\pi"
-          ]
-        },
-        {
-          "memory": [],
-          "name": "u2",
-          "params": [
-            0.0,
-            3.141592653589793
-          ],
-          "qubits": [
-            1
-          ],
-          "texparams": [
-            "0",
-            "\\pi"
-          ]
-        },
-        {
-          "memory": [],
-          "name": "barrier",
-          "params": [],
-          "qubits": [
-            0,
-            1
-          ],
-          "texparams": []
-        },
-        {
-          "memory": [
-            0
-          ],
-          "name": "measure",
-          "params": [],
-          "qubits": [
-            0
-          ],
-          "texparams": []
-        },
-        {
-          "memory": [
-            1
-          ],
-          "name": "measure",
-          "params": [],
-          "qubits": [
-            1
-          ],
-          "texparams": []
-        }
-      ]
-    }
-|}
- in
+        let expected_circuit_txt = file_contents "testdata/qobj/bell0.exp" in
         let expected_circuit_json = Yojson.Safe.from_string expected_circuit_txt in
         assert_equal ~cmp:(Yojson_helpers.compare ~explain:true ~usercmp:fuzzy_compare)
           (circuit |> Qobj_types.Experiment.to_yojson |> Yojson_helpers.canon)
