@@ -8,4 +8,6 @@ WARNING TODO: ocamldot still cannot be installed by opam -- figure this out and 
 opam install camlp5 camlzip cmdliner conf-gnutls \
      ocamlfind lablgtk3 menhir oasis containers \
 	 ocamlfind ocamlgraph ocamlnet ocurl ounit ppx_test \
-	 pcre ssl ppx_deriving_yojson yojson ocaml-inifiles
+	 pcre ssl ppx_deriving_yojson yojson ocaml-inifiles \
+	 ppx_deriving_cmdliner
+
