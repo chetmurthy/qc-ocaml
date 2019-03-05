@@ -4,10 +4,10 @@ open Qobj_types
 
 module APIError = struct
   type error_t = {
-      name : string ;
+      name : (string option [@default None]) ;
       status : int ;
       message : string ;
-      statusCode : int ;
+      statusCode : (int option [@default None]) ;
       code : string ;
     } [@@deriving yojson, sexp]
 
@@ -204,4 +204,10 @@ module JobStatus = struct
 
   type list_t = t list [@@deriving yojson]
 
+end
+
+module CancelResult = struct
+  type t = {
+      cancelled : bool ;
+    } [@@deriving yojson]
 end
