@@ -102,6 +102,20 @@ let post ~headers params url =
   pipeline # run() ;
   call
 
+let post_object ~headers params body url =
+  let url =
+    if params = [] then url
+    else
+      let l = List.map (fun (n,v) -> n ^ "=" ^ Netencoding.Url.encode v) params in
+      let s = String.concat "&" l in
+      url ^ "?" ^ s in
+  let call = new post_raw url body in
+  call # set_request_header (Netmime.basic_mime_header headers) ;
+  let pipeline = new pipeline in
+  pipeline # add call;
+  pipeline # run() ;
+  call
+
 let get ~headers params url =
   let url =
     match params with
@@ -318,4 +332,34 @@ let cancel_job id_job session =
     |> APIError.of_yojson
     |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.cancel_job"
     |> Rresult.R.error 
+
+let submit_job backend_name qobj session =
+  let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
+  let token = Session.access_token session in
+  let headers = [
+      ("User-Agent", "python-requests/2.21.0") ;
+      ("Accept", "*/*") ;
+      ("x-qx-client-application", "qiskit-api-py") ;
+    ] in
+  let job = IBMJob.make_job ~backend_name qobj in
+  let job_s =
+    job
+    |> IBMJob.to_yojson
+    |> Yojson.Safe.to_string in
+  try
+    let call = RPC.post_object ~headers [("access_token", token)] url job_s in
+    let resp_body = call # get_resp_body() in
+    resp_body
+    |> Yojson.Safe.from_string
+    |> CancelResult.of_yojson
+    |> error_to_failure ~msg:"CancelResult.of_yojson"
+    |> Rresult.R.ok
+  with Nethttp_client.Http_error (code, body) ->
+    Exc.warn (Printf.sprintf "Job.cancel_job: HTTP error code %d, body=%s" code body) ;
+    body
+    |> Yojson.Safe.from_string
+    |> APIError.of_yojson
+    |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.cancel_job"
+    |> Rresult.R.error 
+
 end
