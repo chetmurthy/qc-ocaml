@@ -241,7 +241,7 @@ module Job = struct
     }  [@@deriving yojson, sexp]
 
 let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend session =
-  let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
+  let url = session.Session.account.Credentials.Single.url ^ "/Jobs/status" in
   let token = Session.access_token session in
   let headers = [
       ("User-Agent", "python-requests/2.21.0") ;
@@ -259,8 +259,8 @@ let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend session =
   let resp_body = call # get_resp_body() in
   resp_body
   |> Yojson.Safe.from_string
-  |> JobStatus.list_t_of_yojson
-  |> error_to_failure ~msg:"JobStatus.list_t_of_yojson"
+  |> ShortJobStatus.list_t_of_yojson
+  |> error_to_failure ~msg:"ShortJobStatus.list_t_of_yojson"
 
 let get_status_job id_job session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in

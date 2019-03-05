@@ -110,18 +110,8 @@ module ListJobs = struct
     let l = Job.get_status_jobs ~backend session in
 
     if not verbose then
-      let l =
-        List.map (fun s ->
-            JobStatus.(
-                    s.id,
-                    s.creationDate,
-                    List.map (fun state ->
-                        JobState.(state.status, state.executionId)) s.qasms)) l in
-      List.iter (fun (id, d, sl) ->
-          Printf.printf "%s: created at %s\n" id d;
-          List.iter (fun (status, eid) ->
-              Printf.printf "\t%s: %s\n" eid status
-            ) sl
+      List.iter ShortJobStatus.(fun { kind ; status ; creationDate ; id } ->
+      Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate
         ) l
     else
       Printf.printf "You really don't want to see a verbose dump\n"

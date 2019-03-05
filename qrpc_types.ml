@@ -174,6 +174,8 @@ module ShortJobStatus = struct
       creationDate : string ;
       id : string ;
     } [@@deriving yojson]
+
+  type list_t = t list [@@deriving yojson]
 end
 
 module JobState = struct
