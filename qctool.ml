@@ -85,6 +85,53 @@ module AvailableBackends = struct
     (term, info)
 end
 
+module ListJobs = struct
+  type t = {
+      rcfile : string option ;
+      (** specify rcfile location *)
+
+      key : string option ;
+      (** specify section in rcfile *)
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      verbose : bool ;
+      (** print backend list verbosely *)
+
+      backend : string ;
+      (** the backend to list jobs for *)
+
+    } [@@deriving cmdliner,show]
+
+  let do_list_jobs p =
+    let { rcfile ; key ; debug; verbose ; backend } = p in
+    let session = Login.(login { rcfile ; key ; debug }) in
+    let l = Job.get_status_jobs ~backend session in
+
+    if not verbose then
+      let l =
+        List.map (fun s ->
+            JobStatus.(
+                    s.id,
+                    s.creationDate,
+                    List.map (fun state ->
+                        JobState.(state.status, state.executionId)) s.qasms)) l in
+      List.iter (fun (id, d, sl) ->
+          Printf.printf "%s: created at %s\n" id d;
+          List.iter (fun (status, eid) ->
+              Printf.printf "\t%s: %s\n" eid status
+            ) sl
+        ) l
+    else
+      Printf.printf "You really don't want to see a verbose dump\n"
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_list_jobs $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "list_jobs" in
+    (term, info)
+end
+
 type params = {
   username: string;
   (** Your Github username *)
@@ -121,6 +168,7 @@ if invoked_as "qctool" then
   Cmdliner.Term.(exit @@ eval_choice (cmd1_term, cmd1_info) [
                              Login.cmd;
                              AvailableBackends.cmd;
+                             ListJobs.cmd;
                              (cmd1_term, cmd1_info); (cmd2_term, cmd2_info); (cmd3_term, cmd3_info)])
 
 ;;

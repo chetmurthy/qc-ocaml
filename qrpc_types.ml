@@ -176,17 +176,18 @@ module ShortJobStatus = struct
     } [@@deriving yojson]
 end
 
-module JobStatus = struct
-
-  type job_state_t = {
+module JobState = struct
+  type t = {
       status : string ;
       executionId : string ;
       result : (string option [@default None]) ;
     } [@@deriving yojson]
+end
 
+module JobStatus = struct
 
   type t = {
-      qasms: job_state_t list ;
+      qasms: JobState.t list ;
       qObject : Qobj.t ;
       qObjectResult : (QObjResult.t option [@default None]) ;
       kind: string ;
