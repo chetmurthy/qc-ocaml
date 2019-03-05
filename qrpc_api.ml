@@ -143,6 +143,7 @@ type token_t = {
   } [@@deriving yojson, sexp]
 
 type t = {
+    key : string ;
     account : Credentials.Single.t ;
     mutable token : token_t option ;
   }
@@ -157,6 +158,7 @@ let mk ?key accounts =
     | _ -> failwith "Session.mk: msut supply key into inifile" in
   let account = MLM.map accounts key in
   {
+     key ;
     account ;
     token = None ;
   }
@@ -192,6 +194,8 @@ let access_token session =
   match session.token with
   | None -> failwith "access_token: no token (did you forget to run obtain_token?)"
   | Some t -> t.id
+
+let key session = session.key
 
 let available_backends session =
   let url = get_backends_url session in
