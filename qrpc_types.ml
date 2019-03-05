@@ -1,6 +1,21 @@
 open Sexplib0.Sexp_conv
 open Qobj_types
 
+
+module APIError = struct
+  type error_t = {
+      name : string ;
+      status : int ;
+      message : string ;
+      statusCode : int ;
+      code : string ;
+    } [@@deriving yojson, sexp]
+
+  type t = {
+      error : error_t ;
+    } [@@deriving yojson, sexp]
+end
+
 module CouplingMap = struct
   type t = int list list [@@deriving yojson, sexp]
 end
@@ -152,6 +167,15 @@ module QObjResult = struct
     } [@@deriving yojson]
 end
 
+module ShortJobStatus = struct
+  type t = {
+      kind: string ;
+      status : string ;
+      creationDate : string ;
+      id : string ;
+    } [@@deriving yojson]
+end
+
 module JobStatus = struct
 
   type job_state_t = {
@@ -179,4 +203,5 @@ module JobStatus = struct
     } [@@deriving yojson]
 
   type list_t = t list [@@deriving yojson]
+
 end

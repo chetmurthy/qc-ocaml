@@ -8,6 +8,7 @@
 
 #use "topfind";;
 
+#require "rresult";;
 #require "uuidm";;
 #require "containers";;
 #require "pcre";;
@@ -24,6 +25,7 @@
 #require "ppx_deriving_yojson" ;;
 #require "inifiles" ;;
 
+#load "exc.cmo";;
 #load "misc_functions.cmo";;
 #load "yojson_helpers.cmo";;
 #load "gmap.cmo";;

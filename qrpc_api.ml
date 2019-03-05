@@ -243,4 +243,29 @@ let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend session =
   |> Yojson.Safe.from_string
   |> JobStatus.list_t_of_yojson
   |> error_to_failure ~msg:"JobStatus.list_t_of_yojson"
+
+let get_status_job id_job session =
+  let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
+  let token = Session.access_token session in
+  let headers = [
+      ("User-Agent", "python-requests/2.21.0") ;
+      ("Accept", "*/*") ;
+      ("x-qx-client-application", "qiskit-api-py") ;
+    ] in
+  let url = url ^ "/" ^ id_job ^ "/status" in
+  try
+    let call = RPC.get ~headers [("access_token", token)] url in
+    let resp_body = call # get_resp_body() in
+    resp_body
+    |> Yojson.Safe.from_string
+    |> ShortJobStatus.of_yojson
+    |> error_to_failure ~msg:"ShortJobStatus.of_yojson"
+    |> Rresult.R.ok
+  with Nethttp_client.Http_error (code, body) ->
+    Exc.warn (Printf.sprintf "Job.get_status_job: HTTP error code %d, body=%s" code body) ;
+    body
+    |> Yojson.Safe.from_string
+    |> APIError.of_yojson
+    |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.get_status_job"
+    |> Rresult.R.error 
 end
