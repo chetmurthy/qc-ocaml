@@ -136,12 +136,18 @@ module ListJobs = struct
       backend : string ;
       (** the backend to list jobs for *)
 
+      status : string option ;
+      (** print only hobs with thie specified status *)
+
     } [@@deriving cmdliner,show]
 
   let do_list_jobs p =
-    let { rcfile ; key ; debug; verbose ; backend } = p in
+    let { rcfile ; key ; debug; verbose ; backend; status } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
-    let l = Job.get_status_jobs ~backend session in
+    let filter = match status with
+      | None -> []
+      | Some s -> ["status", s] in
+    let l = Job.get_status_jobs ~filter ~backend session in
 
     if verbose then
       List.iter ShortJobStatus.(fun { kind ; status ; creationDate ; id } ->
