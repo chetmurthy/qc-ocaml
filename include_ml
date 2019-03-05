@@ -24,6 +24,7 @@
 #require "yojson" ;;
 #require "ppx_deriving_yojson" ;;
 #require "inifiles" ;;
+#require "cmdliner";;
 
 #load "exc.cmo";;
 #load "misc_functions.cmo";;

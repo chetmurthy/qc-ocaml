@@ -2,7 +2,7 @@
 
 OCAMLFIND=ocamlfind
 OCAMLCFLAGS=-g
-PACKAGES=rresult,uuidm,nettls-gnutls,netclient,ppx_deriving_yojson,ppx_sexp_conv,oUnit,oUnit.advanced,pcre,ocamlgraph,dot,yojson,containers,inifiles
+PACKAGES=rresult,uuidm,nettls-gnutls,netclient,ppx_deriving_yojson,ppx_sexp_conv,oUnit,oUnit.advanced,pcre,ocamlgraph,dot,yojson,containers,inifiles,cmdliner,ppx_deriving_cmdliner,ppx_deriving.show
 PACKAGESP5=camlp5,$(PACKAGES) -syntax camlp5o
 
 ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml gmap.ml gset.ml coll.ml qc_environment.ml qasmsyntax.ml qc_symbolic.ml qasmlex.ml qasmparser.ml qasmpp.ml qasmdag0.ml qasm_passes.ml qc_layout.ml qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml
@@ -19,7 +19,10 @@ OBJECTS = $(CMO) $(CMX) $(CMI)
 RESULT=libqasm
 TESTS=qc_tests.byte large_tests.byte
 
-all: $(RESULT).cma $(RESULT).cmxa $(TESTS)
+all: $(RESULT).cma $(RESULT).cmxa $(TESTS) qctool
+
+qctool: $(RESULT).cma qctool.ml
+	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) -package $(PACKAGES) -linkpkg -linkall -o $@ $^
 
 everything::
 	make realclean

@@ -6,3 +6,4 @@ oUnit*
 qasmlex.ml
 *.byte
 *.opt
+qctool
