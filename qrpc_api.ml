@@ -1,8 +1,10 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open Coll
+open Misc_functions
 open Sexplib0.Sexp_conv
 open Qc_environment
+open Qrpc_types
 
 module Configfile = struct
   open Inifiles
@@ -131,7 +133,14 @@ type t = {
     mutable token : token_t option ;
   }
 
-let mk ~key accounts =
+let mk ?key accounts =
+  if MLM.size accounts = 0 then
+    failwith "Session.mk: empty accounts" ;
+  let key =
+    match key with
+    | Some key -> key
+    | None when MLM.size accounts = 1 -> List.hd (MLM.dom accounts)
+    | _ -> failwith "Session.mk: msut supply key into inifile" in
   let account = MLM.map accounts key in
   {
     account ;
@@ -181,6 +190,11 @@ let available_backends session =
   let call = RPC.get ~headers ["access_token", token] url in
   let resp_body = call # get_resp_body() in
   resp_body
+  |> Yojson.Safe.from_string
+  |> BackendConfig.of_yojson
+  |> error_to_failure ~msg:"BackendConfig.of_yojson"
+  |> List.map (fun c -> (c.CoreConfig.backend_name, c))
+  |> LM.ofList ()
 
 end
 

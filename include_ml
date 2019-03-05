@@ -46,6 +46,7 @@
 
 #print_length 1048576 ;;
 
+open Coll ;;
 open Misc_functions ;;
 open Qasmsyntax ;;
 open Qasmlex ;;
@@ -99,9 +100,9 @@ print_string (pp ASTPP.program pl) ;
 DAG.tsort dag
 ;;
 
-let accounts = Credentials.mk() ;;
-Credentials.add_rcfile accounts ;;
-let session = Session.mk ~key:"ibmq" accounts ;;
+let creds = Credentials.mk() ;;
+Credentials.add_rcfile creds ;;
+let session = Session.mk creds ;;
 Session.obtain_token session ;;
 Session.available_backends session ;;
 

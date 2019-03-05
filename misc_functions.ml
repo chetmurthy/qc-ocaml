@@ -233,3 +233,8 @@ let ends_with ~pat s =
 let pr_option f = function
     None -> [< >]
   | Some v -> f v
+
+let error_to_failure ?(msg="") = function
+  | Result.Error s -> 
+    failwith (msg^": "^s)
+  | Ok s -> s
