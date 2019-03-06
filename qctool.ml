@@ -87,6 +87,16 @@ module AvailableBackends = struct
     (term, info)
 end
 
+let display_response demarsh rsp =
+  match rsp with
+  | Result.Ok cr ->
+     cr |> demarsh |> Yojson.Safe.pretty_to_channel stdout ;
+     print_newline () ;
+  | Result.Error apierror ->
+     print_string "APIError: " ;
+     apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout;
+     print_newline ()
+
 module ShowJob = struct
   type t = {
       rcfile : string option ; [@env "QISKITRC"]
@@ -101,21 +111,27 @@ module ShowJob = struct
       job_id : string ;
       (** job id to show *)
 
+      verbose : bool ;
+      (** print job verbosely (or succinctly) *)
+
     } [@@deriving cmdliner,show]
 
   let do_show_job p =
-    let { rcfile ; key ; debug ; job_id } = p in
+    let { rcfile ; key ; debug ; job_id ; verbose } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
-    let j = Job.get_status_job job_id session in
-
-    match j with
-    | Result.Ok st ->
-       let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
-       let kind = match kind with None -> "<none>" | Some s -> s in
-       Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate
-    | Result.Error apierror ->
-       print_string "APIError: " ;
-       apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+    if verbose then
+      let j = Job.get_job job_id session in
+      display_response JobStatus.to_yojson j
+    else
+      let j = Job.get_status_job job_id session in
+      match j with
+      | Result.Ok st ->
+         let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
+         let kind = match kind with None -> "<none>" | Some s -> s in
+         Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate
+      | Result.Error apierror ->
+         print_string "APIError: " ;
+         apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
 
   let cmd =
     let term = Cmdliner.Term.(const do_show_job $ cmdliner_term ()) in
@@ -143,15 +159,7 @@ module CancelJob = struct
     let { rcfile ; key ; debug ; job_id } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
     let j = Job.cancel_job job_id session in
-
-    match j with
-    | Result.Ok cr ->
-       cr |> CancelResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
-       print_newline () ;
-    | Result.Error apierror ->
-       print_string "APIError: " ;
-       apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout;
-       print_newline ()
+    display_response CancelResult.to_yojson j
 
   let cmd =
     let term = Cmdliner.Term.(const do_cancel_job $ cmdliner_term ()) in
@@ -199,12 +207,7 @@ module SubmitJob = struct
                                       ~memory:false [name, envs, dag] in
 
     let status = Job.submit_job backend qobj session in
-    match status with
-    | Result.Ok st ->
-       st |> JobStatus.to_yojson |> Yojson.Safe.pretty_to_channel stdout
-    | Result.Error apierror ->
-       print_string "APIError: " ;
-       apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+    display_response JobStatus.to_yojson status
 
   let cmd =
     let term = Cmdliner.Term.(const do_submit_job $ cmdliner_term ()) in
