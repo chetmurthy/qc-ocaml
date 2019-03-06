@@ -111,6 +111,7 @@ module ShowJob = struct
     match j with
     | Result.Ok st ->
        let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
+       let kind = match kind with None -> "<none>" | Some s -> s in
        Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate
     | Result.Error apierror ->
        print_string "APIError: " ;
@@ -235,6 +236,7 @@ module ListJobs = struct
 
     if verbose then
       List.iter ShortJobStatus.(fun { kind ; status ; creationDate ; id } ->
+      let kind = match kind with None -> "<none>" | Some s -> s in
       Printf.printf "%s : %s\n\t%s @ %s\n" id status kind creationDate
         ) l
     else

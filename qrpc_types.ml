@@ -169,7 +169,7 @@ end
 
 module ShortJobStatus = struct
   type t = {
-      kind: string ;
+      kind: string option [@default None] ;
       status : string ;
       creationDate : string ;
       id : string ;
