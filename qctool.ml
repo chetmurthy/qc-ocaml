@@ -116,6 +116,24 @@ module ShowJob = struct
 
     } [@@deriving cmdliner,show]
 
+  let print_short_job_status ?(visual=false) st =
+    let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
+    if visual then (
+      let kind = match kind with None -> "<none>" | Some s -> s in
+      Printf.printf "%s: %s " id status ;
+      do_option (fun i ->
+          InfoQueue.(Printf.printf "[ %s position %d ]" i.status i.position))
+        st.ShortJobStatus.infoQueue ;
+      Printf.printf "\r"
+    )
+    else (
+      let kind = match kind with None -> "<none>" | Some s -> s in
+      Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate ;
+      do_option (fun i ->
+          InfoQueue.(Printf.printf "\t[ %s position %d ]\n" i.status i.position))
+        st.ShortJobStatus.infoQueue
+    )
+
   let do_show_job p =
     let { rcfile ; key ; debug ; job_id ; verbose } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
@@ -126,12 +144,7 @@ module ShowJob = struct
       let j = Job.get_status_job job_id session in
       match j with
       | Result.Ok st ->
-         let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
-         let kind = match kind with None -> "<none>" | Some s -> s in
-         Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate ;
-         do_option (fun i ->
-             InfoQueue.(Printf.printf "\t[ %s position %d ]\n" i.status i.position))
-           st.ShortJobStatus.infoQueue
+         print_short_job_status st
       | Result.Error apierror ->
          print_string "APIError: " ;
          apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
@@ -139,6 +152,52 @@ module ShowJob = struct
   let cmd =
     let term = Cmdliner.Term.(const do_show_job $ cmdliner_term ()) in
     let info = Cmdliner.Term.info "show_job" in
+    (term, info)
+end
+
+module MonitorJob = struct
+  type t = {
+      rcfile : string option ; [@env "QISKITRC"]
+      (** specify rcfile location *)
+
+      key : string option ; [@env "QISKIT_IDENTITY"]
+      (** specify section in rcfile *)
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      visual : bool ;
+      (** try to be nice visually *)
+
+      job_id : string ;
+      (** job id to show *)
+
+    } [@@deriving cmdliner,show]
+
+  let do_monitor_job p =
+    let { rcfile ; key ; debug ; job_id ; visual } = p in
+    let session = Login.(login { rcfile ; key ; debug }) in
+    let rec monrec cnt =
+      let j = Job.get_status_job job_id session in
+    match j with
+    | Result.Ok st ->
+       if st.status = "RUNNING" then (
+         Printf.printf "[%d] " cnt ;
+         ShowJob.print_short_job_status ~visual st ;
+         flush stdout ;
+         Unix.sleep 10 ;
+         monrec (cnt+1))
+       else ()
+    | Result.Error apierror ->
+       print_string "APIError: " ;
+       apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
+       ()
+    in
+    monrec 0
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_monitor_job $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "monitor" in
     (term, info)
 end
 
@@ -306,13 +365,14 @@ let _ =
 if invoked_as "qctool" then
 
   Cmdliner.Term.(exit @@ eval_choice Login.cmd [
-                             Login.cmd;
                              AvailableBackends.cmd;
-                             ListJobs.cmd;
-                             ShowJob.cmd;
                              CancelJob.cmd;
-                             SubmitJob.cmd;
+                             ListJobs.cmd;
+                             Login.cmd;
+                             MonitorJob.cmd;
+                             ShowJob.cmd;
                              ShowResult.cmd;
+                             SubmitJob.cmd;
   ])
 
 ;;
