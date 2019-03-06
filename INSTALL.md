@@ -12,6 +12,7 @@ export VERSION=4.07.1
 export OPAMROOT=$HOME/Hack/Ocaml/$VERSION
 
 mkdir -p $OPAMROOT
+
 echo "export OPAMROOT=$OPAMROOT" >> $OPAMROOT/dot.bashrc
 
 opam init --dot-profile=$OPAMROOT/dot.bashrc \
