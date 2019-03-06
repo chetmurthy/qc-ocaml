@@ -607,6 +607,10 @@ let trip_test_circuit_to_qasm name dir =
   
 let trip_tests = "trip tests" >::: [
       trip_test_circuit_to_qasm "bell/circuit" "Bell" ;
+      trip_test_circuit_to_qasm "dj-00/circuit" "dj-00" ;
+      trip_test_circuit_to_qasm "dj-01/circuit" "dj-01" ;
+      trip_test_circuit_to_qasm "dj-10/circuit" "dj-10" ;
+      trip_test_circuit_to_qasm "dj-11/circuit" "dj-11" ;
   ]
 
 (* Run the tests in test suite *)
