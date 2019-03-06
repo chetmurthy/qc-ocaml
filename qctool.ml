@@ -54,7 +54,7 @@ module AvailableBackends = struct
       rcfile : string option ;
       (** specify rcfile location *)
 
-      key : string option ;
+      key : string option ; [@env "QISKIT_IDENTITY"]
       (** specify section in rcfile *)
 
       debug : bool ;
@@ -92,7 +92,7 @@ module ShowJob = struct
       rcfile : string option ;
       (** specify rcfile location *)
 
-      key : string option ;
+      key : string option ; [@env "QISKIT_IDENTITY"]
       (** specify section in rcfile *)
 
       debug : bool ;
@@ -128,7 +128,7 @@ module CancelJob = struct
       rcfile : string option ;
       (** specify rcfile location *)
 
-      key : string option ;
+      key : string option ; [@env "QISKIT_IDENTITY"]
       (** specify section in rcfile *)
 
       debug : bool ;
@@ -164,7 +164,7 @@ module SubmitJob = struct
       rcfile : string option ;
       (** specify rcfile location *)
 
-      key : string option ;
+      key : string option ; [@env "QISKIT_IDENTITY"]
       (** specify section in rcfile *)
 
       debug : bool ;
@@ -209,7 +209,7 @@ module ListJobs = struct
       rcfile : string option ;
       (** specify rcfile location *)
 
-      key : string option ;
+      key : string option ; [@env "QISKIT_IDENTITY"]
       (** specify section in rcfile *)
 
       debug : bool ;
