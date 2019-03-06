@@ -586,6 +586,22 @@ let compile_tests = "compile tests" >:::
     )
   ]
 
+let do_trip_test_circuit_to_qasm name dir =
+  let qasm1 = Printf.sprintf "testdata/extracted-unit-tests/%s/1-orig.qasm" dir in
+  let qasm2 = Printf.sprintf "testdata/extracted-unit-tests/%s/2-from-circuit.qasm" dir in
+  let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram qasm1 in
+  let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
+  assert_equal pretty (file_contents qasm2)
+
+let trip_test_circuit_to_qasm name dir =
+  name >:: (fun ctxt ->
+    do_trip_test_circuit_to_qasm name dir
+  )
+  
+let trip_tests = "trip tests" >::: [
+      trip_test_circuit_to_qasm "bell/circuit" "Bell" ;
+  ]
+
 (* Run the tests in test suite *)
 let _ =
 if invoked_as "qc_tests" then
@@ -596,5 +612,6 @@ if invoked_as "qc_tests" then
         unroll_tests ;
         credentials_tests ;
         layout_tests ; compile_tests ;
+        trip_tests ;
     ])
 ;;

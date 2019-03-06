@@ -76,7 +76,7 @@ git clone git@github.com:chetmurthy/ocamldot.git
 
 ....
 opam install camlp5 camlzip cmdliner conf-gnutls \
-     ocamlfind lablgtk3 menhir oasis containers \
+         menhir oasis containers sexplib \
 	 ocamlfind ocamlgraph ocamlnet ocurl ounit ppx_test \
 	 pcre ssl ppx_deriving_yojson yojson ocaml-inifiles \
 	 ppx_deriving_cmdliner rresult uuidm ppx_sexp_conv
