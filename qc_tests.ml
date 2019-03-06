@@ -591,6 +591,13 @@ let do_trip_test_circuit_to_qasm name dir =
   let qasm2 = Printf.sprintf "testdata/extracted-unit-tests/%s/2-from-circuit.qasm" dir in
   let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram qasm1 in
   let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
+  if pretty <> (file_contents qasm2) then begin
+Printf.printf "\n================================ %s ================================\n" name ;
+Printf.printf "%s\n" pretty ;
+Printf.printf "================================ %s ================================\n" name ;
+Printf.printf "%s\n" (file_contents qasm2) ;
+Printf.printf "================================ %s ================================\n" name ;
+    end ;
   assert_equal pretty (file_contents qasm2)
 
 let trip_test_circuit_to_qasm name dir =
