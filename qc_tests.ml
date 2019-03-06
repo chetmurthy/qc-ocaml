@@ -610,9 +610,32 @@ let trip_test_circuit_to_qasm name dir =
   name >:: (fun ctxt ->
     do_trip_test_circuit_to_qasm name dir
   )
-  
+
+let do_trip_test_circuit_to_qobj name dir backend =
+  let qasm1 = Printf.sprintf "testdata/extracted-unit-tests/%s/3-optimized-%s.qasm" dir backend in
+  let qobj2 = Printf.sprintf "testdata/extracted-unit-tests/%s/4-compiled-%s.qobj" dir backend in
+
+  let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] qasm1 in
+
+  let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:backend
+                                    ~shots:1024 ~max_credits:10 ~qobj_id:"168a65c1-f83b-4346-8643-6aa9eea59234"
+                                    ~memory:false ["circuit0",envs, dag] in
+        let expected_qobj_txt = file_contents qobj2 in
+        let expected_qobj_json = Yojson.Safe.from_string expected_qobj_txt in
+        assert_equal ~cmp:(Yojson_helpers.compare ~explain:true ~usercmp:fuzzy_compare)
+          (qobj |> Qobj_types.Qobj.to_yojson |> Yojson_helpers.canon)
+          (expected_qobj_json |> Yojson_helpers.canon)
+
+let trip_test_circuit_to_qobj name dir backend =
+  (name^"-"^backend) >:: (fun ctxt ->
+    do_trip_test_circuit_to_qobj name dir backend
+  )
+
 let trip_tests = "trip tests" >::: [
       trip_test_circuit_to_qasm "bell/circuit" "Bell" ;
+      trip_test_circuit_to_qobj "bell/qobj" "Bell" "ibmq_16_melbourne" ;
+      trip_test_circuit_to_qobj "bell/qobj" "Bell" "ibmq_qasm_simulator" ;
+
       trip_test_circuit_to_qasm "dj-00/circuit" "dj-00" ;
       trip_test_circuit_to_qasm "dj-01/circuit" "dj-01" ;
       trip_test_circuit_to_qasm "dj-10/circuit" "dj-10" ;
@@ -620,6 +643,8 @@ let trip_tests = "trip tests" >::: [
       trip_test_circuit_to_qasm "grover-1/circuit" "grover-1" ;
       trip_test_circuit_to_qasm "grover-2/circuit" "grover-2" ;
       trip_test_circuit_to_qasm "grover-3/circuit" "grover-3" ;
+      trip_test_circuit_to_qasm "shor/circuit" "shor" ;
+      trip_test_circuit_to_qasm "simon-3/circuit" "simon" ;
   ]
 
 (* Run the tests in test suite *)
