@@ -8,7 +8,7 @@ open Qobj_compile
 
 module Login = struct
   type t = {
-      rcfile : string option ;
+      rcfile : string option ; [@env "QISKITRC"]
       (** specify rcfile location *)
 
       key : string option ;
@@ -51,7 +51,7 @@ end
 
 module AvailableBackends = struct
   type t = {
-      rcfile : string option ;
+      rcfile : string option ; [@env "QISKITRC"]
       (** specify rcfile location *)
 
       key : string option ; [@env "QISKIT_IDENTITY"]
@@ -89,7 +89,7 @@ end
 
 module ShowJob = struct
   type t = {
-      rcfile : string option ;
+      rcfile : string option ; [@env "QISKITRC"]
       (** specify rcfile location *)
 
       key : string option ; [@env "QISKIT_IDENTITY"]
@@ -125,7 +125,7 @@ end
 
 module CancelJob = struct
   type t = {
-      rcfile : string option ;
+      rcfile : string option ; [@env "QISKITRC"]
       (** specify rcfile location *)
 
       key : string option ; [@env "QISKIT_IDENTITY"]
@@ -161,7 +161,7 @@ end
 
 module SubmitJob = struct
   type t = {
-      rcfile : string option ;
+      rcfile : string option ; [@env "QISKITRC"]
       (** specify rcfile location *)
 
       key : string option ; [@env "QISKIT_IDENTITY"]
@@ -184,13 +184,16 @@ module SubmitJob = struct
 
       max_credits : int ; [@default 10]
       (** max credits *)
+
+      include_path : string list ; [@default []] [@sep ':'] [@aka ["I"]]
+
     } [@@deriving cmdliner,show]
 
   let do_submit_job p =
-    let { rcfile ; key ; debug ; backend ; qasmfile ; name ; shots ; max_credits } = p in
+    let { rcfile ; key ; debug ; backend ; qasmfile ; name ; shots ; max_credits ; include_path } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
 
-    let (envs, dag) = dag0_from_file ~path:["testdata"] qasmfile in
+    let (envs, dag) = dag0_from_file ~path:include_path qasmfile in
     let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:backend
                                       ~shots ~max_credits
                                       ~memory:false [name, envs, dag] in
@@ -206,7 +209,7 @@ end
 
 module ListJobs = struct
   type t = {
-      rcfile : string option ;
+      rcfile : string option ; [@env "QISKITRC"]
       (** specify rcfile location *)
 
       key : string option ; [@env "QISKIT_IDENTITY"]
