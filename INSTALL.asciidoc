@@ -69,3 +69,16 @@ opam install camlp5 camlzip cmdliner conf-gnutls \
 	 pcre ssl ppx_deriving_yojson yojson ocaml-inifiles \
 	 ppx_deriving_cmdliner
 ....
+
+== Building QC-Ocaml
+
+....
+make everything
+....
+
+This will build a tool, `qctool` which allows to run commands against
+the backend, as well as a library, `libqasm.cma` which contains the
+library itself.  `make test` will run test-cases, and the file
+`include_ml` contains commands that can be cut-and-paste-ed into the
+ocaml toplevel.
+
