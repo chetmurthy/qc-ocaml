@@ -122,7 +122,7 @@ h q[// bargle
 
 let test_parse_expr (name, txt, expect) =
   name >:: (fun ctx ->
-    let (aux, e) = body_parse PA.expr txt in
+    let (aux, e) = body_parse ~path:[] PA.expr txt in
       assert_equal expect (TA.comment_string aux, e)
   )
 
@@ -140,7 +140,7 @@ let expr_parser_tests = "expr parser tests" >:::
 
 let test_parse_qop (name, txt, expect) =
   name >:: (fun ctx ->
-    let (aux, e) = body_parse PA.qop txt in
+    let (aux, e) = body_parse ~path:[] PA.qop txt in
       assert_equal expect (TA.comment_string aux, e)
   )
 
@@ -155,7 +155,7 @@ let aux2comment_mapper = {
 
 let test_parse_statement (name, txt, expect) =
   name >:: (fun ctx ->
-    let rv = CST.AuxMap.stmt aux2comment_mapper (body_parse PA.statement txt) in
+    let rv = CST.AuxMap.stmt aux2comment_mapper (body_parse ~path:[] PA.statement txt) in
     assert_equal expect rv
   )
 
@@ -186,28 +186,28 @@ q, b;|},
       assert_raises ~msg:"should raise SyntaxError(parsing)"
         (SyntaxError "parse error in file \"\" at char 23")
                (fun () ->
-                 body_parse PA.statement "gate g a, b { cx a, b; measure a->b ;}")
+                 body_parse ~path:[] PA.statement "gate g a, b { cx a, b; measure a->b ;}")
     ) ;
    ]
   )
 
 let test_roundtrip_main_buf (name, txt, expect) =
   name >:: (fun ctxt ->
-    let rv = full_parse PA.mainprogram txt in
+    let rv = full_parse ~path:["testdata"] PA.mainprogram txt in
     let pretty = CSTPP.(pp main rv) in
     assert_equal expect pretty
   )
 
 let test_roundtrip_main_file (name, fname, expect) =
   name >:: (fun ctxt ->
-    let rv = full_parse_from_file PA.mainprogram fname in
+    let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
     let pretty = CSTPP.(pp main rv) in
     assert_equal expect pretty
   )
 
 let test_roundtrip_program_file (name, fname, expect) =
   name >:: (fun ctxt ->
-    let rv = body_parse_from_file PA.mainprogram fname in
+    let rv = body_parse_from_file ~path:["testdata"] PA.mainprogram fname in
     let pretty = CSTPP.(pp main rv) in
     assert_equal expect pretty
   )
@@ -221,14 +221,14 @@ qreg q[1];
 qreg q[1];
 |}) ;
     test_roundtrip_main_buf ("include 0", {|OPENQASM 2.0;
-include "testdata/empty.inc";
+include "empty.inc";
 qreg q[1];
 |},
 {|OPENQASM 2.0;
 qreg q[1];
 |}) ;
     test_roundtrip_main_buf ("include 1", {|OPENQASM 2.0;
-include "testdata/oneline.inc";
+include "oneline.inc";
 |},
 {|OPENQASM 2.0;
 qreg q[1];
@@ -238,7 +238,7 @@ qreg q[1];
       assert_raises ~msg:"should raise SyntaxError(lexing)"
         (SyntaxError "lexing: failed in file \"testdata/example_fail.qasm\" at char 9")
                (fun () ->
-                 full_parse_from_file PA.mainprogram "testdata/example_fail.qasm")
+                 full_parse_from_file ~path:[] PA.mainprogram "testdata/example_fail.qasm")
     ) ;
   ]
 let aux2unit_mapper = {
@@ -252,7 +252,7 @@ let aux2unit_mapper = {
 
 let test_typecheck (name, txt, expect_env, expect_ast) =
   name >:: (fun ctxt ->
-    let pl = body_parse PA.program txt in
+    let pl = body_parse ~path:["testdata"] PA.program txt in
     let (envs, p) = TYCHK.program pl in
     let p = AST.AuxMap.program aux2unit_mapper p in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
@@ -266,7 +266,7 @@ let test_typecheck (name, txt, expect_env, expect_ast) =
 
 let test_typecheck_file (name, fname, expect_env, expect_ast) =
   name >:: (fun ctxt ->
-    let _,pl = full_parse_from_file PA.mainprogram fname in
+    let _,pl = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
     let p = AST.AuxMap.program aux2unit_mapper p in
@@ -281,7 +281,7 @@ let test_typecheck_file (name, fname, expect_env, expect_ast) =
 
 let test_typecheck_roundtrip (name, txt, expect_env, expect) =
   name >:: (fun ctxt ->
-    let pl = body_parse PA.program txt in
+    let pl = body_parse ~path:["testdata"] PA.program txt in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
     let pretty_p = ASTPP.(pp program p) in
@@ -297,7 +297,7 @@ let test_typecheck_roundtrip (name, txt, expect_env, expect) =
 
 let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
   name >:: (fun ctxt ->
-    let vers,pl = full_parse_from_file PA.mainprogram fname in
+    let vers,pl = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
     let pretty_p = ASTPP.(pp main (vers, p)) in
@@ -313,7 +313,7 @@ let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
 
 let test_typecheck_fail (name, txt, msg, exn) =
   name >:: (fun ctxt ->
-    let pl = body_parse PA.program txt in
+    let pl = body_parse ~path:["testdata"] PA.program txt in
     assert_raises ~msg exn
       (fun () ->
         TYCHK.program pl)
@@ -391,7 +391,7 @@ let open AST in
 
 let test_dag0 (name, txt) =
   name >:: (fun ctxt ->
-    let _,dag = to_dag0 txt in
+    let _,dag = to_dag0 ~path:["testdata"] txt in
     pp DAG.pp_dag dag ;
     ()
   )
@@ -399,7 +399,7 @@ let test_dag0 (name, txt) =
 
 let test_dag0_file (name, fname) =
   name >:: (fun ctxt ->
-    let (envs, dag) = dag0_from_file fname in
+    let (envs, dag) = dag0_from_file ~path:["testdata"] fname in
     ()
   )
 
@@ -419,13 +419,13 @@ let dag0_tests = "dag0 tests" >:::
       "tsort" >:: (fun ctxt ->
         let atxt = {| qreg r[2] ; CX r[0], r[1] ; qreg q[2] ; CX q[0], q[1] ; |} in
         let btxt = {| qreg q[2] ; CX q[0], q[1] ; qreg r[2] ; CX r[0], r[1] ; |} in
-        assert_equal (parse_to_dag0_to_ast atxt) (parse_to_dag0_to_ast btxt)
+        assert_equal (parse_to_dag0_to_ast ~path:[] atxt) (parse_to_dag0_to_ast ~path:[] btxt)
       ) ;
     ]
   )
 
 let unroll ~only txt =
-  let pl = body_parse PA.program txt in
+  let pl = body_parse ~path:["testdata"] PA.program txt in
   let (envs, p) = TYCHK.program pl in
   let dag = DAG.make envs p in
   let dag = Unroll.execute ~only envs dag in
@@ -545,8 +545,8 @@ let (fuzzy_compare: Yojson_helpers.user_comparator_t) = fun ~cmp0 f1 f2 ->
 let compile_tests = "compile tests" >:::
   [
     "basis" >:: (fun ctxt ->
-      let (envs, dag) = to_dag0 {|
-                                 include "testdata/qelib1.inc";
+      let (envs, dag) = to_dag0 ~path:["testdata"] {|
+                                 include "qelib1.inc";
                                  qreg q[14];
                                  creg c0[2];
                                  u2(0,pi) q[1];
@@ -563,7 +563,7 @@ let compile_tests = "compile tests" >:::
     ) ;
 
     "emit 0" >:: (fun ctxt ->
-        let (envs, dag) = dag0_from_file "testdata/qobj/bell0.qasm" in
+        let (envs, dag) = dag0_from_file ~path:["testdata"] "testdata/qobj/bell0.qasm" in
         let circuit = Compile.circuit_to_experiment  ~name:"circuit0" envs dag in
         let expected_circuit_txt = file_contents "testdata/qobj/bell0.exp" in
         let expected_circuit_json = Yojson.Safe.from_string expected_circuit_txt in

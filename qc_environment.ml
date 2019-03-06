@@ -24,4 +24,10 @@ module Defaults = struct
 
     let _QOBJ_VERSION = "1.0.0"
 
+    let _qelib_gates = [
+        "u3"; "u2"; "u1"; "cx"; "id"; "x"; "y"; "z"; "h";
+        "s"; "sdg"; "t"; "tdg"; "cz"; "cy"; "ccx"; "cu1";
+        "cu3"; "swap"; "cswap"; "u0"; "rx"; "ry"; "rz";
+        "ch"; "crz"; "rzz"]
+
 end

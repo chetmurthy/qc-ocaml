@@ -1,5 +1,5 @@
 OPENQASM 2.0 ;
-include "testdata/qelib1.inc";
+include "qelib1.inc";
 qreg q[14];
 creg c0[2];
 u2(0,pi) q[1];

@@ -3,11 +3,24 @@
 open Misc_functions
 open Qasmsyntax
 
-let expand_include strm =
+let open_file_from ~path fname =
+  try
+    let fname =
+      try_find (fun dir ->
+          let fname = Printf.sprintf "%s/%s" dir fname in
+          if Sys.file_exists fname then fname
+          else failwith "caught") path in
+    open_in fname
+  with Failure _ ->
+    Exc.die (Printf.sprintf "Qasmparser.open_file_from: cannot open file %s for read on path [%s]"
+               fname
+           (String.concat "; " path))
+
+let expand_include ~path strm =
   let rec exprec =
     parser
   | [< '(_, T_INCLUDE fname) ; strm >] ->
-     let ic = open_in fname in
+     let ic = open_file_from ~path fname in
      [< exprec (Qasmlex.make_body_lexer_from_channel ~fname ic) ; exprec strm >]
   | [< 'tok ; strm >] -> [< 'tok ; exprec strm >]
   | [< >] -> [< >]
@@ -24,26 +37,26 @@ let catch_parse_error pfun tokstrm =
            raise (SyntaxError (Printf.sprintf "parse error in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
 
 
-let full_parse pfun ?(fname="") buf =
+let full_parse ~path pfun ?(fname="") buf =
   let tokstrm = Qasmlex.make_lexer ~fname buf in
-  let tokstrm = expand_include tokstrm in
+  let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
-let full_parse_from_file pfun fname =
+let full_parse_from_file ~path pfun fname =
 let ic = open_in fname in
   let tokstrm = Qasmlex.make_lexer_from_channel ~fname ic in
-  let tokstrm = expand_include tokstrm in
+  let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
-let body_parse pfun ?(fname="") buf =
+let body_parse ~path pfun ?(fname="") buf =
   let tokstrm = Qasmlex.make_body_lexer ~fname buf in
-  let tokstrm = expand_include tokstrm in
+  let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
-let body_parse_from_file pfun fname =
+let body_parse_from_file ~path pfun fname =
 let ic = open_in fname in
   let tokstrm = Qasmlex.make_body_lexer_from_channel ~fname ic in
-  catch_parse_error pfun (expand_include tokstrm)
+  catch_parse_error pfun (expand_include ~path tokstrm)
 
 (*
          mainprogram: "OPENQASM" real ";" program

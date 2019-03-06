@@ -14,14 +14,14 @@ let size_tests = "size tests" >:::
     "highmem parse" >:
       (TestCase(Long,
                 fun cxt ->
-                let rv = full_parse_from_file PA.mainprogram "testdata/highmem.qasm" in
+                let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram "testdata/highmem.qasm" in
                 ())
       ) ;
 
     "highmem typecheck" >:
       (TestCase(Long,
                 fun cxt ->
-                let (_, pl) = full_parse_from_file PA.mainprogram "testdata/highmem.qasm" in
+                let (_, pl) = full_parse_from_file ~path:["testdata"] PA.mainprogram "testdata/highmem.qasm" in
                 let (envs, pl) = TYCHK.program pl in
                 ())
       ) ;
