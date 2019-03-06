@@ -167,12 +167,20 @@ module QObjResult = struct
     } [@@deriving yojson]
 end
 
+module InfoQueue = struct
+  type t = {
+      status: string ;
+      position: int ;
+    } [@@deriving yojson]
+end
+
 module ShortJobStatus = struct
   type t = {
       kind: string option [@default None] ;
       status : string ;
       creationDate : string ;
       id : string ;
+      infoQueue : (InfoQueue.t option [@default None]) ;
     } [@@deriving yojson]
 
   type list_t = t list [@@deriving yojson]
