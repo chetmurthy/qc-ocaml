@@ -669,6 +669,14 @@ let trip_tests = "trip tests" >::: [
       trip_test_circuit_to_qobj "bell/qobj" "Bell" "ibmq_16_melbourne" ;
       trip_test_circuit_to_qobj "bell/qobj" "Bell" "ibmq_qasm_simulator" ;
 
+      trip_test_circuit_to_qasm "bell/circuit" "Bell2" ;
+      trip_test_circuit_to_qobj "bell/qobj" "Bell2" "ibmq_16_melbourne" ;
+      trip_test_circuit_to_qobj "bell/qobj" "Bell2" "ibmq_qasm_simulator" ;
+
+      trip_test_circuit_to_qasm "bell/circuit" "Bell3" ;
+      trip_test_circuit_to_qobj "bell/qobj" "Bell3" "ibmq_16_melbourne" ;
+      trip_test_circuit_to_qobj "bell/qobj" "Bell3" "ibmq_qasm_simulator" ;
+
       trip_test_circuit_to_qasm "dj-00/circuit" "dj-00" ;
       trip_test_circuit_to_qasm "dj-01/circuit" "dj-01" ;
       trip_test_circuit_to_qasm "dj-10/circuit" "dj-10" ;
