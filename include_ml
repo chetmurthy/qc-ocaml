@@ -111,7 +111,7 @@ let session = Session.mk creds ;;
 Session.obtain_token session ;;
 Session.available_backends session ;;
 
-        let (envs, dag) = dag0_from_file "testdata/qobj/bell0.qasm" ;;
+        let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] "testdata/qobj/bell0.qasm" ;;
         let circuit = Compile.circuit_to_experiment  ~name:"circuit0" envs dag ;;
         let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:"ibmq_16_melbourne"
                      ~shots:1024 ~max_credits:10 ~qobj_id:"168a65c1-f83b-4346-8643-6aa9eea59234"

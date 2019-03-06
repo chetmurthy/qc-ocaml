@@ -270,6 +270,23 @@ let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend session =
   |> ShortJobStatus.list_t_of_yojson
   |> error_to_failure ~msg:"ShortJobStatus.list_t_of_yojson"
 
+let handle_response ~rpcname ~typename demarsh f =
+  try
+    let call = f () in
+    let resp_body = call # get_resp_body () in
+    resp_body
+    |> Yojson.Safe.from_string
+    |> demarsh
+    |> error_to_failure ~msg:(Printf.sprintf "%s.of_yojson" typename)
+    |> Rresult.R.ok
+  with Nethttp_client.Http_error (code, body) ->
+    Exc.warn (Printf.sprintf "%s: HTTP error code %d, body=%s" rpcname code body) ;
+    body
+    |> Yojson.Safe.from_string
+    |> APIError.of_yojson
+    |> error_to_failure ~msg:(Printf.sprintf "APIError.of_yojson while demarshalling errmsg of %s" rpcname)
+    |> Rresult.R.error 
+
 let get_status_job id_job session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
   let token = Session.access_token session in
@@ -279,21 +296,22 @@ let get_status_job id_job session =
       ("x-qx-client-application", "qiskit-api-py") ;
     ] in
   let url = url ^ "/" ^ id_job ^ "/status" in
-  try
-    let call = RPC.get ~headers [("access_token", token)] url in
-    let resp_body = call # get_resp_body() in
-    resp_body
-    |> Yojson.Safe.from_string
-    |> ShortJobStatus.of_yojson
-    |> error_to_failure ~msg:"ShortJobStatus.of_yojson"
-    |> Rresult.R.ok
-  with Nethttp_client.Http_error (code, body) ->
-    Exc.warn (Printf.sprintf "Job.get_status_job: HTTP error code %d, body=%s" code body) ;
-    body
-    |> Yojson.Safe.from_string
-    |> APIError.of_yojson
-    |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.get_status_job"
-    |> Rresult.R.error 
+  handle_response ~rpcname:"Job.get_status_job" ~typename:"ShortJobStatus"
+    ShortJobStatus.of_yojson
+    (fun () -> RPC.get ~headers [("access_token", token)] url)
+
+let get_job id_job session =
+  let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
+  let token = Session.access_token session in
+  let headers = [
+      ("User-Agent", "python-requests/2.21.0") ;
+      ("Accept", "*/*") ;
+      ("x-qx-client-application", "qiskit-api-py") ;
+    ] in
+  let url = url ^ "/" ^ id_job in
+  handle_response ~rpcname:"Job.get_job" ~typename:"JobStatus"
+    JobStatus.of_yojson
+    (fun () -> RPC.get ~headers [("access_token", token)] url)
 
 let cancel_job id_job session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
@@ -305,46 +323,9 @@ let cancel_job id_job session =
       ("Content-type", "application/json") ;
     ] in
   let url = url ^ "/" ^ id_job ^ "/cancel" in
-  try
-    let call = RPC.post_object ~headers ~body:"" [("access_token", token)] url in
-    let resp_body = call # get_resp_body() in
-    resp_body
-    |> Yojson.Safe.from_string
-    |> CancelResult.of_yojson
-    |> error_to_failure ~msg:"CancelResult.of_yojson"
-    |> Rresult.R.ok
-  with Nethttp_client.Http_error (code, body) ->
-    Exc.warn (Printf.sprintf "Job.cancel_job: HTTP error code %d, body=%s" code body) ;
-    body
-    |> Yojson.Safe.from_string
-    |> APIError.of_yojson
-    |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.cancel_job"
-    |> Rresult.R.error 
-
-let cancel_job id_job session =
-  let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
-  let token = Session.access_token session in
-  let headers = [
-      ("User-Agent", "python-requests/2.21.0") ;
-      ("Accept", "*/*") ;
-      ("x-qx-client-application", "qiskit-api-py") ;
-    ] in
-  let url = url ^ "/" ^ id_job ^ "/cancel" in
-  try
-    let call = RPC.post ~headers [("access_token", token)] url in
-    let resp_body = call # get_resp_body() in
-    resp_body
-    |> Yojson.Safe.from_string
-    |> CancelResult.of_yojson
-    |> error_to_failure ~msg:"CancelResult.of_yojson"
-    |> Rresult.R.ok
-  with Nethttp_client.Http_error (code, body) ->
-    Exc.warn (Printf.sprintf "Job.cancel_job: HTTP error code %d, body=%s" code body) ;
-    body
-    |> Yojson.Safe.from_string
-    |> APIError.of_yojson
-    |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.cancel_job"
-    |> Rresult.R.error 
+  handle_response ~rpcname:"Job.cancel_job" ~typename:"CancelResult"
+    CancelResult.of_yojson
+    (fun () -> RPC.post_object ~headers ~body:"" [("access_token", token)] url)
 
 let submit_job backend_name qobj session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
@@ -360,7 +341,8 @@ let submit_job backend_name qobj session =
     job
     |> IBMJob.to_yojson
     |> Yojson.Safe.to_string in
-  let call = RPC.post_object ~headers ~body:job_s [("access_token", token)] url in
-  let resp_body = call # get_resp_body() in
-  resp_body
+  handle_response ~rpcname:"Job.submit_job" ~typename:"JobStatus"
+    JobStatus.of_yojson
+    (fun () -> RPC.post_object ~headers ~body:job_s [("access_token", token)] url)
+
 end

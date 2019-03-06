@@ -208,9 +208,10 @@ module JobStatus = struct
       usedCredits : int ;
       creationDate : string ;
       deleted : bool ;
-      ip : IPInfo.t ;
+      ip : (IPInfo.t option [@default None]) ;
       id : string ;
       userId : string ;
+      infoQueue : (InfoQueue.t option [@default None]) ;
     } [@@deriving yojson]
 
   type list_t = t list [@@deriving yojson]

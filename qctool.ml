@@ -198,8 +198,13 @@ module SubmitJob = struct
                                       ~shots ~max_credits
                                       ~memory:false [name, envs, dag] in
 
-    let j = Job.submit_job backend qobj session in
-    print_string j
+    let status = Job.submit_job backend qobj session in
+    match status with
+    | Result.Ok st ->
+       st |> JobStatus.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+    | Result.Error apierror ->
+       print_string "APIError: " ;
+       apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
 
   let cmd =
     let term = Cmdliner.Term.(const do_submit_job $ cmdliner_term ()) in
