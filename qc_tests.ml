@@ -611,6 +611,9 @@ let trip_tests = "trip tests" >::: [
       trip_test_circuit_to_qasm "dj-01/circuit" "dj-01" ;
       trip_test_circuit_to_qasm "dj-10/circuit" "dj-10" ;
       trip_test_circuit_to_qasm "dj-11/circuit" "dj-11" ;
+      trip_test_circuit_to_qasm "grover-1/circuit" "grover-1" ;
+      trip_test_circuit_to_qasm "grover-2/circuit" "grover-2" ;
+      trip_test_circuit_to_qasm "grover-3/circuit" "grover-3" ;
   ]
 
 (* Run the tests in test suite *)
