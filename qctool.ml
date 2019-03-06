@@ -272,22 +272,13 @@ let print_params p =
 let _ =
 if invoked_as "qctool" then
 
-  let cmd1_term = Cmdliner.Term.(const print_params $ params_cmdliner_term ()) in
-  let cmd1_info = Cmdliner.Term.info "cmd1" in
-
-  let cmd2_term = Cmdliner.Term.(const print_params $ params_cmdliner_term ()) in
-  let cmd2_info = Cmdliner.Term.info "cmd2" in
-
-  let cmd3_term = Cmdliner.Term.(const print_params $ params_cmdliner_term ()) in
-  let cmd3_info = Cmdliner.Term.info "cmd3" in
-
-  Cmdliner.Term.(exit @@ eval_choice (cmd1_term, cmd1_info) [
+  Cmdliner.Term.(exit @@ eval_choice Login.cmd [
                              Login.cmd;
                              AvailableBackends.cmd;
                              ListJobs.cmd;
                              ShowJob.cmd;
                              CancelJob.cmd;
                              SubmitJob.cmd;
-                             (cmd1_term, cmd1_info); (cmd2_term, cmd2_info); (cmd3_term, cmd3_info)])
+  ])
 
 ;;
