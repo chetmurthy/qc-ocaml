@@ -93,16 +93,26 @@ module RPC = struct
 
 open Nethttp_client;;
 Debug.enable := true ;;
+let pipeline = new pipeline ;;
+let opts = pipeline # get_options in
+let opts = { opts with
+      verbose_status = true ;
+      verbose_request_header = true ;
+      verbose_response_header = true ;
+      verbose_request_contents = true ;
+      verbose_response_contents = true ;
+               } in
+    pipeline # set_options opts
+;;
 
 let post ~headers params url =
   let call = new post url params in
   call # set_request_header (Netmime.basic_mime_header headers) ;
-  let pipeline = new pipeline in
   pipeline # add call;
   pipeline # run() ;
   call
 
-let post_object ~headers params body url =
+let post_object ~headers ~body params url =
   let url =
     if params = [] then url
     else
@@ -111,7 +121,6 @@ let post_object ~headers params body url =
       url ^ "?" ^ s in
   let call = new post_raw url body in
   call # set_request_header (Netmime.basic_mime_header headers) ;
-  let pipeline = new pipeline in
   pipeline # add call;
   pipeline # run() ;
   call
@@ -126,7 +135,6 @@ let get ~headers params url =
   
   let call = new get url in
   call # set_request_header (Netmime.basic_mime_header headers) ;
-  let pipeline = new pipeline in
   pipeline # add call;
   pipeline # run() ;
   call
@@ -294,10 +302,11 @@ let cancel_job id_job session =
       ("User-Agent", "python-requests/2.21.0") ;
       ("Accept", "*/*") ;
       ("x-qx-client-application", "qiskit-api-py") ;
+      ("Content-type", "application/json") ;
     ] in
   let url = url ^ "/" ^ id_job ^ "/cancel" in
   try
-    let call = RPC.post ~headers [("access_token", token)] url in
+    let call = RPC.post_object ~headers ~body:"" [("access_token", token)] url in
     let resp_body = call # get_resp_body() in
     resp_body
     |> Yojson.Safe.from_string
@@ -344,26 +353,14 @@ let submit_job backend_name qobj session =
       ("User-Agent", "python-requests/2.21.0") ;
       ("Accept", "*/*") ;
       ("x-qx-client-application", "qiskit-api-py") ;
+      ("Content-type", "application/json") ;
     ] in
   let job = IBMJob.make_job ~backend_name qobj in
   let job_s =
     job
     |> IBMJob.to_yojson
     |> Yojson.Safe.to_string in
-  try
-    let call = RPC.post_object ~headers [("access_token", token)] url job_s in
-    let resp_body = call # get_resp_body() in
-    resp_body
-    |> Yojson.Safe.from_string
-    |> CancelResult.of_yojson
-    |> error_to_failure ~msg:"CancelResult.of_yojson"
-    |> Rresult.R.ok
-  with Nethttp_client.Http_error (code, body) ->
-    Exc.warn (Printf.sprintf "Job.cancel_job: HTTP error code %d, body=%s" code body) ;
-    body
-    |> Yojson.Safe.from_string
-    |> APIError.of_yojson
-    |> error_to_failure ~msg:"APIError.of_yojson while demarshalling errmsgof Job.cancel_job"
-    |> Rresult.R.error 
-
+  let call = RPC.post_object ~headers ~body:job_s [("access_token", token)] url in
+  let resp_body = call # get_resp_body() in
+  resp_body
 end
