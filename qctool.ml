@@ -139,6 +139,44 @@ module ShowJob = struct
     (term, info)
 end
 
+module ShowResult = struct
+  type t = {
+      rcfile : string option ; [@env "QISKITRC"]
+      (** specify rcfile location *)
+
+      key : string option ; [@env "QISKIT_IDENTITY"]
+      (** specify section in rcfile *)
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      job_id : string ;
+      (** job id to show *)
+
+    } [@@deriving cmdliner,show]
+
+  let do_result p =
+    let { rcfile ; key ; debug ; job_id } = p in
+    let session = Login.(login { rcfile ; key ; debug }) in
+      let rsp= Job.get_job job_id session in
+      match rsp with
+      | Result.Ok st -> (
+         match st.JobStatus.qObjectResult with
+         | None -> Printf.printf "No results yet\n"
+         | Some r ->
+            r |> QObjResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+      )
+      | Result.Error apierror ->
+         print_string "APIError: " ;
+         apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout;
+         print_newline ()
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_result $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "result" in
+    (term, info)
+end
+
 module CancelJob = struct
   type t = {
       rcfile : string option ; [@env "QISKITRC"]
@@ -292,6 +330,7 @@ if invoked_as "qctool" then
                              ShowJob.cmd;
                              CancelJob.cmd;
                              SubmitJob.cmd;
+                             ShowResult.cmd;
   ])
 
 ;;
