@@ -128,7 +128,10 @@ module ShowJob = struct
       | Result.Ok st ->
          let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
          let kind = match kind with None -> "<none>" | Some s -> s in
-         Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate
+         Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate ;
+         do_option (fun i ->
+             InfoQueue.(Printf.printf "\t[ %s position %d ]\n" i.status i.position))
+           st.ShortJobStatus.infoQueue
       | Result.Error apierror ->
          print_string "APIError: " ;
          apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
@@ -298,27 +301,6 @@ module ListJobs = struct
     let info = Cmdliner.Term.info "list_jobs" in
     (term, info)
 end
-
-type params = {
-  username: string;
-  (** Your Github username *)
-
-  api_key: string;
-  (** Your Github API key *)
-
-  command: string; [@pos 0] [@docv "CMD"]
-  (** The Github API command to run *)
-
-  dry_run: bool;
-  (** Don't really run this command *)
-
-  time_to_wait: float; [@default 0.]
-  (** Just an example of another type *)
-} [@@deriving cmdliner,show]
-
-let print_params p =
-  print_string (show_params p) ;
-  print_newline()
 
 let _ =
 if invoked_as "qctool" then
