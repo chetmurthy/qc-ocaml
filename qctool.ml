@@ -3,6 +3,8 @@ open Misc_functions
 open Qc_environment
 open Qrpc_types
 open Qrpc_api
+open Qasm_io
+open Qobj_compile
 
 module Login = struct
   type t = {
@@ -143,14 +145,61 @@ module CancelJob = struct
 
     match j with
     | Result.Ok cr ->
-       cr |> CancelResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+       cr |> CancelResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
+       print_newline () ;
     | Result.Error apierror ->
        print_string "APIError: " ;
-       apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+       apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout;
+       print_newline ()
 
   let cmd =
     let term = Cmdliner.Term.(const do_cancel_job $ cmdliner_term ()) in
     let info = Cmdliner.Term.info "cancel_job" in
+    (term, info)
+end
+
+module SubmitJob = struct
+  type t = {
+      rcfile : string option ;
+      (** specify rcfile location *)
+
+      key : string option ;
+      (** specify section in rcfile *)
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      qasmfile : string ;
+      (** qasmfile to submit *)
+
+      name : string ;
+      (** experiment-name *)
+
+      backend : string ;
+      (** the backend to submit to *)
+
+      shots : int ; [@default 1024]
+      (** number of shots *)
+
+      max_credits : int ; [@default 10]
+      (** max credits *)
+    } [@@deriving cmdliner,show]
+
+  let do_submit_job p =
+    let { rcfile ; key ; debug ; backend ; qasmfile ; name ; shots ; max_credits } = p in
+    let session = Login.(login { rcfile ; key ; debug }) in
+
+    let (envs, dag) = dag0_from_file qasmfile in
+    let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:backend
+                                      ~shots ~max_credits
+                                      ~memory:false [name, envs, dag] in
+
+    let j = Job.submit_job backend qobj session in
+    print_string j
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_submit_job $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "submit_job" in
     (term, info)
 end
 
@@ -238,6 +287,7 @@ if invoked_as "qctool" then
                              ListJobs.cmd;
                              ShowJob.cmd;
                              CancelJob.cmd;
+                             SubmitJob.cmd;
                              (cmd1_term, cmd1_info); (cmd2_term, cmd2_info); (cmd3_term, cmd3_info)])
 
 ;;

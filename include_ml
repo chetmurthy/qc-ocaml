@@ -37,6 +37,7 @@
 #load "qasmparser.cmo";;
 #load "qasmpp.cmo";;
 #load "qasmdag0.cmo";;
+#load "qasm_io.cmo";;
 #load "qasm_passes.cmo";;
 #load "qc_layout.cmo";;
 #load "qc_environment.cmo";;
@@ -56,6 +57,7 @@ open Qasmlex ;;
 open Qasmparser ;;
 open Qasmpp ;;
 open Qasmdag0 ;;
+open Qasm_io ;;
 open Qasm_passes ;;
 open Qc_layout ;;
 open Qc_symbolic ;;
