@@ -602,9 +602,25 @@ let do_trip_test_circuit_to_qasm name dir =
           Printf.printf "But DAGs were isomorphic!!\n" ;
           Printf.printf "================================ %s ================================\n" name
       with Failure _ ->
-        Printf.printf "Could not prove DAGs were isomorphic\n"
-    end ;
-  assert_equal pretty (file_contents qasm2)
+        Printf.printf "Could not prove DAGs were isomorphic\n" ;
+        assert_failure "Could not prove DAGs were isomorphic\n"
+    end
+
+let fuzzy_normalize_experiment e =
+  Qobj_types.Experiment.{
+      e with
+      instructions = List.sort Pervasives.compare e.instructions ;
+      header = { e.header with compiled_circuit_qasm = Some "" }
+  }
+
+let fuzzy_normalize_qobj qobj =
+  Qobj_types.Qobj.{
+      qobj with
+      experiments = List.map fuzzy_normalize_experiment qobj.experiments
+  }
+
+let qobj_fuzzy_equality qobj1 qobj2 =
+  (fuzzy_normalize_qobj qobj1) = (fuzzy_normalize_qobj qobj2)
 
 let trip_test_circuit_to_qasm name dir =
   name >:: (fun ctxt ->
@@ -617,15 +633,32 @@ let do_trip_test_circuit_to_qobj name dir backend =
 
   let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] qasm1 in
 
-  let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:backend
-                                    ~shots:1024 ~max_credits:10 ~qobj_id:"168a65c1-f83b-4346-8643-6aa9eea59234"
-                                    ~memory:false ["circuit0",envs, dag] in
-        let expected_qobj_txt = file_contents qobj2 in
-        let expected_qobj_json = Yojson.Safe.from_string expected_qobj_txt in
-        assert_equal ~cmp:(Yojson_helpers.compare ~explain:true ~usercmp:fuzzy_compare)
-          (qobj |> Qobj_types.Qobj.to_yojson |> Yojson_helpers.canon)
-          (expected_qobj_json |> Yojson_helpers.canon)
+  let expected_qobj_txt = file_contents qobj2 in
+  let expected_qobj_json = Yojson.Safe.from_string expected_qobj_txt in
+  let expected_qobj =
+    expected_qobj_json
+    |> Qobj_types.Qobj.of_yojson
+    |> error_to_failure ~msg:"Qobj_types.Qobj.of_yojson failed"
+  in
+  let qobj_id = expected_qobj.Qobj_types.Qobj.qobj_id in
 
+  let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:backend
+                                    ~shots:1024 ~max_credits:10 ~qobj_id
+                                    ~memory:false ["circuit0",envs, dag] in
+  if expected_qobj = qobj then ()
+  else if qobj_fuzzy_equality expected_qobj qobj then (
+    Printf.printf "================================ %s ================================\n" name ;
+    Printf.printf "qobjs were equal under fuzzy equality\n" ;
+    Printf.printf "================================ %s ================================\n" name
+  )
+  else (
+    Printf.printf "================================ %s ================================\n" name ;
+    Printf.printf "qobjs were NOT equal under fuzzy equality\n" ;
+    Printf.printf "================================ %s ================================\n" name ;
+    assert_equal ~cmp:(Yojson_helpers.compare ~explain:true ~usercmp:fuzzy_compare)
+      (qobj |> Qobj_types.Qobj.to_yojson |> Yojson_helpers.canon)
+      (expected_qobj |> Qobj_types.Qobj.to_yojson |> Yojson_helpers.canon)
+  )
 let trip_test_circuit_to_qobj name dir backend =
   (name^"-"^backend) >:: (fun ctxt ->
     do_trip_test_circuit_to_qobj name dir backend
