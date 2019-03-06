@@ -50,8 +50,6 @@ can install, so it's a little more involved than that.
 (1) first round of opam installs
 
 ....
-WARNING TODO: ocamldot still cannot be installed by opam -- figure this out and fix
-
 opam install  lablgtk3 ocamlfind
 ....
 
