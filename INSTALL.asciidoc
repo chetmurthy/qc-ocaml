@@ -35,24 +35,39 @@ opam init --dot-profile=$OPAMROOT/dot.bashrc \
 
 eval $(opam env)
 
-opam switch create ocaml-base-compiler.$VERSION --repositories=default,beta=git+https://github.com/ocaml/ocaml-beta-repository.git
 ....
 
+And to set up the environment in a shell for each of these installs,
+just source the dot.bashrc in $OPAMROOT/dot.bashrc
 
+== Installing Prerequisite Modules
 
-And to set up the environment in a shell for each of these installs, just source the dot.bashrc in $OPAMROOT/dot.bashrc
+We need a bumch of prerequisite modules, and opam can install all of
+them, *except* for `ocamldot`.  For this one, you'll need to `git
+clone` it and build it yourself.  But it depends on a module that opam
+can install, so it's a little more involved than that.
 
---------------------------------------------------------------------------------
+(1) first round of opam installs
 
-Ocaml version: 4.07.1
-
-OPAM packages used by qc-ocaml:
-
+....
 WARNING TODO: ocamldot still cannot be installed by opam -- figure this out and fix
 
+opam install  lablgtk3 ocamlfind
+....
+
+(2) install ocamldot
+
+....
+git clone git@github.com:chetmurthy/ocamldot.git
+(cd ocamldot && ./configure && make && make install)
+....
+
+(3) back to the opam installs
+
+....
 opam install camlp5 camlzip cmdliner conf-gnutls \
      ocamlfind lablgtk3 menhir oasis containers \
 	 ocamlfind ocamlgraph ocamlnet ocurl ounit ppx_test \
 	 pcre ssl ppx_deriving_yojson yojson ocaml-inifiles \
 	 ppx_deriving_cmdliner
-
+....
