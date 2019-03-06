@@ -193,7 +193,7 @@ module SubmitJob = struct
     let { rcfile ; key ; debug ; backend ; qasmfile ; name ; shots ; max_credits ; include_path } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
 
-    let (envs, dag) = dag0_from_file ~path:include_path qasmfile in
+    let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
     let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:backend
                                       ~shots ~max_credits
                                       ~memory:false [name, envs, dag] in

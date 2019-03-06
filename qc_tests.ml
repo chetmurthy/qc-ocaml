@@ -394,7 +394,7 @@ let open AST in
 
 let test_dag0 (name, txt) =
   name >:: (fun ctxt ->
-    let _,dag = to_dag0 ~path:["testdata"] txt in
+    let _,dag = program_to_dag0 ~path:["testdata"] txt in
     pp DAG.pp_dag dag ;
     ()
   )
@@ -402,7 +402,7 @@ let test_dag0 (name, txt) =
 
 let test_dag0_file (name, fname) =
   name >:: (fun ctxt ->
-    let (envs, dag) = dag0_from_file ~path:["testdata"] fname in
+    let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] fname in
     ()
   )
 
@@ -548,7 +548,7 @@ let (fuzzy_compare: Yojson_helpers.user_comparator_t) = fun ~cmp0 f1 f2 ->
 let compile_tests = "compile tests" >:::
   [
     "basis" >:: (fun ctxt ->
-      let (envs, dag) = to_dag0 ~path:["testdata"] {|
+      let (envs, dag) = program_to_dag0 ~path:["testdata"] {|
                                  include "qelib1.inc";
                                  qreg q[14];
                                  creg c0[2];
@@ -566,7 +566,7 @@ let compile_tests = "compile tests" >:::
     ) ;
 
     "emit 0" >:: (fun ctxt ->
-        let (envs, dag) = dag0_from_file ~path:["testdata"] "testdata/qobj/bell0.qasm" in
+        let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] "testdata/qobj/bell0.qasm" in
         let circuit = Compile.circuit_to_experiment  ~name:"circuit0" envs dag in
         let expected_circuit_txt = file_contents "testdata/qobj/bell0.exp" in
         let expected_circuit_json = Yojson.Safe.from_string expected_circuit_txt in
@@ -592,11 +592,17 @@ let do_trip_test_circuit_to_qasm name dir =
   let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram qasm1 in
   let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
   if pretty <> (file_contents qasm2) then begin
-Printf.printf "\n================================ %s ================================\n" name ;
-Printf.printf "%s\n" pretty ;
-Printf.printf "================================ %s ================================\n" name ;
-Printf.printf "%s\n" (file_contents qasm2) ;
-Printf.printf "================================ %s ================================\n" name ;
+      Printf.printf "\n================================ %s ================================\n" name ;
+      Printf.printf "%s\n" pretty ;
+      Printf.printf "================================ %s ================================\n" name ;
+      Printf.printf "%s\n" (file_contents qasm2) ;
+      Printf.printf "================================ %s ================================\n" name ;
+      try DAG.WeaklyIsomorphic.iso (snd (full_to_dag0 ~path:["testdata"] pretty))
+            (snd (full_to_dag0 ~path:["testdata"] (file_contents qasm2))) ;
+          Printf.printf "But DAGs were isomorphic!!\n" ;
+          Printf.printf "================================ %s ================================\n" name
+      with Failure _ ->
+        Printf.printf "Could not prove DAGs were isomorphic\n"
     end ;
   assert_equal pretty (file_contents qasm2)
 

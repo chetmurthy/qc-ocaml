@@ -36,6 +36,9 @@ large-test: large_tests.byte
 test:: qc_tests.byte
 	./qc_tests.byte
 
+sequential-test:: qc_tests.byte
+	./qc_tests.byte -runner sequential
+
 $(RESULT).cma: $(CMO)
 	$(OCAMLFIND) ocamlc -a -o $(RESULT).cma $(CMO)
 

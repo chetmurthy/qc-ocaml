@@ -141,6 +141,7 @@ module Dot = Graph.Graphviz.Dot(struct
   type t = {
       nextid: int ;
       node_info : (int, node_info_t) LM.t ;
+      inputs : (bit_t, int) LM.t ;
       g : G.t ;
     }
 
@@ -195,6 +196,7 @@ module Dot = Graph.Graphviz.Dot(struct
         nextid = 0 ;
         node_info = LM.mk() ;
         g = G.empty ;
+        inputs = LM.mk() ;
       } ;
       frontier = LM.mk() ;
       target = LM.mk() ;
@@ -224,11 +226,15 @@ module Dot = Graph.Graphviz.Dot(struct
 
   let add_vertex dag info =
     let nodeid = dag.nextid in
+    let inputs =
+      match info.label with
+      | INPUT bit -> LM.add dag.inputs (bit, nodeid)
+      | _ -> dag.inputs in
     ({
-        dag with
         nextid = nodeid + 1 ;
         node_info = LM.add dag.node_info (nodeid, info) ;
         g = G.add_vertex dag.g nodeid ;
+        inputs ;
       },
      nodeid)
 
@@ -261,6 +267,7 @@ module Dot = Graph.Graphviz.Dot(struct
     {
       odag with
       dag = {
+        odag.dag with
         nextid = nodeid + 1 ;
         node_info = LM.add odag.dag.node_info (nodeid, { label = STMT stmt }) ;
         g =
@@ -533,4 +540,64 @@ let generate_qubit_instances envs l =
                   (LM.toList envs.Env.cregs) in
     (canon qregdecls) @ (canon cregdecls) @ stmts
 
+  module WeaklyIsomorphic = struct
+    (*
+     * Two labeled qasm dags are weakly isomosophic when:
+     *
+     * (a) we can establish an isomorphism between vertexes, so that
+     * 
+     *)
+    let node_to_string dag vertex =
+      Printf.sprintf "(%d: %s)" vertex
+        (match (LM.map dag.node_info vertex).label with
+         | INPUT bit -> bit_to_string bit
+         | OUTPUT bit -> bit_to_string bit
+         | STMT stmt -> stmt_to_label ~terse:false stmt)
+
+    let iso dag1 dag2 =
+      let g1 = dag1.g in
+      let g2 = dag2.g in
+      assert (same_members (LM.dom dag1.inputs) (LM.dom dag2.inputs));
+      let vertex_bij = MHBIJ.mk (23, 23) in
+      LM.app (fun bit n1 ->
+          let n2 = LM.map dag2.inputs bit in
+          Printf.printf "%s <-> %s\n"
+            (node_to_string dag1 n1)
+            (node_to_string dag2 n2) ;
+          MHBIJ.add vertex_bij (n1, n2) ;
+        ) dag1.inputs ;
+      let rec steprec () =
+        let size0 = MHBIJ.size vertex_bij in
+        if size0 = G.nb_vertex g1 then () else (
+          G.iter_edges_e (fun (src1, label1, dst1) ->
+              if MHBIJ.in_dom vertex_bij src1 && not(MHBIJ.in_dom vertex_bij dst1) then (
+                let src2 = MHBIJ.map vertex_bij src1 in
+                let l = G.succ_e g2 src2 in (
+                    try
+                      let dst2 =
+                        try_find
+                          (fun (s, l, d) ->
+                            if s = src2 && l = label1 then d
+                            else failwith "caught") l in
+                      assert (not (MHBIJ.in_rng vertex_bij dst2)) ;
+                      Printf.printf "%s <-> %s\n"
+                        (node_to_string dag1 src1)
+                        (node_to_string dag2 src2) ;
+                      MHBIJ.add vertex_bij (dst1, dst2)
+                    with Failure _ -> failwith "not isomorphic"
+                  )
+              )
+            ) g1 ;
+          let size1 = MHBIJ.size vertex_bij in
+          if size0 = size1 then (
+            Printf.printf "iteration failed to make progress\n" ;
+            failwith "iteration failed to make progress"
+          )
+          steprec ()
+        )
+      in
+      steprec ()
+  end
+
 end
+
