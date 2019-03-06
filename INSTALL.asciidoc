@@ -12,10 +12,22 @@ toc::[]
 We use `opam` to set up the ocaml environment.  Currently we're based
 on ocaml version 4.07.1.
 
-How to set up your environment for this tool (for Ubuntu):
+How to set up your environment for this tool:
 
+for Ubuntu:
 ....
 sudo apt-get install opam
+....
+
+for OSX:
+....
+brew install gtk+3
+brew install gpatch
+brew install opam
+....
+
+for Ubuntu or OSX:
+....
 export VERSION=4.07.1
 
 export OPAMROOT=$HOME/Hack/Ocaml/$VERSION
