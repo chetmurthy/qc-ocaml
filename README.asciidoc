@@ -1,0 +1,24 @@
+[[qc-ocaml]]
+qc-ocaml: A quantum computing toolkit in Ocaml
+==============================================
+:toc:
+:toc-placement: preamble
+
+# qc-ocaml
+Quantum computing tools in Ocaml
+
+All files Copyright 2019 Chetan Murthy, All rights reserved.
+
+[[Copying]]
+== Copying
+
+Unless otherwise specified, all files in this repository are
+distributed under the terms of the GNU GPL v3, a copy of which is
+provided in this repository.
+
+[[installation]]
+== Installation
+
+You can find instructions for installing: (a) prerequisite ocaml
+environment, (b) modules, and (c) this project, in
+link:INSTALL.asciidoc[INSTALL.asciidoc].
