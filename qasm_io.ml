@@ -22,7 +22,7 @@ let parse_to_dag0_to_ast ~path txt =
   let (envs, p) = TYCHK.program pl in
   let dag = DAG.make envs p in
   let pl = DAG.to_ast envs dag in  
-  pp ASTPP.program pl
+  pp (ASTPP.program ~skip_qelib:true) pl
 
 let dag0_from_file ~path fname =
   let vers,pl = full_parse_from_file ~path PA.mainprogram fname in

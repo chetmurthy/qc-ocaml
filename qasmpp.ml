@@ -3,6 +3,7 @@
 open Misc_functions
 open Qasmsyntax
 open Qasmparser
+open Qc_environment
 
 module CSTPP = struct
 
@@ -95,18 +96,25 @@ let pr_comma = (fun () -> [< '", " >])
     | CST.STMT_CREG(id, n) ->
        [< '"creg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
 
-  let stmt (aux, s) =
+  let skippable ~skip_qelib = function
+    | CST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl) ->
+       skip_qelib && List.mem gateid Defaults._qelib_gates
+    | _ -> false
+
+  let stmt ~skip_qelib (aux, s) =
+    if skippable ~skip_qelib s then [< >] else
     let commentstring = TA.comment_string aux in
     match commentstring with
     | "" -> raw_stmt s
     | _ -> [< 'commentstring ; raw_stmt s >]
 
-  let program l =
-    prlist stmt l
+  let program ~skip_qelib l =
+    prlist (stmt ~skip_qelib) l
 
-  let main (vers, l) =
+  let main ~skip_qelib (vers, l) =
     [< '"OPENQASM " ; 'vers ; '";\n" ;
-     program l >]
+     '(if skip_qelib then "include \"qelib1.inc\";\n" else "") ;
+     program ~skip_qelib l >]
 
 end
 
@@ -211,18 +219,25 @@ module ASTPP = struct
     | AST.STMT_CREG(id, n) ->
        [< '"creg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
 
-  let stmt (aux, s) =
+  let skippable ~skip_qelib = function
+    | AST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl) ->
+       skip_qelib && List.mem gateid Defaults._qelib_gates
+    | _ -> false
+
+  let stmt ~skip_qelib (aux, s) =
+    if skippable ~skip_qelib s then [< >] else
     let commentstring = TA.comment_string aux in
     match commentstring with
     | "" -> raw_stmt s
     | _ -> [< 'commentstring ; raw_stmt s >]
 
-  let program l =
-    prlist stmt l
+  let program ~skip_qelib l =
+    prlist (stmt ~skip_qelib) l
 
-  let main (vers, l) =
+  let main ~skip_qelib (vers, l) =
     [< '"OPENQASM " ; 'vers ; '";\n" ;
-     program l >]
+     '(if skip_qelib then "include \"qelib1.inc\";\n" else "") ;
+     program ~skip_qelib l >]
 
 end
                  

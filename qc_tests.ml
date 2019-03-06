@@ -194,21 +194,21 @@ q, b;|},
 let test_roundtrip_main_buf (name, txt, expect) =
   name >:: (fun ctxt ->
     let rv = full_parse ~path:["testdata"] PA.mainprogram txt in
-    let pretty = CSTPP.(pp main rv) in
+    let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
     assert_equal expect pretty
   )
 
 let test_roundtrip_main_file (name, fname, expect) =
   name >:: (fun ctxt ->
     let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
-    let pretty = CSTPP.(pp main rv) in
+    let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
     assert_equal expect pretty
   )
 
 let test_roundtrip_program_file (name, fname, expect) =
   name >:: (fun ctxt ->
     let rv = body_parse_from_file ~path:["testdata"] PA.mainprogram fname in
-    let pretty = CSTPP.(pp main rv) in
+    let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
     assert_equal expect pretty
   )
 
@@ -218,6 +218,7 @@ let parser_tests = "parser tests" >:::
 qreg q[1];
 |},
 {|OPENQASM 2.0;
+include "qelib1.inc";
 qreg q[1];
 |}) ;
     test_roundtrip_main_buf ("include 0", {|OPENQASM 2.0;
@@ -225,12 +226,14 @@ include "empty.inc";
 qreg q[1];
 |},
 {|OPENQASM 2.0;
+include "qelib1.inc";
 qreg q[1];
 |}) ;
     test_roundtrip_main_buf ("include 1", {|OPENQASM 2.0;
 include "oneline.inc";
 |},
 {|OPENQASM 2.0;
+include "qelib1.inc";
 qreg q[1];
 |}) ;
     test_roundtrip_main_file ("example", "testdata/example.qasm", file_contents "testdata/example.qasm-result") ;
@@ -284,7 +287,7 @@ let test_typecheck_roundtrip (name, txt, expect_env, expect) =
     let pl = body_parse ~path:["testdata"] PA.program txt in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
-    let pretty_p = ASTPP.(pp program p) in
+    let pretty_p = ASTPP.(pp (program ~skip_qelib:true) p) in
 
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
@@ -300,7 +303,7 @@ let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
     let vers,pl = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
-    let pretty_p = ASTPP.(pp main (vers, p)) in
+    let pretty_p = ASTPP.(pp (main ~skip_qelib:true) (vers, p)) in
 
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
@@ -430,7 +433,7 @@ let unroll ~only txt =
   let dag = DAG.make envs p in
   let dag = Unroll.execute ~only envs dag in
   let pl = DAG.to_ast envs dag in  
-  pp ASTPP.program pl
+  pp (ASTPP.program ~skip_qelib:true) pl
 
 let test_unroll (name, only, txt, expect) =
   name >:: (fun ctxt ->

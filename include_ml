@@ -32,6 +32,7 @@
 #load "gmap.cmo";;
 #load "gset.cmo";;
 #load "coll.cmo";;
+#load "qc_environment.cmo";;
 #load "qasmsyntax.cmo";;
 #load "qasmlex.cmo";;
 #load "qasmparser.cmo";;
@@ -40,7 +41,6 @@
 #load "qasm_io.cmo";;
 #load "qasm_passes.cmo";;
 #load "qc_layout.cmo";;
-#load "qc_environment.cmo";;
 #load "qobj_types.cmo";;
 #load "qrpc_types.cmo";;
 #load "qc_symbolic.cmo";;
