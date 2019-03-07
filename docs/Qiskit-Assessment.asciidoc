@@ -98,14 +98,14 @@ heck not documented *anywhere*.  This *always* produces brittle
 systems that are difficult to evolve. *Always*.
 
 Other companies have also noticed that they need to evolve their RPC
-interfaces, and (e.g.) both Thrift and GRPC hvae explicit support for
+interfaces, and (e.g.) both Thrift and GRPC have explicit support for
 this.
 
 # DESIGN: The RPC API should follow one of the well-estabilished patterns
 
 Today, there are GET requests that carry parameters (even JSON) in the
 URL as params.  There are size-limits to this approach.  Meanwhile, in
-some POSTS, params are passed as POST content (url-encoded), where for
+some POSTs, params are passed as POST content (url-encoded), where for
 other POSTs, params are appended to the URL (as with GET) and a JSON
 object is passed in the body.
 
@@ -124,7 +124,7 @@ sorts of things!
 # Python is the wrong language for a nontrivial compiler
 
 Python, like Perl, is unsuitable for writing a nontrivial compiler.
-It's weak dynamic typing makes it difficult to write intricate
+Its weak dynamic typing makes it difficult to write intricate
 algorithms with complex data-structures, and living with those
 weaknesses requires massive unit-testing that many commentators have
 noted basically takes the places of static type-checking in other
