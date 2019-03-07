@@ -38,11 +38,15 @@ some POSTS, params are passed as POST content (url-encoded), where for
 other POSTs, params are appended to the URL (as with GET) and a JSON
 object is passed in the body.
 
-This is incoherent.  The "access_token" is a session-cookie: so treat
-it like and pass it as an HTTP Cookie.  OR, get rid of GET entirely,
-use only POSTs, and pass all arguments in JSON objects.
+This is incoherent.  There are two coheent positions I can imagine:
 
-But really this is all moot!  You should be using Thrift or GRPC
+1. The "access_token" is a session-cookie: so treat it like and pass
+it as an HTTP Cookie.
+
+2. Get rid of GET entirely, use only POSTs, and pass all arguments in
+JSON objects.
+
+3. But really this is all moot!  You should be using Thrift or GRPC
 (preferably Thrift).  Then you wouldn't even be worrying about these
 sorts of things!
 
@@ -55,6 +59,42 @@ instead of an application error.
 === There is an argument to be made for optional fields; that argument does not apply here
 
 === DAG-based IR considered harmful
+
+First, aside from assignment of QASM qubits to hardware qubits, I know
+of no other rason that the DAG is not equivalent to QASM.  Heck, when
+converting DAG->QOBJ for final compilation before job-submission, the
+DAG is walked *in topological order*.  Just as it is when converting
+back to QASM.
+
+With a few "pragmas" to express register-assignment and coupling-map
+information it should be completely straightforward to make QASM a
+standard wireline representation for DAGs, so that in fact,
+round-tripping QASM->DAG->QASM or DAG->QASM->DAG is the identity
+function.  For example we could have a pragma with three fields: (1)
+vendor, (2) model, (3) C++ raw string literal with register-assignment
+and coupling-map information.
+
+....
+pragma IBM ibm_16_melbourne {|
+assign q[0] $hwqubit[2] ;
+coupling-map [ ..... ] ;
+|} ;
+....
+
+Notice that this information can be ignored (and passed unmodified) by
+compiler passes that are backend-insensitive.  Passes that apply
+backend information could insert these stanzas (or check that the
+stanzas already present consistent with the backend they were
+specified) Regardless, the contents of the raw string literal are
+uninterpreted/passed-along by anybody who doesn't actually care.
+
+Now, that aside: DAGs are a terrible standard IR, because they're
+terrible to debug, terrible to reason about, terrible to inspect.
+Yes, some algorithms MUST be expressed on DAGs.  But as long as the
+previous paragraph's point holds, nobody needs to think about the
+-sequencing- of various passes in terms of DAGs and effects upon them
+-- we can always think about it in terms of QASM code and
+manipulations thereof.
 
 === Python is the wrong language for a nontrivial compiler
 
@@ -76,6 +116,10 @@ code/function here-and-there, and of course, in the absence of
 unit-testing there's no way to tell if that function is supposed to be
 used or nt.
 
+So many things missing from unit-tests, but one glaring one, is a mock
+backend server, so that the entire front0end client stack can be
+tested.
+
 === Timeouts and Retries
 
 I've noticed that the backend infrastructure is pretty unstable.  RPCs
@@ -92,3 +136,34 @@ of the backend need to figure out why these RPCs are taking so long --
 there's no good reason why any RPC latency in this system should be
 greater than a few seconds.  I mean, you have, what?  200 users?
 That's minuscule.  A laptop should be able to handle the RPC traffic.
+
+I'm guessing you have a front-end proxy in front of your app-server.
+You need to increase your logging on that proxy, to keep track of RPC
+duration, so you can start to figure out why RPCs run long.
+
+=== The current infrastructure is completely unsuitable for variational algorithms
+
+Back in the day, straight-up job-schedulers (LoadLeveler, Platform
+LSF) were unsuitable for parallelizing things like Black-Scholes (or,
+heck, map/reduce).  Instead, they could schedule the "macro job" which
+would spin up a task-scheduler which would communicate via RPC with
+numerous "slaves" on other machines, to effect the distribution of
+"tasks".  This pattern resulted in products like Platform Symphony,
+DataSynapse, and the various infrastructures for map/reduce in Google
+and elsewhere.
+
+For variational algorithms, you're going to need to be able to submit
+a classical program, and perhaps a quantum circuit.  The quantum
+circuit will run in its own OS container (call it "Q") (think "Linux
+cgroups container", not "docker instance") and will expose an RPC port
+to the classical program, which is running in its own container (call
+it "C"), too.  They'll both be running on the same machine (the one
+directly attached to the quantum hardware).  The classical progarm
+will be arbitrary, but will only be able to access the quantum
+computer via the RPC API of "Q" -- this will ensure that only
+permitted operations occur.  But since they're so close by, latencies
+should be limited to only what is demanded by the hardware.
+
+All this job-scheduler stuff will make such variational codes
+impossible, just as job-schedulers got in the ay of Black-Scholes back
+in the day.
