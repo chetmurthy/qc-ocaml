@@ -48,7 +48,8 @@ This logging needs to be increased/improvd.
 1. Submit a Job
 
 ....
-qctool submit_job --debug --backend ibmq_16_melbourne -I testdata/ --name Bell3 --user-key Bell3 --qasmfile testdata/extracted-unit-tests/Bell3/3-optimized-ibmq_16_melbourne.qasm
+qctool submit_job --debug --backend ibmq_16_melbourne -I testdata/ --name Bell3 \
+       --user-key Bell3 --qasmfile testdata/extracted-unit-tests/Bell3/3-optimized-ibmq_16_melbourne.qasm
 ....
 
 The tool will respond with the "job status" as returned from the backend:
