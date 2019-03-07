@@ -161,8 +161,8 @@ module QObjResult = struct
       status : (string option [@default None]) ;
       date : (string option [@default None]) ;
       success : bool ;
-      header : Yojson.Safe.json ;
-      execution_id : string ;
+      header : (Yojson.Safe.json option [@default None]);
+      execution_id : (string option [@default None]) ;
       
     } [@@deriving yojson]
 end

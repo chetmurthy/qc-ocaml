@@ -7,7 +7,30 @@ An Assessment of the current Qiskit Python code
 
 toc::[]
 
-=== data-types everywhere are either undocumented or poorly documented
+=== Data-types everywhere are either undocumented or poorly documented
+
+I perennially come across:
+
+1. fields in replies from the backend that are either not documented
+in the JSON schema
+
+2. fields that were either documented as not optional, but turn out to
+be optional, or were present so often that even though undocumented, I
+thought they were optional, only to find they're not optional
+
+3. entire reply types that are undocumented.
+
+The most recent example: there is no documentation for the field
+"qObjectResult" found in the reply to a "get_job" (which returns a
+full job-description with status).  There *is* a file
+`result_schema.json` that purports to describe this "qObjectResult"
+type, and many of the fields that appear in real replies, appear in
+this schema.  But the field "execution_id" (which appears in almost
+all replies) is not documented in this schema.
+
+And of course, this schema is referenced in no other schema, even
+though the object being (ostensibly) described is a *field* of a
+reply, which contains other JSON data.
 
 === The RPC layer should be implemented via an RPC compiler and runtime, e.g. Thrift or GRPC
 
