@@ -13,10 +13,10 @@ DAGs are a terrible standard IR, and I'll offer this
 brief reasoning/explanation for now:
 
 First, aside from assignment of QASM qubits to hardware qubits, I know
-of no other rason that the DAG is not equivalent to QASM.  In fact, when
-converting DAG->QOBJ for final compilation before job-submission, the
-DAG is walked *in topological order*.  Just as it is when converting
-back to QASM.
+of no other reason that the DAG is not equivalent to QASM.  In fact,
+when converting DAG->QOBJ for final compilation before job-submission,
+the DAG is walked *in topological order*.  Just as it is when
+converting back to QASM.
 
 With a few "pragmas" to express register-assignment and coupling-map
 information it should be completely straightforward to make QASM a
@@ -36,7 +36,7 @@ coupling-map [ ..... ] ;
 Notice that this information can be ignored (and passed unmodified) by
 compiler passes that are backend-insensitive.  Passes that apply
 backend information could insert these stanzas (or check that the
-stanzas already present consistent with the backend they were
+stanzas already present are consistent with the backend they were
 specified) Regardless, the contents of the raw string literal are
 uninterpreted/passed-along by anybody who doesn't actually care.
 
@@ -44,7 +44,7 @@ Back to the point: DAGs are a terrible standard IR, because they're
 terrible to debug, terrible to reason about, terrible to inspect.
 Yes, some algorithms MUST be expressed on DAGs.  But as long as the
 previous paragraph's point holds, nobody needs to think about the
--sequencing- of various passes in terms of DAGs and effects upon them
+_sequencing_ of various passes in terms of DAGs and effects upon them
 -- we can always think about it in terms of QASM code and
 manipulations thereof.
 
@@ -74,6 +74,15 @@ should be limited to only what is demanded by the hardware.
 All this job-scheduler stuff will make such variational codes
 impossible, just as job-schedulers got in the way of Black-Scholes back
 in the day.
+
+A personal aside: In 2004 I was involved for a short while in an IBM
+effort to build a competitor to Platform Symphony and DataSynapse.  I
+didn't know that much about HPC, and my attempt could fairly be
+analogized to the current attempt to implement variational algorithms
+by pumping their QC sub-jobs thru the current job-scheduler.  My
+design didn't work out, and IBM eventually bought Platform (for many
+reasons).  I learned my lesson thru that (which was further driven
+home during my time at Google).
 
 # DESIGN: The RPC layer should be implemented via an RPC compiler and runtime, e.g. Thrift or GRPC
 
