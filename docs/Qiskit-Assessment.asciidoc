@@ -143,6 +143,10 @@ So many things missing from unit-tests, but one glaring one, is a mock
 backend server, so that the entire front0end client stack can be
 tested.
 
+This bears repeating: *Dynamically-typed languages require massive
+unit-tests to ensure type-safety of the code; this has been observed
+by many, and at this point it's an uncontroversial point.*
+
 === Timeouts and Retries
 
 I've noticed that the backend infrastructure is pretty unstable.  RPCs
