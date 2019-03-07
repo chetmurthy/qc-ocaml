@@ -112,29 +112,25 @@ module ShowJob = struct
       (** turn on all debugging & logging *)
 
       job_ids : string list ; [@term string_list_term]
-      (** job id to show *)
+      (** job ids to show *)
 
       verbose : bool ;
       (** print job verbosely (or succinctly) *)
 
     } [@@deriving cmdliner,show]
 
-  let print_short_job_status ?(visual=false) st =
+  let print_short_job_status ~session st =
     let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
-    if visual then (
-      Printf.printf "%s: %s " id status ;
-      do_option (fun i ->
-          InfoQueue.(Printf.printf "[ %s position %d ]" i.status i.position))
-        st.ShortJobStatus.infoQueue ;
-      Printf.printf "\r"
-    )
-    else (
-      let kind = match kind with None -> "<none>" | Some s -> s in
-      Printf.printf "%s: %s\n\t%s @ %s\n" id status kind creationDate ;
-      do_option (fun i ->
-          InfoQueue.(Printf.printf "\t[ %s position %d ]\n" i.status i.position))
-        st.ShortJobStatus.infoQueue
-    )
+    let id_toprint =
+      if LM.in_rng session.Session.diary id then
+        let userkey = List.hd (LM.inv session.Session.diary id) in
+        Printf.sprintf "%s [aka \"%s\"]" id (String.escaped userkey)
+          else id in
+    let kind = match kind with None -> "<none>" | Some s -> s in
+    Printf.printf "%s: %s\n\t%s @ %s\n" id_toprint status kind creationDate ;
+    do_option (fun i ->
+        InfoQueue.(Printf.printf "\t[ %s position %d ]\n" i.status i.position))
+      st.ShortJobStatus.infoQueue
 
   let do_show_job p =
     let { rcfile ; key ; debug ; job_ids ; verbose } = p in
@@ -151,7 +147,7 @@ module ShowJob = struct
           let j = Job.get_status_job job_id session in
           match j with
           | Result.Ok st ->
-             print_short_job_status st
+             print_short_job_status ~session st
           | Result.Error apierror ->
              print_string "APIError: " ;
              apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
@@ -177,33 +173,40 @@ module MonitorJob = struct
       visual : bool ;
       (** try to be nice visually *)
 
-      job_id : string ;
-      (** job id to show *)
+      job_ids : string list ; [@term string_list_term]
+      (** job ids to show *)
 
     } [@@deriving cmdliner,show]
 
   let do_monitor_job p =
-    let { rcfile ; key ; debug ; job_id ; visual } = p in
+    let { rcfile ; key ; debug ; job_ids ; visual } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
-    let job_id =
-      if LM.in_dom session.Session.diary job_id then
-        LM.map session.Session.diary job_id
-      else job_id in
+    let job_ids =
+      List.map (fun job_id ->
+          if LM.in_dom session.Session.diary job_id then
+            LM.map session.Session.diary job_id
+          else job_id) job_ids in
     let rec monrec cnt =
-      let j = Job.get_status_job job_id session in
-    match j with
-    | Result.Ok st ->
-       if st.status = "RUNNING" then (
-         Printf.printf "[%d] " cnt ;
-         ShowJob.print_short_job_status ~visual st ;
-         flush stdout ;
-         Unix.sleep 10 ;
-         monrec (cnt+1))
-       else ()
-    | Result.Error apierror ->
-       print_string "APIError: " ;
-       apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
-       ()
+      let statuses =
+        List.map (fun job_id ->
+            Job.get_status_job job_id session) job_ids in
+      ignore (Sys.command "tput clear") ;
+      ignore (Sys.command "tput cup 0 0") ;
+      List.iter (fun j ->
+          match j with
+          | Result.Ok st ->
+             if st.ShortJobStatus.status = "RUNNING" then (
+               Printf.printf "[%d] " cnt ;
+               ShowJob.print_short_job_status ~session st)
+             else ()
+          | Result.Error apierror ->
+             print_string "APIError: " ;
+             apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
+             ()
+        ) statuses ;
+      flush stdout ;
+      Unix.sleep 10 ;
+      monrec (cnt+1)
     in
     monrec 0
 
