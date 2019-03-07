@@ -1,0 +1,68 @@
+[[tutorial]]
+= A QC-Ocaml Tutorial
+:toc:
+:toc-placement!:
+
+A QC-Ocaml Tutorial
+
+toc::[]
+
+== Environmental Setup
+
+Ensure you have a `qiskitrc`, and by preference in the standard location `~/.qiskit/qiskitrc`.  I'd also recommend you  set the "diary" entry, e.g.
+
+....
+[ibmq]
+token = <token>
+url = https://quantumexperience.ng.bluemix.net/api
+verify = True
+diary = /home/chet/.qiskit/diary
+....
+
+this will enhance your experience, allowing you to use user-specified
+keys instead of job-ids, wherever a job-id is required.
+
+== General considerations for the tooling
+
+There are two ways to use `qc-ocaml`: either with the commandline tool
+`qctool` or the Ocaml libraries in `libqasm.cma`.  This tutorial will
+cover the command-line tool only.  The tool has built-in "help", e.g.
+
+....
+qctool --help
+....
+
+or help for a subcommand (e.g. `submit_job`)
+....
+qctool submit_job --help
+....
+
+The documentation is pretty sparse, but it's a mere matter of adding text to improve this.
+
+Furthermore, any subcommand can be passed the `--debug` argument,
+which will turn on all logging, including at the HTTP-protocol-level.
+This logging needs to be increased/improvd.
+
+== Running thru a scenario
+
+1. Submit a Job
+
+....
+qctool submit_job --debug --backend ibmq_16_melbourne -I testdata/ --name Bell3 --user-key Bell3 --qasmfile testdata/extracted-unit-tests/Bell3/3-optimized-ibmq_16_melbourne.qasm
+....
+
+The tool will respond with the "job status" as returned from the backend:
+....
+  "qasms": [
+    {
+      "status": "WORKING_IN_PROGRESS",
+      "executionId": "5c81ae5f0d0ab500588b471f"
+    }
+  ],
+  "qObject": {
+    "config": {
+      "max_credits": 10,
+      "memory_slots": 2,
+      "n_qubits": 14,
+...
+....
