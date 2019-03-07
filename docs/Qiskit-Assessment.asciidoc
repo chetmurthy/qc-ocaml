@@ -112,6 +112,56 @@ JSON objects.
 (preferably Thrift).  Then you wouldn't even be worrying about these
 sorts of things!
 
+# Python is the wrong language for a nontrivial compiler
+
+Python, like Perl, is unsuitable for writing a nontrivial compiler.
+It's weak dynamic typing makes it difficult to write intricate
+algorithms with complex data-structures, and living with those
+weaknesses requires massive unit-testing that many commentators have
+noted basically takes the places of static type-checking in other
+languages.
+
+The pervasive presence of many parameters to methods, most of which
+are omitted, is also problematic in a complex system -- there's a case
+for optional arguments, but they ought to be kept to a minimum.
+
+# Timeouts and Retries
+
+I've noticed that the backend infrastructure is pretty unstable.  RPCs
+hang more often than they ought.  The Python code appears to retry,
+and this is somewhat problematic, esp. for submitting jobs.  If every
+job-submission carried a request-id (UUID), it could be used to render
+job-submission requests idempotent.
+
+Also, the expected (and normal) RPC time is well in excess of 10sec.
+This is really bad for a distributed system, b/c we're edging into the
+time-range where network and infrastructure errors can be confused
+with "the RPC is just taking a little while".  I think the operators
+of the backend need to figure out why these RPCs are taking so long --
+there's no good reason why any RPC latency in this system should be
+greater than a few seconds.  With so few users of the 
+current system (200?),
+a laptop should be able to handle the RPC traffic.
+
+I'm guessing you have a front-end proxy in front of your app-server.
+You need to increase your logging on that proxy, to keep track of RPC
+duration, so you can start to figure out why RPCs run long.
+
+# Poor unit-test coverage
+
+There's hardly any unit-testing.  I've stumbled across old
+code/function here-and-there, and of course, in the absence of
+unit-testing there's no way to tell if that function is supposed to be
+used or not.
+
+So many things missing from unit-tests, but one glaring one, is a mock
+backend server, so that the entire front-end client stack can be
+tested.
+
+This bears repeating: *Dynamically-typed languages require massive
+unit-tests to ensure type-safety of the code; this has been observed
+by many and, nowadays, is taken as standard practice.*
+
 # Data-types everywhere are either undocumented or poorly documented
 
 I perennially come across:
@@ -141,61 +191,12 @@ reply, which contains other JSON data.
 
 It isn't.
 
-# Errors
+# Errors from the backend need to be cleaned up and documented
 
 I've seen cases where application errors (a job that had been in the
 queue, but was no longer) got reflected as an authentication error,
 instead of an application error.
 
-# While there is an argument to be made for optional fields...
+# Optional fields are useful in certain cases
 
-...that argument does not apply here.
-
-# Poor unit-test coverage
-
-There's hardly any unit-testing.  I've stumbled across old
-code/function here-and-there, and of course, in the absence of
-unit-testing there's no way to tell if that function is supposed to be
-used or nt.
-
-So many things missing from unit-tests, but one glaring one, is a mock
-backend server, so that the entire front0end client stack can be
-tested.
-
-This bears repeating: *Dynamically-typed languages require massive
-unit-tests to ensure type-safety of the code; this has been observed
-by many, and at this point it's an uncontroversial point.*
-
-# Timeouts and Retries
-
-I've noticed that the backend infrastructure is pretty unstable.  RPCs
-hang more often than they ought.  The Python code appears to retry,
-and this is somewhat problematic, esp. for submitting jobs.  If every
-job-submission carried a request-id (UUID), it could be used to render
-job-submission requests idempotent.
-
-Also, the expected (and normal) RPC time is well in excess of 10sec.
-This is really bad for a distributed system, b/c we're edging into the
-time-range where network and infrastructure errors can be confused
-with "the RPC is just taking a little while".  I think the operators
-of the backend need to figure out why these RPCs are taking so long --
-there's no good reason why any RPC latency in this system should be
-greater than a few seconds.  I mean, you have, what?  200 users?
-That's minuscule.  A laptop should be able to handle the RPC traffic.
-
-I'm guessing you have a front-end proxy in front of your app-server.
-You need to increase your logging on that proxy, to keep track of RPC
-duration, so you can start to figure out why RPCs run long.
-
-# Python is the wrong language for a nontrivial compiler
-
-Python, like Perl, is unsuitable for writing a nontrivial compiler.
-It's weak dynamic typing makes it difficult to write intricate
-algorithms with complex data-structures, and living with those
-weaknesses requires massive unit-testing that many commentators have
-noted basically takes the places of static type-checking in other
-languages.
-
-The pervasive presence of many parameters to methods, most of which
-are omitted, is also problematic in a complex system -- there's a case
-for optional arguments, but they ought to be kept to a minimum.
+This may not be one of them.
