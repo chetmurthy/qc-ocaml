@@ -11,3 +11,22 @@ toc::[]
 
 === The RPC layer should be implemented via an RPC compiler and runtime, e.g. Thrift or GRPC
 
+The types of this system are complicated, replete with possibilities
+for screwups and inconsistencies.  Other companies have faced such
+issues, and have learned that they need to formalize the types of RPC
+interfaces using an IDL, and generate the RPC stubs/skeletons
+mechanically.
+
+It is easy to see why the lack of the above is problematic: there are
+fields all over the system that aren't documented in the JSON schema,
+heck not documented *anywhere*.  This *always* produces brittle
+systems that are difficult to evolve. *Always*.
+
+Other companies have also noticed that they need to evolve their RPC
+interfaces, and (e.g.) both Thrift and GRPC hvae explicit support for
+this.
+
+=== There is an argument to be made for optional fields; that argument does not apply here
+
+=== DAG-based IR considered harmful
+
