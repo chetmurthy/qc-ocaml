@@ -22,3 +22,9 @@ provided in this repository.
 You can find instructions for installing: (a) prerequisite ocaml
 environment, (b) modules, and (c) this project, in
 link:docs/INSTALL.asciidoc[INSTALL.asciidoc].
+
+[[Documentation]]
+== Documantation
+
+Documentation can be found in the link:docs[docs] directory, viz
+link:docs/Tutorial.asciidoc[docs/Tutorial.asciidoc].
