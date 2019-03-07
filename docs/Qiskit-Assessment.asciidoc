@@ -1,0 +1,13 @@
+[[qiskit-assessment]]
+= An Assessment of the current Qixkit Python code
+:toc:
+:toc-placement: preamble
+
+An Assessment of the current Qixkit Python code
+
+toc::[]
+
+=== data-types everywhere are either undocumented or poorly documented
+
+=== The RPC layer should be implemented via an RPC compiler and runtime, e.g. Thrift or GRPC
+
