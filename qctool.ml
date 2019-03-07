@@ -362,17 +362,16 @@ module ListJobs = struct
 end
 
 let _ =
-if invoked_as "qctool" then
+  if invoked_as "qctool" then
 
-  Cmdliner.Term.(exit @@ eval_choice Login.cmd [
-                             AvailableBackends.cmd;
-                             CancelJob.cmd;
-                             ListJobs.cmd;
-                             Login.cmd;
-                             MonitorJob.cmd;
-                             ShowJob.cmd;
-                             ShowResult.cmd;
-                             SubmitJob.cmd;
-  ])
-
+    Cmdliner.Term.(exit @@ eval_choice Login.cmd [
+                               AvailableBackends.cmd;
+                               CancelJob.cmd;
+                               ListJobs.cmd;
+                               Login.cmd;
+                               MonitorJob.cmd;
+                               ShowJob.cmd;
+                               ShowResult.cmd;
+                               SubmitJob.cmd;
+    ])
 ;;

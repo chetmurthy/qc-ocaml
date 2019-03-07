@@ -19,7 +19,7 @@ OBJECTS = $(CMO) $(CMX) $(CMI)
 RESULT=libqasm
 TESTS=qc_tests.byte large_tests.byte
 
-all: $(RESULT).cma $(RESULT).cmxa $(TESTS) qctool
+all: $(RESULT).cma $(RESULT).cmxa qctool $(TESTS)
 
 qctool: $(RESULT).cma qctool.ml
 	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) -package $(PACKAGES) -linkpkg -linkall -o $@ $^
