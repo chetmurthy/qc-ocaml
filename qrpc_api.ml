@@ -101,7 +101,7 @@ let opts = { opts with
       verbose_response_header = true ;
       verbose_request_contents = true ;
       verbose_response_contents = true ;
-      connection_timeout = 10.0 ;
+      connection_timeout = 30.0 ;
                } in
     pipeline # set_options opts
 ;;
