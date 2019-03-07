@@ -21,4 +21,4 @@ provided in this repository.
 
 You can find instructions for installing: (a) prerequisite ocaml
 environment, (b) modules, and (c) this project, in
-link:INSTALL.asciidoc[INSTALL.asciidoc].
+link:docs/INSTALL.asciidoc[INSTALL.asciidoc].
