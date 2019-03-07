@@ -1,13 +1,13 @@
 [[qiskit-assessment]]
-= An Assessment of the current Qiskit Python code
+= An Assessment of the current Qiskit Python design and code
 :toc:
 :toc-placement: preamble
 
-An Assessment of the current Qiskit Python code
+An Assessment of the current Qiskit Python design and code
 
 toc::[]
 
-=== DAG-based IR considered harmful
+# DESIGN: DAG-based IR considered harmful
 
 DAGs are a terrible standard IR, and I'll offer this 
 brief reasoning/explanation for now:
@@ -48,7 +48,7 @@ previous paragraph's point holds, nobody needs to think about the
 -- we can always think about it in terms of QASM code and
 manipulations thereof.
 
-=== The current infrastructure is unsuitable for variational algorithms
+# DESIGN: The current infrastructure is unsuitable for variational algorithms
 
 Back in the day, straight-up job-schedulers (LoadLeveler, Platform
 LSF) were unsuitable for parallelizing things like Black-Scholes (or,
@@ -75,7 +75,7 @@ All this job-scheduler stuff will make such variational codes
 impossible, just as job-schedulers got in the way of Black-Scholes back
 in the day.
 
-=== The RPC layer should be implemented via an RPC compiler and runtime, e.g. Thrift or GRPC
+# DESIGN: The RPC layer should be implemented via an RPC compiler and runtime, e.g. Thrift or GRPC
 
 The types of this system are complicated, replete with possibilities
 for screwups and inconsistencies.  Other companies have faced such
@@ -92,7 +92,7 @@ Other companies have also noticed that they need to evolve their RPC
 interfaces, and (e.g.) both Thrift and GRPC hvae explicit support for
 this.
 
-=== The RPC API should follow one of the well-estabilished patterns
+# DESIGN: The RPC API should follow one of the well-estabilished patterns
 
 Today, there are GET requests that carry parameters (even JSON) in the
 URL as params.  There are size-limits to this approach.  Meanwhile, in
@@ -100,7 +100,7 @@ some POSTS, params are passed as POST content (url-encoded), where for
 other POSTs, params are appended to the URL (as with GET) and a JSON
 object is passed in the body.
 
-This is incoherent.  There are two coheent positions I can imagine:
+This is incoherent.  There are two coherent positions I can imagine:
 
 1. The "access_token" is a session-cookie: so treat it like and pass
 it as an HTTP Cookie.
@@ -112,7 +112,7 @@ JSON objects.
 (preferably Thrift).  Then you wouldn't even be worrying about these
 sorts of things!
 
-=== Data-types everywhere are either undocumented or poorly documented
+# Data-types everywhere are either undocumented or poorly documented
 
 I perennially come across:
 
@@ -137,21 +137,21 @@ And of course, this schema is referenced in no other schema, even
 though the object being (ostensibly) described is a *field* of a
 reply, which contains other JSON data.
 
-=== The RPC (wireline) API should be documented
+# The RPC (wireline) API should be documented
 
 It isn't.
 
-=== Errors
+# Errors
 
 I've seen cases where application errors (a job that had been in the
 queue, but was no longer) got reflected as an authentication error,
 instead of an application error.
 
-=== While there is an argument to be made for optional fields...
+# While there is an argument to be made for optional fields...
 
 ...that argument does not apply here.
 
-=== Poor unit-test coverage
+# Poor unit-test coverage
 
 There's hardly any unit-testing.  I've stumbled across old
 code/function here-and-there, and of course, in the absence of
@@ -166,7 +166,7 @@ This bears repeating: *Dynamically-typed languages require massive
 unit-tests to ensure type-safety of the code; this has been observed
 by many, and at this point it's an uncontroversial point.*
 
-=== Timeouts and Retries
+# Timeouts and Retries
 
 I've noticed that the backend infrastructure is pretty unstable.  RPCs
 hang more often than they ought.  The Python code appears to retry,
@@ -187,7 +187,7 @@ I'm guessing you have a front-end proxy in front of your app-server.
 You need to increase your logging on that proxy, to keep track of RPC
 duration, so you can start to figure out why RPCs run long.
 
-=== Python is the wrong language for a nontrivial compiler
+# Python is the wrong language for a nontrivial compiler
 
 Python, like Perl, is unsuitable for writing a nontrivial compiler.
 It's weak dynamic typing makes it difficult to write intricate
