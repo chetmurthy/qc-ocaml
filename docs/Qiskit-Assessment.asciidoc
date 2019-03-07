@@ -7,84 +7,13 @@ An Assessment of the current Qiskit Python code
 
 toc::[]
 
-=== Data-types everywhere are either undocumented or poorly documented
-
-I perennially come across:
-
-1. fields in replies from the backend that are either not documented
-in the JSON schema
-
-2. fields that were either documented as not optional, but turn out to
-be optional, or were present so often that even though undocumented, I
-thought they were optional, only to find they're not optional
-
-3. entire reply types that are undocumented.
-
-The most recent example: there is no documentation for the field
-"qObjectResult" found in the reply to a "get_job" (which returns a
-full job-description with status).  There *is* a file
-`result_schema.json` that purports to describe this "qObjectResult"
-type, and many of the fields that appear in real replies, appear in
-this schema.  But the field "execution_id" (which appears in almost
-all replies) is not documented in this schema.
-
-And of course, this schema is referenced in no other schema, even
-though the object being (ostensibly) described is a *field* of a
-reply, which contains other JSON data.
-
-=== The RPC layer should be implemented via an RPC compiler and runtime, e.g. Thrift or GRPC
-
-The types of this system are complicated, replete with possibilities
-for screwups and inconsistencies.  Other companies have faced such
-issues, and have learned that they need to formalize the types of RPC
-interfaces using an IDL, and generate the RPC stubs/skeletons
-mechanically.
-
-It is easy to see why the lack of the above is problematic: there are
-fields all over the system that aren't documented in the JSON schema,
-heck not documented *anywhere*.  This *always* produces brittle
-systems that are difficult to evolve. *Always*.
-
-Other companies have also noticed that they need to evolve their RPC
-interfaces, and (e.g.) both Thrift and GRPC hvae explicit support for
-this.
-
-=== The RPC (wireline) API should be documented
-
-It isn't.
-
-=== The RPC API should follow one of the well-estabilished patterns
-
-Today, there are GET requests that carry parameters (even JSON) in the
-URL as params.  There are size-limits to this approach.  Meanwhile, in
-some POSTS, params are passed as POST content (url-encoded), where for
-other POSTs, params are appended to the URL (as with GET) and a JSON
-object is passed in the body.
-
-This is incoherent.  There are two coheent positions I can imagine:
-
-1. The "access_token" is a session-cookie: so treat it like and pass
-it as an HTTP Cookie.
-
-2. Get rid of GET entirely, use only POSTs, and pass all arguments in
-JSON objects.
-
-3. But really this is all moot!  You should be using Thrift or GRPC
-(preferably Thrift).  Then you wouldn't even be worrying about these
-sorts of things!
-
-=== Errors
-
-I've seen cases where application errors (a job that had been in the
-queue, but was no longer) got reflected as an authentication error,
-instead of an application error.
-
-=== There is an argument to be made for optional fields; that argument does not apply here
-
 === DAG-based IR considered harmful
 
+DAGs are a terrible standard IR, and I'll offer this 
+brief reasoning/explanation for now:
+
 First, aside from assignment of QASM qubits to hardware qubits, I know
-of no other rason that the DAG is not equivalent to QASM.  Heck, when
+of no other rason that the DAG is not equivalent to QASM.  In fact, when
 converting DAG->QOBJ for final compilation before job-submission, the
 DAG is walked *in topological order*.  Just as it is when converting
 back to QASM.
@@ -111,7 +40,7 @@ stanzas already present consistent with the backend they were
 specified) Regardless, the contents of the raw string literal are
 uninterpreted/passed-along by anybody who doesn't actually care.
 
-Now, that aside: DAGs are a terrible standard IR, because they're
+Back to the point: DAGs are a terrible standard IR, because they're
 terrible to debug, terrible to reason about, terrible to inspect.
 Yes, some algorithms MUST be expressed on DAGs.  But as long as the
 previous paragraph's point holds, nobody needs to think about the
@@ -119,18 +48,108 @@ previous paragraph's point holds, nobody needs to think about the
 -- we can always think about it in terms of QASM code and
 manipulations thereof.
 
-=== Python is the wrong language for a nontrivial compiler
+=== The current infrastructure is unsuitable for variational algorithms
 
-Python, like Perl, is unsuitable for writing a nontrivial compiler.
-It's weak dynamic typing makes it difficult to write intricate
-algorithms with complex data-structures, and living with those
-weaknesses requires massive unit-testing that many commentators have
-noted basically takes the places of static type-checking in other
-languages.
+Back in the day, straight-up job-schedulers (LoadLeveler, Platform
+LSF) were unsuitable for parallelizing things like Black-Scholes (or,
+heck, map/reduce).  Instead, they could schedule the "macro job" which
+would spin up a task-scheduler which would communicate via RPC with
+numerous "slaves" on other machines, to effect the distribution of
+"tasks".  This pattern resulted in products like Platform Symphony,
+DataSynapse, and the various infrastructures for map/reduce in Google
+and elsewhere.
 
-The pervasive presence of many parameters to methods, most of which
-are omitted, is also problematic in a complex system -- there's a case
-for optional arguments, but they ought to be kept to a minimum.
+For variational algorithms, you're going to need to be able to submit
+a classical program, and perhaps a quantum circuit.  The quantum
+circuit will run in its own OS container (call it "Q") (think "Linux
+cgroups container", not "docker instance") and will expose an RPC port
+to the classical program, which is running in its own container (call
+it "C"), too.  They'll both be running on the same machine (the one
+directly attached to the quantum hardware).  The classical progarm
+will be arbitrary, but will only be able to access the quantum
+computer via the RPC API of "Q" -- this will ensure that only
+permitted operations occur.  But since they're so close by, latencies
+should be limited to only what is demanded by the hardware.
+
+All this job-scheduler stuff will make such variational codes
+impossible, just as job-schedulers got in the way of Black-Scholes back
+in the day.
+
+=== The RPC layer should be implemented via an RPC compiler and runtime, e.g. Thrift or GRPC
+
+The types of this system are complicated, replete with possibilities
+for screwups and inconsistencies.  Other companies have faced such
+issues, and have learned that they need to formalize the types of RPC
+interfaces using an IDL, and generate the RPC stubs/skeletons
+mechanically.
+
+It is easy to see why the lack of the above is problematic: there are
+fields all over the system that aren't documented in the JSON schema,
+heck not documented *anywhere*.  This *always* produces brittle
+systems that are difficult to evolve. *Always*.
+
+Other companies have also noticed that they need to evolve their RPC
+interfaces, and (e.g.) both Thrift and GRPC hvae explicit support for
+this.
+
+=== The RPC API should follow one of the well-estabilished patterns
+
+Today, there are GET requests that carry parameters (even JSON) in the
+URL as params.  There are size-limits to this approach.  Meanwhile, in
+some POSTS, params are passed as POST content (url-encoded), where for
+other POSTs, params are appended to the URL (as with GET) and a JSON
+object is passed in the body.
+
+This is incoherent.  There are two coheent positions I can imagine:
+
+1. The "access_token" is a session-cookie: so treat it like and pass
+it as an HTTP Cookie.
+
+2. Get rid of GET entirely, use only POSTs, and pass all arguments in
+JSON objects.
+
+3. But really this is all moot!  You should be using Thrift or GRPC
+(preferably Thrift).  Then you wouldn't even be worrying about these
+sorts of things!
+
+=== Data-types everywhere are either undocumented or poorly documented
+
+I perennially come across:
+
+1. fields in replies from the backend that are either not documented
+in the JSON schema
+
+2. fields that were either documented as not optional, but turn out to
+be optional, or were present so often that even though undocumented, I
+thought they were optional, only to find they're not optional
+
+3. entire reply types that are undocumented.
+
+The most recent example: there is no documentation for the field
+"qObjectResult" found in the reply to a "get_job" (which returns a
+full job-description with status).  There *is* a file
+`result_schema.json` that purports to describe this "qObjectResult"
+type, and many of the fields that appear in real replies, appear in
+this schema.  But the field "execution_id" (which appears in almost
+all replies) is not documented in this schema.
+
+And of course, this schema is referenced in no other schema, even
+though the object being (ostensibly) described is a *field* of a
+reply, which contains other JSON data.
+
+=== The RPC (wireline) API should be documented
+
+It isn't.
+
+=== Errors
+
+I've seen cases where application errors (a job that had been in the
+queue, but was no longer) got reflected as an authentication error,
+instead of an application error.
+
+=== While there is an argument to be made for optional fields...
+
+...that argument does not apply here.
 
 === Poor unit-test coverage
 
@@ -168,29 +187,15 @@ I'm guessing you have a front-end proxy in front of your app-server.
 You need to increase your logging on that proxy, to keep track of RPC
 duration, so you can start to figure out why RPCs run long.
 
-=== The current infrastructure is completely unsuitable for variational algorithms
+=== Python is the wrong language for a nontrivial compiler
 
-Back in the day, straight-up job-schedulers (LoadLeveler, Platform
-LSF) were unsuitable for parallelizing things like Black-Scholes (or,
-heck, map/reduce).  Instead, they could schedule the "macro job" which
-would spin up a task-scheduler which would communicate via RPC with
-numerous "slaves" on other machines, to effect the distribution of
-"tasks".  This pattern resulted in products like Platform Symphony,
-DataSynapse, and the various infrastructures for map/reduce in Google
-and elsewhere.
+Python, like Perl, is unsuitable for writing a nontrivial compiler.
+It's weak dynamic typing makes it difficult to write intricate
+algorithms with complex data-structures, and living with those
+weaknesses requires massive unit-testing that many commentators have
+noted basically takes the places of static type-checking in other
+languages.
 
-For variational algorithms, you're going to need to be able to submit
-a classical program, and perhaps a quantum circuit.  The quantum
-circuit will run in its own OS container (call it "Q") (think "Linux
-cgroups container", not "docker instance") and will expose an RPC port
-to the classical program, which is running in its own container (call
-it "C"), too.  They'll both be running on the same machine (the one
-directly attached to the quantum hardware).  The classical progarm
-will be arbitrary, but will only be able to access the quantum
-computer via the RPC API of "Q" -- this will ensure that only
-permitted operations occur.  But since they're so close by, latencies
-should be limited to only what is demanded by the hardware.
-
-All this job-scheduler stuff will make such variational codes
-impossible, just as job-schedulers got in the ay of Black-Scholes back
-in the day.
+The pervasive presence of many parameters to methods, most of which
+are omitted, is also problematic in a complex system -- there's a case
+for optional arguments, but they ought to be kept to a minimum.
