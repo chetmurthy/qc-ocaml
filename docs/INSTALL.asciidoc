@@ -23,8 +23,8 @@ sudo apt-get install opam
 
 for OSX:
 ....
-brew install gtk+3
-brew install gpatch
+[optional] brew install gtk+3
+[optional] brew install gpatch
 brew install opam
 ....
 
