@@ -43,9 +43,9 @@ module Login = struct
     Printf.printf "access_token: %s\n" token ;
     ()
 
-  let cmd =
+  let cmd n =
     let term = Cmdliner.Term.(const do_login $ cmdliner_term ()) in
-    let info = Cmdliner.Term.info "login" in
+    let info = Cmdliner.Term.info n in
     (term, info)
 end
 
@@ -97,7 +97,7 @@ let display_response demarsh rsp =
      apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout;
      print_newline ()
 
-let string_list_term = Cmdliner.Arg.(value & pos_all string [] & info [] ~docv:"TOPIC" ~doc:"job ids")
+let string_list_term = Cmdliner.Arg.(value & pos_all string [] & info [] ~docv:"JOB IDS" ~doc:"job ids")
 
 
 module ShowJob = struct
@@ -372,11 +372,11 @@ end
 let _ =
   if invoked_as "qctool" then
 
-    Cmdliner.Term.(exit @@ eval_choice Login.cmd [
+    Cmdliner.Term.(exit @@ eval_choice (Login.cmd "qctool") [
                                AvailableBackends.cmd;
                                CancelJob.cmd;
                                ListJobs.cmd;
-                               Login.cmd;
+                               Login.cmd "login";
                                MonitorJob.cmd;
                                ShowJob.cmd;
                                ShowResult.cmd;
