@@ -1,9 +1,9 @@
 [[qiskit-assessment]]
-= An Assessment of the current Qixkit Python code
+= An Assessment of the current Qiskit Python code
 :toc:
 :toc-placement: preamble
 
-An Assessment of the current Qixkit Python code
+An Assessment of the current Qiskit Python code
 
 toc::[]
 
