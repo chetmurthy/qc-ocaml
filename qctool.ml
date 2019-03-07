@@ -122,7 +122,6 @@ module ShowJob = struct
   let print_short_job_status ?(visual=false) st =
     let ShortJobStatus.{ kind ; status ; creationDate ; id } = st in
     if visual then (
-      let kind = match kind with None -> "<none>" | Some s -> s in
       Printf.printf "%s: %s " id status ;
       do_option (fun i ->
           InfoQueue.(Printf.printf "[ %s position %d ]" i.status i.position))
@@ -217,26 +216,28 @@ module ShowResult = struct
       debug : bool ;
       (** turn on all debugging & logging *)
 
-      job_id : string ;
+      job_ids : string list ; [@term string_list_term]
       (** job id to show *)
 
     } [@@deriving cmdliner,show]
 
   let do_result p =
-    let { rcfile ; key ; debug ; job_id } = p in
+    let { rcfile ; key ; debug ; job_ids } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
-      let rsp= Job.get_job job_id session in
-      match rsp with
-      | Result.Ok st -> (
-         match st.JobStatus.qObjectResult with
-         | None -> Printf.printf "No results yet\n"
-         | Some r ->
-            r |> QObjResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout
-      )
-      | Result.Error apierror ->
-         print_string "APIError: " ;
-         apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout;
-         print_newline ()
+    List.iter (fun job_id ->
+        let rsp = Job.get_job job_id session in
+        match rsp with
+        | Result.Ok st -> (
+          match st.JobStatus.qObjectResult with
+          | None -> Printf.printf "No results yet\n"
+          | Some r ->
+             r |> QObjResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+        )
+        | Result.Error apierror ->
+           print_string "APIError: " ;
+           apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout;
+           print_newline ()
+      ) job_ids
 
   let cmd =
     let term = Cmdliner.Term.(const do_result $ cmdliner_term ()) in
@@ -255,16 +256,18 @@ module CancelJob = struct
       debug : bool ;
       (** turn on all debugging & logging *)
 
-      job_id : string ;
+      job_ids : string list ; [@term string_list_term]
       (** job id to show *)
 
     } [@@deriving cmdliner,show]
 
   let do_cancel_job p =
-    let { rcfile ; key ; debug ; job_id } = p in
+    let { rcfile ; key ; debug ; job_ids } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
-    let j = Job.cancel_job job_id session in
-    display_response CancelResult.to_yojson j
+    List.iter (fun job_id ->
+        let j = Job.cancel_job job_id session in
+        display_response CancelResult.to_yojson j
+      ) job_ids
 
   let cmd =
     let term = Cmdliner.Term.(const do_cancel_job $ cmdliner_term ()) in
