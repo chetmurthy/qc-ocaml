@@ -16,6 +16,8 @@ How to set up your environment for this tool:
 
 for Ubuntu:
 ....
+[optional] sudo add-apt-repository ppa:avsm/ppa
+[optional] sudo apt update
 sudo apt-get install opam
 ....
 
@@ -59,6 +61,24 @@ them, *except* for `ocamldot`.  For this one, you'll need to `git
 clone` it and build it yourself.  But it depends on a module that opam
 can install, so it's a little more involved than that.
 
+(0) OPTIONAL (for components/setup that _might_ be missing on a bare bones OS, like an AWS basic Ubuntu instance)
+
+....
+[optional] sudo apt install gcc
+[optional] sudo apt install make
+[optional] sudo apt install m4
+[optional] sudo apt install pkg-config
+[optional] sudo apt install libcairo2-dev 
+[optional] sudo apt install libexpat1-dev 
+[optional] sudo apt install libgtk-3-dev
+[optional] sudo apt install camlp5
+[optional] sudo apt install libcurl4-gnutls-dev
+[optional] sudo apt install libgnutls28-dev
+[optional] sudo apt install libssl-dev
+[optional] sudo apt install nettle-dev
+[optional] opam switch create ocaml-base-compiler.$VERSION
+....
+
 (1) first round of opam installs
 
 ....
@@ -68,7 +88,7 @@ opam install  lablgtk3 ocamlfind
 (2) install ocamldot
 
 ....
-git clone git@github.com:chetmurthy/ocamldot.git
+git clone https://github.com/chetmurthy/ocamldot.git
 (cd ocamldot && ./configure && make && make install)
 ....
 
@@ -85,6 +105,7 @@ opam install camlp5 camlzip cmdliner conf-gnutls \
 == Building QC-Ocaml
 
 ....
+git clone https://github.com/chetmurthy/qc-ocaml.git
 make everything
 ....
 
