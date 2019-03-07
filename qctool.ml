@@ -97,6 +97,9 @@ let display_response demarsh rsp =
      apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout;
      print_newline ()
 
+let string_list_term = Cmdliner.Arg.(value & pos_all string [] & info [] ~docv:"TOPIC" ~doc:"job ids")
+
+
 module ShowJob = struct
   type t = {
       rcfile : string option ; [@env "QISKITRC"]
@@ -108,7 +111,7 @@ module ShowJob = struct
       debug : bool ;
       (** turn on all debugging & logging *)
 
-      job_id : string ;
+      job_ids : string list ; [@term string_list_term]
       (** job id to show *)
 
       verbose : bool ;
@@ -135,8 +138,9 @@ module ShowJob = struct
     )
 
   let do_show_job p =
-    let { rcfile ; key ; debug ; job_id ; verbose } = p in
+    let { rcfile ; key ; debug ; job_ids ; verbose } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
+    List.iter (fun job_id ->
     if verbose then
       let j = Job.get_job job_id session in
       display_response JobStatus.to_yojson j
@@ -148,6 +152,7 @@ module ShowJob = struct
       | Result.Error apierror ->
          print_string "APIError: " ;
          apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+      ) job_ids
 
   let cmd =
     let term = Cmdliner.Term.(const do_show_job $ cmdliner_term ()) in
