@@ -28,6 +28,7 @@ module Credentials = struct
 
     type t = {
         token : string ;
+        diary : string option ;
         url : string ;
         hub : string option ;
         group : string option ;
@@ -44,8 +45,8 @@ module Credentials = struct
       with Invalid_element _ ->
         None
 
-    let mk ~url ?(hub=None) ?(group=None) ?(project=None) ~verify ~token =
-      { token ; url ; hub ; group ; project ; verify }
+    let mk ~url ?(hub=None) ?(group=None) ?(project=None) ~verify ?(diary=None) ~token =
+      { token ; url ; hub ; group ; project ; verify ; diary }
 
     let mk_from_ini ini sect =
       let url =
@@ -65,7 +66,8 @@ module Credentials = struct
         match get ini sect "token" with
         | None -> failwith (Printf.sprintf "invalid ini file section %s (no token attribute)" sect)
         | Some s -> s in
-      mk ~token ~url ~hub ~group ~project ~verify
+      let diary = get ini sect "diary" in
+      mk ~token ~url ~hub ~group ~project ~verify ~diary
 
   end
 
@@ -155,7 +157,44 @@ type t = {
     key : string ;
     account : Credentials.Single.t ;
     mutable token : token_t option ;
+    mutable diary : (string, string) LM.t ;
   }
+
+module Diary = struct
+  type t = (string * string) list [@@deriving yojson, sexp]
+
+  let load session =
+    match (session.account.Credentials.Single.diary) with
+      Some s ->
+       if Sys.file_exists s then
+         s
+         |> Yojson.Safe.from_file
+         |> of_yojson
+         |> error_to_failure ~msg:"QC_diary.of_yojson"
+       else []
+    | None ->
+       []
+
+  let dump session diary =
+    match diary, (session.account.Credentials.Single.diary) with
+    | [], None -> ()
+    | _::_, None ->
+       Exc.die "no diary-file specified in qiskitrc, but we need to write one"
+    | _, Some fname ->
+       diary
+       |> to_yojson
+       |> Yojson.Safe.to_file fname
+
+end
+
+let update_diary sess user_key job_id =
+  (
+    if LM.in_dom sess.diary user_key then
+      sess.diary <- LM.remap sess.diary user_key job_id
+    else
+      sess.diary <- LM.add sess.diary (user_key, job_id) ;
+  ) ;
+  Diary.dump sess sess.diary
 
 let mk ?key accounts =
   if MLM.size accounts = 0 then
@@ -166,11 +205,15 @@ let mk ?key accounts =
     | None when MLM.size accounts = 1 -> List.hd (MLM.dom accounts)
     | _ -> failwith "Session.mk: msut supply key into inifile" in
   let account = MLM.map accounts key in
-  {
-     key ;
-    account ;
-    token = None ;
-  }
+  let sess = {
+      key ;
+      account ;
+      token = None ;
+      diary = LM.mk () ;
+    } in
+  let diary = Diary.load sess in
+  sess.diary <- diary ;
+  sess
 
 let obtain_token session =
   let url = session.account.Credentials.Single.url ^ "/users/loginWithToken" in
@@ -328,7 +371,7 @@ let cancel_job id_job session =
     CancelResult.of_yojson
     (fun () -> RPC.post_object ~headers ~body:"" [("access_token", token)] url)
 
-let submit_job backend_name qobj session =
+let submit_job backend_name qobj ?(user_key=None) session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
   let token = Session.access_token session in
   let headers = [
@@ -342,8 +385,17 @@ let submit_job backend_name qobj session =
     job
     |> IBMJob.to_yojson
     |> Yojson.Safe.to_string in
-  handle_response ~rpcname:"Job.submit_job" ~typename:"JobStatus"
-    JobStatus.of_yojson
-    (fun () -> RPC.post_object ~headers ~body:job_s [("access_token", token)] url)
+  let rv =
+    handle_response ~rpcname:"Job.submit_job" ~typename:"JobStatus"
+      JobStatus.of_yojson
+      (fun () -> RPC.post_object ~headers ~body:job_s [("access_token", token)] url) in
+  (
+    match user_key, rv with
+      (Some user_key), Result.Ok status ->
+       let job_id = status.JobStatus.id in
+       let diary = session.Session.diary in
+       Session.update_diary session user_key job_id
+  ) ;
+  rv
 
 end

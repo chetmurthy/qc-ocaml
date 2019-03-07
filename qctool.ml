@@ -140,17 +140,21 @@ module ShowJob = struct
     let { rcfile ; key ; debug ; job_ids ; verbose } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
     List.iter (fun job_id ->
-    if verbose then
-      let j = Job.get_job job_id session in
-      display_response JobStatus.to_yojson j
-    else
-      let j = Job.get_status_job job_id session in
-      match j with
-      | Result.Ok st ->
-         print_short_job_status st
-      | Result.Error apierror ->
-         print_string "APIError: " ;
-         apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+        let job_id =
+          if LM.in_dom session.Session.diary job_id then
+            LM.map session.Session.diary job_id
+          else job_id in
+        if verbose then
+          let j = Job.get_job job_id session in
+          display_response JobStatus.to_yojson j
+        else
+          let j = Job.get_status_job job_id session in
+          match j with
+          | Result.Ok st ->
+             print_short_job_status st
+          | Result.Error apierror ->
+             print_string "APIError: " ;
+             apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout
       ) job_ids
 
   let cmd =
@@ -181,6 +185,10 @@ module MonitorJob = struct
   let do_monitor_job p =
     let { rcfile ; key ; debug ; job_id ; visual } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
+    let job_id =
+      if LM.in_dom session.Session.diary job_id then
+        LM.map session.Session.diary job_id
+      else job_id in
     let rec monrec cnt =
       let j = Job.get_status_job job_id session in
     match j with
@@ -225,6 +233,10 @@ module ShowResult = struct
     let { rcfile ; key ; debug ; job_ids } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
     List.iter (fun job_id ->
+        let job_id =
+          if LM.in_dom session.Session.diary job_id then
+            LM.map session.Session.diary job_id
+          else job_id in
         let rsp = Job.get_job job_id session in
         match rsp with
         | Result.Ok st -> (
@@ -265,6 +277,10 @@ module CancelJob = struct
     let { rcfile ; key ; debug ; job_ids } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
     List.iter (fun job_id ->
+        let job_id =
+          if LM.in_dom session.Session.diary job_id then
+            LM.map session.Session.diary job_id
+          else job_id in
         let j = Job.cancel_job job_id session in
         display_response CancelResult.to_yojson j
       ) job_ids
@@ -295,6 +311,9 @@ module SubmitJob = struct
       backend : string ;
       (** the backend to submit to *)
 
+      user_key : (string option [@default None]) ;
+      (** optional key the user can supply to be stored in diary *)
+
       shots : int ; [@default 1024]
       (** number of shots *)
 
@@ -306,7 +325,8 @@ module SubmitJob = struct
     } [@@deriving cmdliner,show]
 
   let do_submit_job p =
-    let { rcfile ; key ; debug ; backend ; qasmfile ; name ; shots ; max_credits ; include_path } = p in
+    let { rcfile ; key ; debug ; backend ; qasmfile ; name ; shots ;
+          max_credits ; include_path ; user_key } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
 
     let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
@@ -314,7 +334,7 @@ module SubmitJob = struct
                                       ~shots ~max_credits
                                       ~memory:false [name, envs, dag] in
 
-    let status = Job.submit_job backend qobj session in
+    let status = Job.submit_job backend qobj ~user_key:user_key session in
     display_response JobStatus.to_yojson status
 
   let cmd =
