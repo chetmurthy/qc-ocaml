@@ -190,8 +190,9 @@ module MonitorJob = struct
       let statuses =
         List.map (fun job_id ->
             Job.get_status_job job_id session) job_ids in
-      ignore (Sys.command "tput clear") ;
-      ignore (Sys.command "tput cup 0 0") ;
+      if visual then (
+        ignore (Sys.command "tput clear") ;
+        ignore (Sys.command "tput cup 0 0")) ;
       List.iter (fun j ->
           match j with
           | Result.Ok st ->
@@ -246,7 +247,8 @@ module ShowResult = struct
           match st.JobStatus.qObjectResult with
           | None -> Printf.printf "No results yet\n"
           | Some r ->
-             r |> QObjResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+             r |> QObjResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
+             print_newline () 
         )
         | Result.Error apierror ->
            print_string "APIError: " ;

@@ -29,12 +29,12 @@ There are two ways to use `qc-ocaml`: either with the commandline tool
 cover the command-line tool only.  The tool has built-in "help", e.g.
 
 ....
-qctool --help
+$  qctool --help
 ....
 
 or help for a subcommand (e.g. `submit_job`)
 ....
-qctool submit_job --help
+$ qctool submit_job --help
 ....
 
 The documentation is pretty sparse, but it's a mere matter of adding text to improve this.
@@ -45,10 +45,32 @@ This logging needs to be increased/improvd.
 
 == Running thru a scenario
 
-1. Submit a Job
+1. Verify that your environment has proper credentials
+
+Invoking the tool with no arguments will obtain an access token and do
+nothing more.  This suffices to verify your credentials.
 
 ....
-qctool submit_job --debug --backend ibmq_16_melbourne -I testdata/ --name Bell3 \
+$ ./qctool
+key: ibmq
+url: https://quantumexperience.ng.bluemix.net/api/Backends/v/1
+access_token: hTV3hP9GEdxZrsD1XApx3uMvdlPGYplkQhhp2G3QBJAE7d9Xas3Kz4qNGWdcPwSx
+....
+
+Every subcommand also takes `--rcfile` and `--key` arguments, which
+allow to select the location of the `.qiskitrc` file, and the stanza
+within it (e.g. `ibmq`) used for authentication.  Also, environment
+variables are available (resp. `QISKITRC` and `QISKIT_IDENTITY`) for
+these same.
+
+2. Submit a Job
+
+We'll submit a version of the "Bell" circuit, and will specify a "user
+key" of "Bell3", which will get stashed in the local diary, so we can
+use that name further below.
+
+....
+$ qctool submit_job --debug --backend ibmq_16_melbourne -I testdata/ --name Bell3 \
        --user-key Bell3 --qasmfile testdata/extracted-unit-tests/Bell3/3-optimized-ibmq_16_melbourne.qasm
 ....
 
@@ -66,4 +88,109 @@ The tool will respond with the "job status" as returned from the backend:
       "memory_slots": 2,
       "n_qubits": 14,
 ...
+  "deleted": false,
+  "id": "5c81ae5f0d0ab500588b471e",
+  "userId": "5c7773071c6030005246cf46",
+  "infoQueue": { "status": "PENDING_IN_QUEUE", "position": 16 }
+}
+....
+
+3. Show the job's status (tersely)
+
+....
+$ ./qctool show_job Bell3 5c81ae5f0d0ab500588b471e
+5c81ae5f0d0ab500588b471e [aka "Bell3"]: RUNNING
+        q-object @ 2019-03-07T23:50:55.487Z
+        [ PENDING_IN_QUEUE position 15 ]
+5c81ae5f0d0ab500588b471e [aka "Bell3"]: RUNNING
+        q-object @ 2019-03-07T23:50:55.487Z
+        [ PENDING_IN_QUEUE position 15 ]
+....
+
+Notice that _either the user-key or the job_id_ works, and also that
+we can supply more than one job_id.  This is true of pretty everywhere
+in the command-line tool.
+
+4. Monitor the job's progress
+
+....
+$ ./qctool monitor Bell3 5c81ae5f0d0ab500588b471e
+[0] 5c81ae5f0d0ab500588b471e [aka "Bell3"]: RUNNING
+        q-object @ 2019-03-07T23:50:55.487Z
+        [ PENDING_IN_QUEUE position 15 ]
+[0] 5c81ae5f0d0ab500588b471e [aka "Bell3"]: RUNNING
+        q-object @ 2019-03-07T23:50:55.487Z
+        [ PENDING_IN_QUEUE position 15 ]
+<etc etc, every 10 seconds>
+....
+
+adding `--visual`, e.g.
+....
+$ ./qctool monitor --visual Bell3 5c81ae5f0d0ab500588b471e
+....
+
+will clear the terminal screen between iterations.
+
+5. Cancel a job
+
+....
+$ ./qctool cancel_job Bell3
+{ "cancelled": true }
+....
+
+6. Reap a job's results once complete
+
+When a job has not yet completed, we get:
+
+....
+$ ./qctool result  Bell3
+No results yet
+....
+
+and we get the same for a job that was cancelled.  For a "COMPLETED"
+job, we get (e.g.)
+
+....
+l$ ./qctool result 5c807ce50d0ab500588b443b
+{
+...
+      "data": {
+        "counts": { "0x3": 333, "0x2": 106, "0x1": 116, "0x0": 469 }
+      }
+...
+}
+....
+
+7. Listing Jobs
+
+We can list jobs either tersely or verbosely
+....
+$ ./qctool list_jobs --verbose --backend ibmq_16_melbourne  --status COMPLETED
+5c809da10d0ab500588b448b : COMPLETED
+        q-object @ 2019-03-07T04:27:13.012Z
+5c8084e0798d7800569a4ec4 : COMPLETED
+        q-object @ 2019-03-07T02:41:36.252Z
+5c807ce50d0ab500588b443b : COMPLETED
+        q-object @ 2019-03-07T02:07:33.753Z
+5c804c3d4fdff3005d141fca : COMPLETED
+        q-object @ 2019-03-06T22:39:57.164Z
+5c8032d3f35ca7005609f0d0 : COMPLETED
+        q-object @ 2019-03-06T20:51:31.133Z
+5c7b97380d0ab500588b3752 : COMPLETED
+        q-object @ 2019-03-03T08:58:32.158Z
+5c777ab8b8ff37005173a11a : COMPLETED
+        q-object @ 2019-02-28T06:07:52.067Z
+$ ./qctool list_jobs --backend ibmq_16_melbourne  --status COMPLETED
+5c809da10d0ab500588b448b
+5c8084e0798d7800569a4ec4
+5c807ce50d0ab500588b443b
+5c804c3d4fdff3005d141fca
+5c8032d3f35ca7005609f0d0
+5c7b97380d0ab500588b3752
+5c777ab8b8ff37005173a11a
+....
+
+with the latter being suitable for `xargs`, e.g.
+....
+./qctool list_jobs --backend ibmq_16_melbourne  --status COMPLETED | xargs ./qctool show_job
 ....
