@@ -322,21 +322,25 @@ let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend session =
   |> error_to_failure ~msg:"ShortJobStatus.list_t_of_yojson"
 
 let handle_response ~rpcname ~typename demarsh f =
+  let call = f () in
+  let resp_body = call # get_resp_body () in
   try
-    let call = f () in
-    let resp_body = call # get_resp_body () in
     resp_body
     |> Yojson.Safe.from_string
     |> demarsh
     |> error_to_failure ~msg:(Printf.sprintf "%s.of_yojson" typename)
     |> Rresult.R.ok
   with Nethttp_client.Http_error (code, body) ->
-    Exc.warn (Printf.sprintf "%s: HTTP error code %d, body=%s" rpcname code body) ;
-    body
-    |> Yojson.Safe.from_string
-    |> APIError.of_yojson
-    |> error_to_failure ~msg:(Printf.sprintf "APIError.of_yojson while demarshalling errmsg of %s" rpcname)
-    |> Rresult.R.error 
+        Exc.warn (Printf.sprintf "%s: HTTP error code %d, body=%s" rpcname code body) ;
+        body
+        |> Yojson.Safe.from_string
+        |> APIError.of_yojson
+        |> error_to_failure ~msg:(Printf.sprintf "APIError.of_yojson while demarshalling errmsg of %s" rpcname)
+        |> Rresult.R.error 
+     | Failure msg as exn ->
+        Exc.warn (Printf.sprintf "Failure during demarshalling %s during RPC %s: resp_body was %s"
+                    typename rpcname resp_body) ;
+        raise exn
 
 let get_status_job id_job session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
