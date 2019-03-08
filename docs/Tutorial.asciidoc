@@ -10,7 +10,7 @@ toc::[]
 == Environmental Setup
 
 Make a copy of your `qiskitrc`, putting it wherever you'd like,
-e.g. `~/.qiskit/qiskitrc-qc-ocaml`.  In this `.qiskitrc-qc-ocaml`, add
+e.g. `~/.qiskit/qiskitrc-qc-ocaml`.  In this `qiskitrc-qc-ocaml`, add
 a `diary` entry thus:
 
 ....
@@ -51,14 +51,14 @@ This logging needs to be increased/improvd.
 
 1. Verify that your environment has proper credentials
 
-*IMPORTANT Set your environment variable `QISKITRC` to `~/.qiskit/.qiskitrc-qc-ocaml` so
+*IMPORTANT Set your environment variable `QISKITRC` to `~/.qiskit/qiskitrc-qc-ocaml` so
  that the command-line tool will pick up the identity with the `diary` key.*
 
 Invoking the tool with no arguments will obtain an access token and do
 nothing more.  This suffices to verify your credentials.
 
 ....
-$ QISKITRC=$HOME/.qiskit/qiskitrc-qc-ocaml ./qctool 
+$ QISKITRC=$HOME/.qiskit/qiskitrc-qc-ocaml QISKIT_IDENTITY=qc ./qctool 
 key: qc
 url: https://quantumexperience.ng.bluemix.net/api/Backends/v/1
 access_token: PWGMebT1djegR6cqeGr44CbDo40EAgLzHznIi6l4Rbblo6oqIdcHiC2jzD33tsD1
@@ -67,7 +67,8 @@ access_token: PWGMebT1djegR6cqeGr44CbDo40EAgLzHznIi6l4Rbblo6oqIdcHiC2jzD33tsD1
 or
 
 ....
-$ QISKITRC=$HOME/.qiskit/qiskitrc-qc-ocaml
+$ export QISKITRC=$HOME/.qiskit/qiskitrc-qc-ocaml
+$ export QISKIT_IDENTITY=qc
 $ ./qctool 
 key: qc
 url: https://quantumexperience.ng.bluemix.net/api/Backends/v/1
@@ -75,10 +76,18 @@ access_token: PWGMebT1djegR6cqeGr44CbDo40EAgLzHznIi6l4Rbblo6oqIdcHiC2jzD33tsD1
 ....
 
 Every subcommand also takes `--rcfile` and `--key` arguments, which
-allow to select the location of the `.qiskitrc` file, and the stanza
-within it (e.g. `ibmq`) used for authentication.  Also, environment
+allow to select the location of the `qiskitrc` file, and the stanza
+within it (e.g. `qc`) used for authentication.  Also, environment
 variables are available (resp. `QISKITRC` and `QISKIT_IDENTITY`) for
 these same.
+
+....
+$ qctool --rcfile=~/.qiskit/qiskitrc-qc-ocaml --key=qc 
+key: qc
+url: https://quantumexperience.ng.bluemix.net/api/Backends/v/1
+access_token: PWGMebT1djegR6cqeGr44CbDo40EAgLzHznIi6l4Rbblo6oqIdcHiC2jzD33tsD1
+....
+
 
 2. Submit a Job
 
