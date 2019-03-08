@@ -377,12 +377,8 @@ module ListJobs = struct
       | None -> []
       | Some s -> ["status", s] in
     let l = Job.get_status_jobs ~filter ~backend session in
-
     if verbose then
-      List.iter ShortJobStatus.(fun { kind ; status ; creationDate ; id } ->
-      let kind = match kind with None -> "<none>" | Some s -> s in
-      Printf.printf "%s : %s\n\t%s @ %s\n" id status kind creationDate
-        ) l
+      List.iter (ShowJob.print_short_job_status ~session) l
     else
       List.iter ShortJobStatus.(fun { id } ->
       Printf.printf "%s\n" id
