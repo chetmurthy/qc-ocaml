@@ -65,17 +65,18 @@ This logging needs to be increased/improvd.
 
 2. Submit a Job
 
-We'll submit a version of the "Bell" circuit, and will specify a "user
-key" of "Bell3", which will get stashed in the local diary, so we can
-use that name further below.
+   We'll submit a version of the "Bell" circuit, and will specify a
+   "user key" of "Bell3", which will get stashed in the local diary,
+   so we can use that name further below.
 
-....
-$ qctool submit_job --debug --backend ibmq_16_melbourne -I testdata/ --name Bell3 \
-       --user-key Bell3 --qasmfile testdata/extracted-unit-tests/Bell3/3-optimized-ibmq_16_melbourne.qasm
-....
+   ....
+   $ qctool submit_job --debug --backend ibmq_16_melbourne -I testdata/ --name Bell3 \
+         --user-key Bell3 --qasmfile testdata/extracted-unit-tests/Bell3/3-optimized-ibmq_16_melbourne.qasm
+   ....
 
-The tool will respond with the "job status" as returned from the backend:
-....
+   The tool will respond with the "job status" as returned from the backend:
+
+   ....
   "qasms": [
     {
       "status": "WORKING_IN_PROGRESS",
@@ -93,7 +94,7 @@ The tool will respond with the "job status" as returned from the backend:
   "userId": "5c7773071c6030005246cf46",
   "infoQueue": { "status": "PENDING_IN_QUEUE", "position": 16 }
 }
-....
+     ....
 
 3. Show the job's status (tersely)
 
