@@ -61,10 +61,20 @@ Invoking the tool with no arguments will obtain an access token and do
 nothing more.  This suffices to verify your credentials.
 
 ....
-$ ./qctool
-key: ibmq
+$ QISKIT_IDENTITY=qc ./qctool 
+key: qc
 url: https://quantumexperience.ng.bluemix.net/api/Backends/v/1
-access_token: hTV3hP9GEdxZrsD1XApx3uMvdlPGYplkQhhp2G3QBJAE7d9Xas3Kz4qNGWdcPwSx
+access_token: PWGMebT1djegR6cqeGr44CbDo40EAgLzHznIi6l4Rbblo6oqIdcHiC2jzD33tsD1
+....
+
+or
+
+....
+$ export QISKIT_IDENTITY=qc
+$ ./qctool 
+key: qc
+url: https://quantumexperience.ng.bluemix.net/api/Backends/v/1
+access_token: PWGMebT1djegR6cqeGr44CbDo40EAgLzHznIi6l4Rbblo6oqIdcHiC2jzD33tsD1
 ....
 
 Every subcommand also takes `--rcfile` and `--key` arguments, which

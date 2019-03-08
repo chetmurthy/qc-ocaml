@@ -11,7 +11,7 @@ module Login = struct
       rcfile : string option ; [@env "QISKITRC"]
       (** specify rcfile location *)
 
-      key : string option ;
+      key : string option ; [@env "QISKIT_IDENTITY"]
       (** specify section in rcfile *)
 
       debug : bool ;
