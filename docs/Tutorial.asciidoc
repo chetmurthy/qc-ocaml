@@ -9,25 +9,22 @@ toc::[]
 
 == Environmental Setup
 
-Ensure you have a `qiskitrc`, and by preference in the standard
-location `~/.qiskit/qiskitrc`.  In this `.qiskitrc`, duplicate your
-entry thus:
+Make a copy of your `qiskitrc`, putting it wherever you'd like,
+e.g. `~/.qiskit/qiskitrc-qc-ocaml`.  In this `.qiskitrc-qc-ocaml`, add
+a `diary` entry thus:
 
 ....
 [ibmq]
 token = <token>
 url = https://quantumexperience.ng.bluemix.net/api
 verify = True
-
-[qc]
-token = <token>
-url = https://quantumexperience.ng.bluemix.net/api
-verify = True
 diary = /home/chet/.qiskit/diary
 ....
 
-Notice that the second section has a `diary` key added -- this will
-enhance your experience below.
+Notice the `diary` key -- this will enhance your experience below.  We
+need to make a new `qiskitrc-qc-ocaml` file because the `diary` key in
+the file would cause Python Qiskit to reject the file and fail.  So
+copying the file ensures that we don't break your Python installation.
 
 == General considerations for the tooling
 
@@ -54,14 +51,14 @@ This logging needs to be increased/improvd.
 
 1. Verify that your environment has proper credentials
 
-*IMPORTANT Set your environment variable `QISKIT_IDENTITY` to `qc` so
+*IMPORTANT Set your environment variable `QISKITRC` to `~/.qiskit/.qiskitrc-qc-ocaml` so
  that the command-line tool will pick up the identity with the `diary` key.*
 
 Invoking the tool with no arguments will obtain an access token and do
 nothing more.  This suffices to verify your credentials.
 
 ....
-$ QISKIT_IDENTITY=qc ./qctool 
+$ QISKITRC=$HOME/.qiskit/qiskitrc-qc-ocaml ./qctool 
 key: qc
 url: https://quantumexperience.ng.bluemix.net/api/Backends/v/1
 access_token: PWGMebT1djegR6cqeGr44CbDo40EAgLzHznIi6l4Rbblo6oqIdcHiC2jzD33tsD1
@@ -70,7 +67,7 @@ access_token: PWGMebT1djegR6cqeGr44CbDo40EAgLzHznIi6l4Rbblo6oqIdcHiC2jzD33tsD1
 or
 
 ....
-$ export QISKIT_IDENTITY=qc
+$ QISKITRC=$HOME/.qiskit/qiskitrc-qc-ocaml
 $ ./qctool 
 key: qc
 url: https://quantumexperience.ng.bluemix.net/api/Backends/v/1
