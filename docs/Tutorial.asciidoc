@@ -111,7 +111,7 @@ Notice that _either the user-key or the job_id_ works, and also that
 we can supply more than one job_id.  This is true of pretty everywhere
 in the command-line tool.
 
-4. Monitor the job's progress
+4. Monitor the job's progress (we're specifying the same job twice only for didactic purposes)
 
 ....
 $ ./qctool monitor Bell3 5c81ae5f0d0ab500588b471e
