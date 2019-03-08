@@ -163,9 +163,15 @@ type t = {
 module Diary = struct
   type t = (string * string) list [@@deriving yojson, sexp]
 
+  let glob_expand s =
+    if starts_with ~pat:"~/" s then
+      (Sys.getenv "HOME") ^ "/" ^ (String.sub s 2 (String.length s - 2))
+    else s
+
   let load session =
     match (session.account.Credentials.Single.diary) with
       Some s ->
+       let s = glob_expand s in
        if Sys.file_exists s then
          s
          |> Yojson.Safe.from_file
@@ -181,6 +187,7 @@ module Diary = struct
     | _::_, None ->
        Exc.die "no diary-file specified in qiskitrc, but we need to write one"
     | _, Some fname ->
+       let fname = glob_expand fname in
        diary
        |> to_yojson
        |> Yojson.Safe.to_file fname
