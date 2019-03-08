@@ -143,7 +143,7 @@ $ ./qctool cancel_job Bell3
 When a job has not yet completed, we get:
 
 ....
-$ ./qctool result  Bell3
+$ ./qctool result Bell3
 No results yet
 ....
 
