@@ -130,7 +130,11 @@ module ShowJob = struct
     let kind = match kind with None -> "<none>" | Some s -> s in
     Printf.printf "%s: %s\n\t%s @ %s\n" id_toprint status kind creationDate ;
     do_option (fun i ->
-        InfoQueue.(Printf.printf "\t[ %s position %d ]\n" i.status i.position))
+        InfoQueue.(Printf.printf "\t[ %s%s ]\n" i.status 
+                     (match i.position with
+                      | None -> ""
+                      | Some n ->
+                         Printf.sprintf " %d" n)))
       st.ShortJobStatus.infoQueue
 
   let do_show_job p =

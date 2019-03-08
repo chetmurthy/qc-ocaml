@@ -170,7 +170,7 @@ end
 module InfoQueue = struct
   type t = {
       status: string ;
-      position: int ;
+      position: (int option [@default None]) ;
     } [@@deriving yojson]
 end
 
