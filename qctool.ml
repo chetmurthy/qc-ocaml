@@ -186,30 +186,36 @@ module MonitorJob = struct
           if LM.in_dom session.Session.diary job_id then
             LM.map session.Session.diary job_id
           else job_id) job_ids in
-    let rec monrec cnt =
+    let rec monrec job_ids cnt =
+      let job_ids = List.sort Pervasives.compare job_ids in
       let statuses =
         List.map (fun job_id ->
-            Job.get_status_job job_id session) job_ids in
+            (job_id, Job.get_status_job job_id session)) job_ids in
       if visual then (
         ignore (Sys.command "tput clear") ;
         ignore (Sys.command "tput cup 0 0")) ;
-      List.iter (fun j ->
-          match j with
-          | Result.Ok st ->
-             if st.ShortJobStatus.status = "RUNNING" then (
-               Printf.printf "[%d] " cnt ;
-               ShowJob.print_short_job_status ~session st)
-             else ()
-          | Result.Error apierror ->
-             print_string "APIError: " ;
-             apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
-             ()
-        ) statuses ;
+      let job_ids =
+        List.fold_left (fun acc (job_id, j) ->
+            match j with
+            | Result.Ok st ->
+               if st.ShortJobStatus.status = "RUNNING" then (
+                 Printf.printf "[%d] " cnt ;
+                 ShowJob.print_short_job_status ~session st ;
+                 job_id::acc
+               )
+               else acc
+            | Result.Error apierror ->
+               print_string "APIError: " ;
+               apierror |> APIError.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
+               job_id::acc
+          ) [] statuses in
       flush stdout ;
-      Unix.sleep 10 ;
-      monrec (cnt+1)
+      if [] = job_ids then () else (
+        Unix.sleep 10 ;
+        monrec job_ids (cnt+1)
+      )
     in
-    monrec 0
+    monrec job_ids 0
 
   let cmd =
     let term = Cmdliner.Term.(const do_monitor_job $ cmdliner_term ()) in
