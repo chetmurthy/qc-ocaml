@@ -202,10 +202,27 @@ It isn't.
 
 # Errors from the backend need to be cleaned up and documented
 
-I've seen cases where application errors (a job that had been in the
-queue, but was no longer) got reflected as an authentication error,
-instead of an application error.
+Here's an example I found this morning.  The RPC is
+properly-authenticated (if I supply a proper job-id, it works fine),
+but supplying a bad job-id yields an ostensible authorization error:
+
+....
+>>> backend._api.get_job('argle')
+... lots of output later ...
+WARNING:qiskit.providers.ibmq.api.ibmqconnector:Got a 401 code response to /api/Jobs/argle: {"error":{"name":"Error","status":401,"message":"Authorization Required","statusCode":401,"code":"AUTHORIZATION_REQUIRED"}}
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/chet/Hack/QASM/src/qiskit-terra/qiskit/providers/ibmq/api/ibmqconnector.py", line 606, in get_job
+    job = self.req.get(url)
+  File "/home/chet/Hack/QASM/src/qiskit-terra/qiskit/providers/ibmq/api/ibmqconnector.py", line 365, in get
+    if self._response_good(response):
+  File "/home/chet/Hack/QASM/src/qiskit-terra/qiskit/providers/ibmq/api/ibmqconnector.py", line 414, in _response_good
+    response.text))
+qiskit.providers.ibmq.api.ibmqconnector.ApiError: Got a 401 code response to /api/Jobs/argle: {"error":{"name":"Error","status":401,"message":"Authorization Required","statusCode":401,"code":"AUTHORIZATION_REQUIRED"}}
+>>> backend._api.get_job('argle')
+....
 
 # Optional fields are useful in certain cases
 
-This may not be one of them.
+This may not be one of them.  Or at least, there are far too many
+optional fields whose values should be specified by invokers.
