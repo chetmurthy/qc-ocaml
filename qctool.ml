@@ -2,6 +2,7 @@ open Coll
 open Misc_functions
 open Qc_environment
 open Qrpc_types
+open Qobj_types
 open Qrpc_api
 open Qasm_io
 open Qobj_compile
@@ -237,10 +238,42 @@ module ShowResult = struct
       job_ids : string list ; [@term string_list_term]
       (** job id to show *)
 
+      verbose : bool ;
+      (** print job verbosely (or succinctly) *)
+
     } [@@deriving cmdliner,show]
 
+  let cleanup_key width k =
+    let n = int_of_string k in
+    let bits = Bytes.make width '0' in
+    for i = 0 to (width - 1) do
+      if n land (1 lsl i) <> 0 then
+        Bytes.set bits (width - i - 1) '1' ;
+    done ;
+    "0b"^(Bytes.to_string bits)
+
+  let width l =
+    let wbits = List.fold_left (lor) 0 l in
+    let rec wrec n =
+      if ((1 lsl n) -1) >= wbits then n
+      else wrec (n+1)
+      in wrec 1
+
+let cleanup_counts l =
+  let width = width (List.map (fun (k,_) -> int_of_string k) l) in
+  List.map (fun (k, j) -> (cleanup_key width k, j)) l
+
+  let cleanup_data_t d =
+    ResultObj.{
+        d with
+        counts =
+          match d.counts with
+          | Some (`Assoc l) -> Some(`Assoc (cleanup_counts l))
+          | d -> d
+    }
+
   let do_result p =
-    let { rcfile ; key ; debug ; job_ids } = p in
+    let { rcfile ; key ; debug ; job_ids ; verbose } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
     List.iter (fun job_id ->
         let job_id =
@@ -253,7 +286,19 @@ module ShowResult = struct
           match st.JobStatus.qObjectResult with
           | None -> Printf.printf "No results yet\n"
           | Some r ->
-             r |> QObjResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
+             if verbose then
+               r |> QObjResult.to_yojson |> Yojson.Safe.pretty_to_channel stdout
+             else
+               List.iter (fun res ->
+                   let name = match res.ResultObj.header.Experiment.name with
+                     | None -> "<no name>"
+                     | Some s -> s in
+                   Printf.printf "%s:\n\t" name ;
+                   res.ResultObj.data
+                   |> cleanup_data_t
+                   |> ResultObj.data_t_to_yojson
+                   |> Yojson.Safe.pretty_to_channel stdout
+                 ) r.QObjResult.results ;
              print_newline () 
         )
         | Result.Error apierror ->
