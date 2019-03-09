@@ -124,13 +124,15 @@ sorts of things!
 [Why preferably Thrift?  Because GRPC has significant limitations.
 The simplest to explain is that all fields in protobuf 3.0 are
 "required with a predefined default", which doesn't map at all to what
-one would want in any nontrivially complex RPC type system.
+one would want in any nontrivially complex RPC type system.  Consider
+that any data-structure sent via RPC could have any sub-field missing
+(hence replaced by 0/"", and it would be up to the receiver to check
+in detail for this condition.  Since the receiver cannot distinguish
+between "the sender sent zero" and "the sender sent nothing", it's
+difficult (maybe impossible?) to make this check!
 
-Amusingly, Google describes it as "all fields are optional".  But
-that's not really true, b/c with an optional field, one could
-ascertain that it was not present; whereas with GRPC, all fields are
-present, and if the sender did not specify a value, it gets the
-default (which is zero/""/initialized-to-zero-struct).]
+Amusingly, Google describes it as "all fields are optional".  Which is
+proof that even Google has excellent marketing.]
 
 
 # Python is the wrong language for a nontrivial compiler
