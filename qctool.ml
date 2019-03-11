@@ -6,6 +6,10 @@ open Qobj_types
 open Qrpc_api
 open Qasm_io
 open Qobj_compile
+open Qasmsyntax
+open Qasmpp
+open Qasmdag0
+open Qasm_passes
 
 module Login = struct
   type t = {
@@ -351,6 +355,36 @@ module CancelJob = struct
     (term, info)
 end
 
+module Unroll = struct
+  type t = {
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      qasmfile : string ;
+      (** qasmfile to submit *)
+
+      include_path : string list ; [@default []] [@sep ':'] [@aka ["I"]]
+      (** path for finding included QASM files *)
+
+      only_gates : string list ; [@sep ',']
+      (** which gates to unroll *)
+
+    } [@@deriving cmdliner,show]
+
+  let do_unroll p =
+    let { debug ; qasmfile ; include_path ; only_gates } = p in
+    let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
+    let dag = Unroll.execute ~only:only_gates envs dag in
+    let pl = DAG.to_ast envs dag in  
+    print_string (Misc_functions.pp (ASTPP.program ~skip_qelib:true) pl)
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_unroll $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "unroll" in
+    (term, info)
+end
+
 module SubmitJob = struct
   type t = {
       rcfile : string option ; [@env "QISKITRC"]
@@ -457,5 +491,6 @@ let _ =
                                ShowJob.cmd;
                                ShowResult.cmd;
                                SubmitJob.cmd;
+                               Unroll.cmd;
     ])
 ;;
