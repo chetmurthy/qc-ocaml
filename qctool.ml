@@ -385,6 +385,31 @@ module Unroll = struct
     (term, info)
 end
 
+module Dot = struct
+  type t = {
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      qasmfile : string ;
+      (** qasmfile to submit *)
+
+      include_path : string list ; [@default []] [@sep ':'] [@aka ["I"]]
+      (** path for finding included QASM files *)
+
+    } [@@deriving cmdliner,show]
+
+  let do_dot p =
+    let { debug ; qasmfile ; include_path } = p in
+    let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
+    Odot.print stdout (DAG.dot ~terse:true dag)
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_dot $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "dot" in
+    (term, info)
+end
+
 module SubmitJob = struct
   type t = {
       rcfile : string option ; [@env "QISKITRC"]
@@ -485,6 +510,7 @@ let _ =
     Cmdliner.Term.(exit @@ eval_choice (Login.cmd "qctool") [
                                AvailableBackends.cmd;
                                CancelJob.cmd;
+                               Dot.cmd;
                                ListJobs.cmd;
                                Login.cmd "login";
                                MonitorJob.cmd;
