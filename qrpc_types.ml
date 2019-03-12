@@ -194,6 +194,14 @@ module JobState = struct
     } [@@deriving yojson]
 end
 
+module Calibration = struct
+  type t = {
+      id : string ;
+      version : string ;
+    } [@@deriving yojson]
+end
+
+
 module JobStatus = struct
 
   type t = {
@@ -208,10 +216,13 @@ module JobStatus = struct
       usedCredits : int ;
       creationDate : string ;
       deleted : bool ;
+      endDate : (string option [@defaule None]) ;
+      totalTimeDevice : (float option [@default None]) ;
       ip : (IPInfo.t option [@default None]) ;
       id : string ;
       userId : string ;
       infoQueue : (InfoQueue.t option [@default None]) ;
+      calibration : (Calibration.t option [@default None]) ;
     } [@@deriving yojson]
 
   type list_t = t list [@@deriving yojson]
