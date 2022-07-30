@@ -325,7 +325,7 @@ module TYCHK = struct
       }
 
     let equal e1 e2 =
-      let canon x = List.sort Pervasives.compare x in
+      let canon x = List.sort Stdlib.compare x in
       (e1.gates |> LM.toList |> canon) = (e2.gates |> LM.toList |> canon) &&
       (e1.qregs |> LM.toList |> canon) = (e2.qregs |> LM.toList |> canon) &&
       (e1.cregs |> LM.toList |> canon) = (e2.cregs |> LM.toList |> canon)

@@ -30,7 +30,7 @@ module DAG = struct
 (* representation of a node -- must be hashable *)
 module Node = struct
    type t = int
-   let compare (v1: t) (v2: t) = Pervasives.compare v1 v2
+   let compare (v1: t) (v2: t) = Stdlib.compare v1 v2
    let hash = Hashtbl.hash
    let equal = (=)
 end
@@ -47,7 +47,7 @@ let bit_to_string = function
 module Edge = struct
    type t = bit_t
 
-   let compare = Pervasives.compare
+   let compare = Stdlib.compare
    let equal = (=)
    let default = Q(AST.QREG "", -1)
 end
@@ -168,7 +168,7 @@ module Dot = Graph.Graphviz.Dot(struct
      >]
 
   let pp_dag dag =
-    let canon x = List.sort Pervasives.compare x in
+    let canon x = List.sort Stdlib.compare x in
 
     [< 'Printf.sprintf "nextid: %d\n" dag.nextid ;
      '"node_info:\n" ;
@@ -178,7 +178,7 @@ module Dot = Graph.Graphviz.Dot(struct
      >]
 
   let pp_half_edges name m =
-    let canon x = List.sort Pervasives.compare x in
+    let canon x = List.sort Stdlib.compare x in
     let l = m |> LM.toList |> canon in
     if l = [] then [< >]
     else [< 'name ; '":\n" ;
@@ -415,7 +415,7 @@ let generate_qubit_instances envs l =
        add_node odag stmt bits
 
   let close_frontier_1 odag edgelabel =
-    let canon x = List.sort Pervasives.compare x in
+    let canon x = List.sort Stdlib.compare x in
     assert (canon (LM.dom odag.frontier) = canon (LM.dom odag.target)) ;
     let src = LM.map odag.frontier edgelabel in
     let dst = LM.map odag.target edgelabel in
@@ -449,8 +449,8 @@ let generate_qubit_instances envs l =
       LM.fold (fun acc (id, dim) ->
           (interval 0 (dim-1))
           |> List.fold_left (fun acc i -> (C(AST.CREG id, i))::acc) acc) [] envs.TYCHK.Env.cregs in
-    let qubits = List.sort Pervasives.compare qubits in
-    let clbits = List.sort Pervasives.compare clbits in
+    let qubits = List.sort Stdlib.compare qubits in
+    let clbits = List.sort Stdlib.compare clbits in
 
     let odag = List.fold_left add_bit odag (qubits@clbits) in
 
@@ -515,7 +515,7 @@ let generate_qubit_instances envs l =
   let compare dag a b =
     let a_info = LM.map dag.node_info a in
     let b_info = LM.map dag.node_info b in
-    Pervasives.compare (a_info, a) (b_info, b)
+    Stdlib.compare (a_info, a) (b_info, b)
 
   let tsort dag =
     []
@@ -523,7 +523,7 @@ let generate_qubit_instances envs l =
     |> List.rev
 
   let to_ast envs dag =
-    let canon x = List.sort Pervasives.compare x in
+    let canon x = List.sort Stdlib.compare x in
     let open TYCHK in
     let nodel = tsort dag in
     let stmts =

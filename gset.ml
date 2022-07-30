@@ -100,7 +100,7 @@
         Empty ->
           (Empty, None, Empty)
       | Node(l, v, r, _) ->
-          let c = Pervasives.compare x v in
+          let c = Stdlib.compare x v in
           if c = 0 then (l, Some v, r)
           else if c < 0 then
             let (ll, vl, rl) = split x l in (ll, vl, join rl v r)
@@ -116,13 +116,13 @@
     let rec mem x = function
         Empty -> false
       | Node(l, v, r, _) ->
-          let c = Pervasives.compare x v in
+          let c = Stdlib.compare x v in
           c = 0 || mem x (if c < 0 then l else r)
 
     let rec add x = function
         Empty -> Node(Empty, x, Empty, 1)
       | Node(l, v, r, _) as t ->
-          let c = Pervasives.compare x v in
+          let c = Stdlib.compare x v in
           if c = 0 then t else
           if c < 0 then bal (add x l) v r else bal l v (add x r)
 
@@ -131,7 +131,7 @@
     let rec remove x = function
         Empty -> Empty
       | Node(l, v, r, _) ->
-          let c = Pervasives.compare x v in
+          let c = Stdlib.compare x v in
           if c = 0 then merge l r else
           if c < 0 then bal (remove x l) v r else bal l v (remove x r)
 
@@ -201,7 +201,7 @@
       | _, Empty ->
           false
       | Node (l1, v1, r1, _), (Node (l2, v2, r2, _) as t2) ->
-          let c = Pervasives.compare v1 v2 in
+          let c = Stdlib.compare v1 v2 in
           if c = 0 then
             subset l1 l2 && subset r1 r2
           else if c < 0 then

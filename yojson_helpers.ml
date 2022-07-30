@@ -1,14 +1,14 @@
 open Misc_functions
 
-type user_comparator_t = cmp0:(Yojson.Safe.json -> Yojson.Safe.json -> bool) -> Yojson.Safe.json -> Yojson.Safe.json -> bool
+type user_comparator_t = cmp0:(Yojson.Safe.t -> Yojson.Safe.t -> bool) -> Yojson.Safe.t -> Yojson.Safe.t -> bool
 
 let (default_usercmp : user_comparator_t) = fun ~cmp0 f1 f2 -> false
 
-let rec canon (j : Yojson.Safe.json) =
+let rec canon (j : Yojson.Safe.t) =
   match j with
   | `Assoc l ->
      let l = List.map (fun (k,j) -> (k,canon j)) l in
-     `Assoc (List.sort Pervasives.compare l)
+     `Assoc (List.sort Stdlib.compare l)
      
   | `List l ->
      let l = List.map canon l in
@@ -21,7 +21,7 @@ let rec canon (j : Yojson.Safe.json) =
   | `Variant(s1,j) -> `Variant(s1,map_option canon j)
   | j -> j
 
-let compare ?(explain=false) ?(usercmp=default_usercmp) (j1: Yojson.Safe.json) (j2: Yojson.Safe.json) =
+let compare ?(explain=false) ?(usercmp=default_usercmp) (j1: Yojson.Safe.t) (j2: Yojson.Safe.t) =
 let rec cmprec l1 l2 =
   if usercmp ~cmp0:cmprec0 l1 l2 then true
   else cmprec0  l1  l2

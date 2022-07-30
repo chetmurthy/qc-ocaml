@@ -6,7 +6,7 @@ module Layout = struct
   (* representation of a node -- must be hashable *)
   module Node = struct
     type t = int
-    let compare = Pervasives.compare
+    let compare = Stdlib.compare
     let hash = Hashtbl.hash
     let equal = (=)
   end
@@ -15,7 +15,7 @@ module Layout = struct
   module Edge = struct
     type t = string
 
-    let compare = Pervasives.compare
+    let compare = Stdlib.compare
     let equal = (=)
     let default = ""
   end

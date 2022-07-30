@@ -84,7 +84,7 @@ module Credentials = struct
   let export accts =
     accts
     |> MLM.toList
-    |> List.sort Pervasives.compare
+    |> List.sort Stdlib.compare
 
   let add_new ~key ~url ~token accts =
     let scred = Single.mk ~url ~token in

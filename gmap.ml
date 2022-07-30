@@ -58,7 +58,7 @@
         Empty ->
           Node(Empty, x, data, Empty, 1)
       | Node(l, v, d, r, h) as t ->
-          let c = Pervasives.compare x v in
+          let c = Stdlib.compare x v in
           if c = 0 then
             Node(l, x, data, r, h)
           else if c < 0 then
@@ -70,7 +70,7 @@
         Empty ->
           raise Not_found
       | Node(l, v, d, r, _) ->
-          let c = Pervasives.compare x v in
+          let c = Stdlib.compare x v in
           if c = 0 then d
           else find x (if c < 0 then l else r)
 
@@ -78,7 +78,7 @@
         Empty ->
           false
       | Node(l, v, d, r, _) ->
-          let c = Pervasives.compare x v in
+          let c = Stdlib.compare x v in
           c = 0 || mem x (if c < 0 then l else r)
 
     let rec merge t1 t2 =
@@ -92,7 +92,7 @@
         Empty ->
           Empty
       | Node(l, v, d, r, h) as t ->
-          let c = Pervasives.compare x v in
+          let c = Stdlib.compare x v in
           if c = 0 then
             merge l r
           else if c < 0 then

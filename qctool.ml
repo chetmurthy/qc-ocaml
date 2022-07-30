@@ -76,7 +76,7 @@ module AvailableBackends = struct
     if not verbose then
       l
       |> LM.dom
-      |> List.sort Pervasives.compare
+      |> List.sort Stdlib.compare
       |> String.concat " "
       |> Printf.printf "backends: %s\n"
     else
@@ -196,7 +196,7 @@ module MonitorJob = struct
             LM.map session.Session.diary job_id
           else job_id) job_ids in
     let rec monrec job_ids cnt =
-      let job_ids = List.sort Pervasives.compare job_ids in
+      let job_ids = List.sort Stdlib.compare job_ids in
       let statuses =
         List.map (fun job_id ->
             (job_id, Job.get_status_job job_id session)) job_ids in

@@ -56,10 +56,7 @@ just source the dot.bashrc in $OPAMROOT/dot.bashrc
 
 == Installing Prerequisite Modules
 
-We need a bumch of prerequisite modules, and opam can install all of
-them, *except* for `ocamldot`.  For this one, you'll need to `git
-clone` it and build it yourself.  But it depends on a module that opam
-can install, so it's a little more involved than that.
+We need a bumch of prerequisite modules.
 
 (0) OPTIONAL (for components/setup that _might_ be missing on a bare bones OS, like an AWS basic Ubuntu instance)
 
@@ -79,27 +76,16 @@ can install, so it's a little more involved than that.
 [optional] opam switch create ocaml-base-compiler.$VERSION
 ....
 
-(1) first round of opam installs
+(1) opam installs
 
 ....
-opam install  lablgtk3 ocamlfind
-....
-
-(2) install ocamldot
-
-....
-git clone https://github.com/chetmurthy/ocamldot.git
-(cd ocamldot && ./configure && make && make install)
-....
-
-(3) back to the opam installs
-
-....
-opam install camlp5 camlzip cmdliner conf-gnutls \
+opam install lablgtk3 ocamlfind camlp5 \
+         camlp5 camlzip cmdliner conf-gnutls \
          menhir oasis containers sexplib \
 	 ocamlfind ocamlgraph ocamlnet ocurl ounit ppx_test \
 	 pcre ssl ppx_deriving_yojson yojson ocaml-inifiles \
-	 ppx_deriving_cmdliner rresult uuidm ppx_sexp_conv
+	 ppx_deriving_cmdliner rresult uuidm ppx_sexp_conv \
+	 ocamldot camlp-streams
 ....
 
 == Building QC-Ocaml
