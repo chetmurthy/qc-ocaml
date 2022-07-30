@@ -10,7 +10,7 @@ toc::[]
 == Installing Ocaml
 
 We use `opam` to set up the ocaml environment.  Currently we're based
-on ocaml version 4.07.1.
+on ocaml version 4.14.0.
 
 How to set up your environment for this tool:
 
@@ -30,7 +30,7 @@ brew install opam
 
 for Ubuntu or OSX:
 ....
-export VERSION=4.07.1
+export VERSION=4.14.0
 
 export OPAMROOT=$HOME/Hack/Ocaml/$VERSION
 
@@ -61,19 +61,19 @@ We need a bunch of prerequisite modules.
 (1) OPTIONAL (for components/setup that _might_ be missing on a bare bones OS, like an AWS basic Ubuntu instance)
 
 ....
-[optional] sudo apt install gcc
-[optional] sudo apt install make
-[optional] sudo apt install m4
-[optional] sudo apt install pkg-config
-[optional] sudo apt install libcairo2-dev 
-[optional] sudo apt install libexpat1-dev 
-[optional] sudo apt install libgtk-3-dev
-[optional] sudo apt install camlp5
-[optional] sudo apt install libcurl4-gnutls-dev
-[optional] sudo apt install libgnutls28-dev
-[optional] sudo apt install libssl-dev
-[optional] sudo apt install nettle-dev
-[optional] opam switch create ocaml-base-compiler.$VERSION
+sudo apt install gcc
+sudo apt install make
+sudo apt install m4
+sudo apt install pkg-config
+sudo apt install libcairo2-dev 
+sudo apt install libexpat1-dev 
+sudo apt install libgtk-3-dev
+sudo apt install camlp5
+sudo apt install libcurl4-gnutls-dev
+sudo apt install libgnutls28-dev
+sudo apt install libssl-dev
+sudo apt install nettle-dev
+opam switch create ocaml-base-compiler.$VERSION
 ....
 
 (2) opam installs
