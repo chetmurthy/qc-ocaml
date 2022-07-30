@@ -56,9 +56,9 @@ just source the dot.bashrc in $OPAMROOT/dot.bashrc
 
 == Installing Prerequisite Modules
 
-We need a bumch of prerequisite modules.
+We need a bunch of prerequisite modules.
 
-(0) OPTIONAL (for components/setup that _might_ be missing on a bare bones OS, like an AWS basic Ubuntu instance)
+(1) OPTIONAL (for components/setup that _might_ be missing on a bare bones OS, like an AWS basic Ubuntu instance)
 
 ....
 [optional] sudo apt install gcc
@@ -76,7 +76,7 @@ We need a bumch of prerequisite modules.
 [optional] opam switch create ocaml-base-compiler.$VERSION
 ....
 
-(1) opam installs
+(2) opam installs
 
 ....
 opam install lablgtk3 ocamlfind camlp5 \
