@@ -33,8 +33,8 @@ end
 module GateConfig = struct
   type t = {
       name: string ;
-      parameters : string list ;
-      qasm_def: string ;
+      parameters : string list option ;
+      qasm_def: string option [@default None] ;
       coupling_map : (CouplingMap.t option [@default None]) ;
       conditional: (bool [@default false]) ;
       latency_map : (Enum01.t list list option [@default None]);
@@ -68,32 +68,67 @@ end
 
 module CoreConfig = struct
   type t = {
+      allow_object_storage : bool ;
+      allow_q_object : bool ;
       backend_name : string ;
       backend_version : BackendVersion.t ;
       basis_gates : string list ;
-      conditional : (bool [@default false]) ;
       gates : GateConfig.t list ;
+      input_allowed : string list ;
+      live_data : bool ;
       local : bool ;
       max_shots : int ;
-      memory : (bool [@default false]) ;
       n_qubits : int ;
-      simulator : (bool [@default false]) ;
-
       open_pulse : bool ;
-      url: (string option [@default None]) ;
-      allow_q_object : bool ;
+      pulse_num_channels : int ;
+      pulse_num_qubits : int ;
 
-      sample_name : (string option [@default None]) ;
+      acquisition_latency : (json [@sexp.opaque]) option [@default None] ;
+      channels : (json [@sexp.opaque]) option [@default None] ;
+      clops : int option [@default None] ;
+      conditional : (bool [@default false]) ;
+      conditional_latency : (json [@sexp.opaque]) option [@default None] ;
       coupling_map : (CouplingMap.t option [@default None]) ;
-      max_experiments : (int [@default 1]) ;
-      n_registers : (int [@default 1]) ;
-      register_map : (Enum01.t list list option [@default None]) ;
-      configurable : (bool [@default false]) ;
-      credits_required : (bool [@default false]) ;
-      online_date : (string option [@default None]) ;
-      display_name : (string option [@default None]) ;
+      credits_required : bool [@default false] ;
+      default_rep_delay : int option [@default None] ;
       description : (string option [@default None]) ;
-      tags : (string list [@default []]);
+      discriminators : (json [@sexp.opaque]) option [@default None] ;
+      dt : float option  [@default None] ;
+      dtm : float option  [@default None] ;
+      dynamic_reprate_enabled : bool [@default false] ;
+      hamiltonian : (json [@sexp.opaque]) option [@default None] ;
+      max_experiments : (int [@default 1]) ;
+      meas_kernels : (json [@sexp.opaque]) option [@default None] ;
+      meas_levels : (json [@sexp.opaque]) option [@default None] ;
+      meas_lo_range : (json [@sexp.opaque]) option [@default None] ;
+      meas_map : (json [@sexp.opaque]) option [@default None] ;
+      measure_esp_enabled : (json [@sexp.opaque]) option [@default None] ;
+      memory : (bool [@default false]) ;
+      multi_meas_enabled : (json [@sexp.opaque]) option [@default None] ;
+      n_registers : (json [@sexp.opaque]) option [@default None] ;
+      n_uchannels : (json [@sexp.opaque]) option [@default None] ;
+      online_date : (string option [@default None]) ;
+      parallel_compilation : (bool [@default false]) ;
+      parametric_pulses : (json [@sexp.opaque]) option [@default None] ;
+      processor_type : (json [@sexp.opaque]) option [@default None] ;
+      processorType
+      : (json [@sexp.opaque]) option [@default None] ;
+      public : (bool [@default false]) ;
+      quantum_volume : int option [@default None] ;
+      qubit_channel_mapping : (json [@sexp.opaque]) option [@default None] ;
+      qubit_lo_range : (json [@sexp.opaque]) option [@default None] ;
+      rep_delay_range : (json [@sexp.opaque]) option [@default None] ;
+      rep_times : (json [@sexp.opaque]) option [@default None] ;
+      revision : (string option [@default None]) ;
+      sample_name : string option [@default None] ;
+      simulation_method : string option [@default None] ;
+      simulator : (bool [@default false]) ;
+      supported_features : (json [@sexp.opaque]) option [@default None] ;
+      supported_instructions : (json [@sexp.opaque]) option [@default None] ;
+      timing_constraints : (json [@sexp.opaque]) option [@default None] ;
+      u_channel_lo : (json [@sexp.opaque]) option [@default None] ;
+      uchannels_enabled : (json [@sexp.opaque]) option [@default None] ;
+      url: (string option [@default None]) ;
     } [@@deriving yojson, sexp]
 end
 

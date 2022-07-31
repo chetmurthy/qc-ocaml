@@ -460,7 +460,7 @@ let setup session =
   ; _load_user_info session
   ; _load_hubs session 
 
-let user_hubs session =
+let providers session =
   let hubs = 
     session.hubs
     |> List.concat_map (fun h ->
@@ -479,34 +479,35 @@ let user_hubs session =
   let rest = List.filter (fun (_,_,_,isdef) -> not isdef) hubs in
   defaults@rest |> List.map (fun (h,g,p,_) -> (h,g,p))
 
-let get_backends_url session =
+let get_backends_url session (hub, group,project) =
   let open Credentials in
   let open Single in
-  let account = session.account in
-  match account.hub, account.group, account.project with
-  | Some hub, Some group, Some project ->
-     Printf.sprintf "%s/Network/%s/Groups/%s/Projects/%s/devices/v/1"
-       account.url hub group project
-  | _ -> Printf.sprintf "%s/Backends/v/1" account.url
+  let url = (urls session).http in
+  Printf.sprintf "%s/Network/%s/Groups/%s/Projects/%s/devices/v/1"
+       url hub group project
 
 let key session = session.key
 
 let available_backends session =
-  let url = get_backends_url session in
-  let headers = [
-      ("User-Agent", "python-requests/2.28.0") ;
-      ("Accept", "*/*") ;
-      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
-    ] in
-  let token = access_token session in
-  let call = RPC.get ~headers ["access_token", token] url in
-  let resp_body = call # get_resp_body() in
-  resp_body
-  |> Yojson.Safe.from_string
-  |> BackendConfig.of_yojson
-  |> error_to_failure ~msg:"BackendConfig.of_yojson"
-  |> List.map (fun c -> (c.CoreConfig.backend_name, c))
-  |> LM.ofList ()
+  let pl = providers session in
+  pl
+  |> List.concat_map (fun p ->
+         let url = get_backends_url session p in
+         let headers = [
+             ("User-Agent", "python-requests/2.28.0") ;
+             ("Accept", "*/*") ;
+             ("X-Qx-Client-Application", "qiskit/0.37.1") ;
+             ("X-Access-Token", access_token session) ;
+           ] in
+         let call = RPC.get ~headers [] url in
+         let resp_body = call # get_resp_body() in
+         resp_body
+         |> Yojson.Safe.from_string
+         |> BackendConfig.of_yojson
+         |> error_to_failure ~msg:"BackendConfig.of_yojson"
+         |> List.map (fun c -> (c.CoreConfig.backend_name, (p, c)))
+       )
+  |>  LM.ofList ()
 
 end
 

@@ -79,7 +79,7 @@ opam switch create ocaml-base-compiler.$VERSION
 (2) opam installs
 
 ....
-opam install lablgtk3 ocamlfind camlp5 \
+opam install bos lablgtk3 ocamlfind camlp5 \
          camlp5 camlzip cmdliner conf-gnutls \
          menhir oasis containers sexplib \
 	 ocamlfind ocamlgraph ocamlnet ocurl ounit ppx_test \

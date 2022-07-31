@@ -8,6 +8,7 @@
 
 #use "topfind";;
 
+#require "bos";;
 #require "camlp-streams";;
 #require "rresult";;
 #require "uuidm";;

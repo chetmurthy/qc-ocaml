@@ -41,7 +41,7 @@ module Login = struct
   let do_login p =
     let session = login p in
     let key = Session.key session in
-    let url = Session.get_backends_url session in
+    let url = Session.get_backends_url session (List.hd (Session.providers session)) in
     let token = Session.access_token session in
     Printf.printf "key: %s\n" key ;
     Printf.printf "url: %s\n" url ;
@@ -80,7 +80,7 @@ module AvailableBackends = struct
       |> String.concat " "
       |> Printf.printf "backends: %s\n"
     else
-      LM.app (fun k v ->
+      LM.app (fun k (_, v) ->
           Printf.printf "%s: " k ;
           v |> CoreConfig.to_yojson |> Yojson.Safe.pretty_to_channel stdout ;
           Printf.printf "\n" ;
