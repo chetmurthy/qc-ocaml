@@ -107,12 +107,12 @@ print_string (pp ASTPP.program pl) ;
 DAG.tsort dag
 ;;
  *)
-
+(*
 let creds = Credentials.mk() ;;
 Credentials.add_rcfile creds ;;
 let session = Session.mk creds ;;
 Session.setup session ;;
-
+ *)
 (*
 Session.available_backends session ;;
 

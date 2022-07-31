@@ -29,13 +29,13 @@ module Credentials = struct
 
     type t = {
         token : string ;
-        diary : string option ;
+        cache : string option ;
         url : string ;
         hub : string option ;
         group : string option ;
         project : string option ;
         verify : bool ;
-      }
+      } [@@deriving yojson, sexp]
 
     let unique_id t = (t.hub, t.group, t.project)
 
@@ -46,8 +46,8 @@ module Credentials = struct
       with Invalid_element _ ->
         None
 
-    let mk ~url ?(hub=None) ?(group=None) ?(project=None) ~verify ?(diary=None) ~token =
-      { token ; url ; hub ; group ; project ; verify ; diary }
+    let mk ~url ?(hub=None) ?(group=None) ?(project=None) ~verify ?(cache=None) ~token () =
+      { token ; url ; hub ; group ; project ; verify ; cache }
 
     let mk_from_ini ini sect =
       let url =
@@ -67,8 +67,8 @@ module Credentials = struct
         match get ini sect "token" with
         | None -> failwith (Printf.sprintf "invalid ini file section %s (no token attribute)" sect)
         | Some s -> s in
-      let diary = get ini sect "diary" in
-      mk ~token ~url ~hub ~group ~project ~verify ~diary
+      let cache = get ini sect "cache" in
+      mk ~token ~url ~hub ~group ~project ~verify ~cache ()
 
   end
 
@@ -304,54 +304,54 @@ type t = {
     key : string
   ; account : Credentials.Single.t
   ; mutable token : token_t option
-  ; mutable diary : (string, string) LM.t
+  ; mutable diary : string Dict.t
   ; mutable api : api_t option
   ; mutable user_info : user_info_t option
   ; mutable hubs : hubs_t
-  }
+  } [@@deriving yojson]
 
-module Diary = struct
-  type t = (string * string) list [@@deriving yojson, sexp]
-
+module Cache = struct
   let glob_expand s =
     if starts_with ~pat:"~/" s then
       (Sys.getenv "HOME") ^ "/" ^ (String.sub s 2 (String.length s - 2))
     else s
 
-  let load session =
-    match (session.account.Credentials.Single.diary) with
+  let load account =
+    match (account.Credentials.Single.cache) with
       Some s ->
        let s = glob_expand s in
        if Sys.file_exists s then
          s
          |> Yojson.Safe.from_file
          |> of_yojson
-         |> error_to_failure ~msg:"QC_diary.of_yojson"
-       else []
+         |> error_to_failure ~msg:"Session.t_of_yojson"
+         |> (fun s -> Some s)
+       else None
     | None ->
-       []
+       None
 
-  let dump session diary =
-    match diary, (session.account.Credentials.Single.diary) with
-    | [], None -> ()
-    | _::_, None ->
-       Exc.die "no diary-file specified in qiskitrc, but we need to write one"
-    | _, Some fname ->
+  let dump session =
+    match (session.account.Credentials.Single.cache) with
+    | None ->
+       Exc.die "no cache-file specified in qiskitrc, but we need to write one"
+    | Some fname ->
        let fname = glob_expand fname in
-       diary
+       session
        |> to_yojson
        |> Yojson.Safe.to_file fname
 
 end
 
-let update_diary sess user_key job_id =
+let save sess = Cache.dump sess
+
+let update_cache sess user_key job_id =
   (
     if LM.in_dom sess.diary user_key then
       sess.diary <- LM.remap sess.diary user_key job_id
     else
       sess.diary <- LM.add sess.diary (user_key, job_id) ;
   ) ;
-  Diary.dump sess sess.diary
+  Cache.dump sess
 
 let mk ?key accounts =
   if MLM.size accounts = 0 then
@@ -362,17 +362,17 @@ let mk ?key accounts =
     | None when MLM.size accounts = 1 -> List.hd (MLM.dom accounts)
     | _ -> failwith "Session.mk: msut supply key into inifile" in
   let account = MLM.map accounts key in
-  let sess = {
-      key
-    ; account
-    ; token = None
-    ; diary = LM.mk ()
-    ; api = None
-    ; user_info = None
-    ; hubs = []
-    } in
-  let diary = Diary.load sess in
-  sess.diary <- diary ;
+  let sess = match Cache.load account with
+      Some s -> s
+    | None -> {
+        key
+      ; account
+      ; token = None
+      ; diary = LM.mk ()
+      ; api = None
+      ; user_info = None
+      ; hubs = []
+      } in
   sess
 
 let _get_api session =
@@ -417,7 +417,7 @@ let access_token session =
 
 let urls session =
   match session.user_info with
-  | None -> failwith "urls: no user_info (did you forget to run setup?)"
+  | None -> failwith "urls: no user_info (did you forget to run login?)"
   | Some ui -> ui.urls
 
 let _load_user_info session =
@@ -454,11 +454,19 @@ let _load_hubs session =
     |> CCResult.get_exn in
   session.hubs <- hubs
 
-let setup session =
-  _get_api session
-  ; _obtain_token session
-  ; _load_user_info session
-  ; _load_hubs session 
+let login session =
+  if session.api = None then _get_api session ;
+  if session.token = None then _obtain_token session ;
+  if session.user_info = None then _load_user_info session ;
+  if session.hubs = [] then  _load_hubs session ;
+  ()
+
+let logout session =
+  session.api <- None ;
+  session.token <- None ;
+  session.user_info <- None ;
+  session.hubs <- [] ;
+  ()
 
 let providers session =
   let hubs = 
@@ -640,8 +648,7 @@ let submit_job backend_name qobj ?(user_key=None) session =
     match user_key, rv with
       (Some user_key), Result.Ok status ->
        let job_id = status.JobStatus.id in
-       let diary = session.Session.diary in
-       Session.update_diary session user_key job_id
+       Session.update_cache session user_key job_id
   ) ;
   rv
 

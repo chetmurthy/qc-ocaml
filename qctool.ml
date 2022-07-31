@@ -34,7 +34,8 @@ module Login = struct
     let session = match p.key with
       | None -> Session.mk creds
       | Some key -> Session.mk ~key creds in
-    Session.setup session ;
+    Session.login session ;
+    Session.save session ;
     session
 
 
@@ -51,6 +52,44 @@ module Login = struct
   let cmd n =
     let term = Cmdliner.Term.(const do_login $ cmdliner_term ()) in
     let info = Cmdliner.Term.info n in
+    (term, info)
+end
+
+module Logout = struct
+  type t = {
+      rcfile : string option ; [@env "QISKITRC"]
+      (** specify rcfile location *)
+
+      key : string option ; [@env "QISKIT_IDENTITY"]
+      (** specify section in rcfile *)
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+    } [@@deriving cmdliner,show]
+
+  let logout p =
+    Nethttp_client.Debug.enable := p.debug ;
+    let rcfile = match p.rcfile with
+      | Some f -> f
+      | None -> Defaults._DEFAULT_QISKITRC_FILE in
+
+    let creds = Credentials.mk() in
+    Credentials.add_rcfile ~fname:rcfile creds ;
+    let session = match p.key with
+      | None -> Session.mk creds
+      | Some key -> Session.mk ~key creds in
+    Session.logout session ;
+    Session.save session ;
+    session
+
+
+  let do_logout p =
+    let session = logout p in
+    ()
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_logout $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "logout" in
     (term, info)
 end
 
@@ -513,6 +552,7 @@ let _ =
                                Dot.cmd;
                                ListJobs.cmd;
                                Login.cmd "login";
+                               Logout.cmd;
                                MonitorJob.cmd;
                                ShowJob.cmd;
                                ShowResult.cmd;

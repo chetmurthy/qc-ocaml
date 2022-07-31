@@ -482,7 +482,7 @@ let credentials_tests = "credentials tests" >:::
           {Qrpc_api.Credentials.Single.token =
              "4d128c911fa9b7624a0073f29c72eaba59d2206fe68049cdd06c9cd49f508479a918eef102035dc9be98e83be9cbac495f34ec863274324dcf21a06cfa10e27b";
            url = "https://quantumexperience.ng.bluemix.net/api"; hub = None;
-           group = None; project = None; verify = true ; diary = Some "/home/chet/.qiskit/diary" })]
+           group = None; project = None; verify = true ; cache = Some "/home/chet/.qiskit/cache" })]
     ) ;
     "credentials 1" >:: (fun ctxt ->
       let accts = Credentials.mk() in
@@ -491,13 +491,13 @@ let credentials_tests = "credentials tests" >:::
         [("ibmq",
           {Qrpc_api.Credentials.Single.token = "975c";
            url = "https://auth.quantum-computing.ibm.com/api"; hub = None;
-           group = None; project = None; verify = true ; diary = None});
+           group = None; project = None; verify = true ; cache = None});
          ("ibmq_ibmq_qc-ware_default",
           {Qrpc_api.Credentials.Single.token = "dcbd";
            url =
              "https://q-console-api.mybluemix.net/api/Hubs/ibmq/Groups/qc-ware/Projects/default";
            hub = Some "ibmq"; group = Some "qc-ware"; project = Some "default";
-           verify = true ; diary = None })]
+           verify = true ; cache = None })]
     ) ;
     "credentials 2 busted" >:: (fun ctxt ->
       assert_raises ~msg:"we're going with verify field is required"

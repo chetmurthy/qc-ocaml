@@ -2,4 +2,4 @@
 token = 4d128c911fa9b7624a0073f29c72eaba59d2206fe68049cdd06c9cd49f508479a918eef102035dc9be98e83be9cbac495f34ec863274324dcf21a06cfa10e27b
 url = https://quantumexperience.ng.bluemix.net/api
 verify = True
-diary = /home/chet/.qiskit/diary
+cache = /home/chet/.qiskit/cache
