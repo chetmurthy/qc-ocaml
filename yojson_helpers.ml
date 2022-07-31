@@ -61,3 +61,6 @@ let rec cmprec l1 l2 =
 in
 cmprec j1 j2
 
+type json = Yojson.Safe.t
+let json_of_yojson x = Rresult.R.ok x
+let json_to_yojson x : json = x

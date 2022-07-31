@@ -80,7 +80,7 @@ realclean:: clean
 
 .NOTPARALLEL:
 
-.depend: $(SRC) $(SRCP5)
+.depend: # $(SRC) $(SRCP5)
 	$(OCAMLFIND) ocamldep -package $(PACKAGES) $(SRC) > .depend.NEW && \
 	$(OCAMLFIND) ocamldep -package $(PACKAGESP5) $(SRCP5) >> .depend.NEW && \
 	mv .depend.NEW .depend

@@ -12,7 +12,7 @@ module Defaults = struct
                                "(http[s]://.+/api)"^
                                  "/Hubs/([^/]+)/Groups/([^/]+)/Projects/([^/]+)"
                              )
-    let _DEFAULT_IBMQ_URL_PREFIX = "https://quantumexperience.ng.bluemix.net/api"
+    let _DEFAULT_IBMQ_URL_PREFIX = "https://auth.quantum-computing.ibm.com/api"
 
     let _DEFAULT_DAG0_BASIS = [
         ("CX", (2, 0, 0));

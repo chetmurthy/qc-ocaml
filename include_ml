@@ -8,6 +8,7 @@
 
 #use "topfind";;
 
+#require "camlp-streams";;
 #require "rresult";;
 #require "uuidm";;
 #require "containers";;
@@ -104,11 +105,16 @@ let pl = DAG.to_ast envs dag in
 print_string (pp ASTPP.program pl) ;
 DAG.tsort dag
 ;;
+ *)
 
+(*
 let creds = Credentials.mk() ;;
 Credentials.add_rcfile creds ;;
 let session = Session.mk creds ;;
-Session.obtain_token session ;;
+Session.setup session ;;
+ *)
+
+(*
 Session.available_backends session ;;
 
         let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] "testdata/qobj/bell0.qasm" ;;
@@ -120,4 +126,3 @@ Session.available_backends session ;;
 Job.submit_job "ibmq_16_melbourne" qobj session ;;
 
  *)
-

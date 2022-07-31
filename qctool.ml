@@ -34,7 +34,7 @@ module Login = struct
     let session = match p.key with
       | None -> Session.mk creds
       | Some key -> Session.mk ~key creds in
-    Session.obtain_token session ;
+    Session.setup session ;
     session
 
 

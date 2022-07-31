@@ -1,4 +1,5 @@
 open Sexplib0.Sexp_conv
+open Yojson_helpers
 open Qobj_types
 
 
@@ -131,11 +132,11 @@ module ResultObj = struct
     | _ -> Result.Error "ResultObj.shot_t_of_yojson"
 
   type data_t = {
-      counts : (Yojson.Safe.t option [@default None]) ;
-      snapshots : (Yojson.Safe.t option [@default None]) ;
-      memory : (Yojson.Safe.t option [@default None]) ;
-      statevector : (Yojson.Safe.t option [@default None]) ;
-      unitary : (Yojson.Safe.t option [@default None]) ;
+      counts : (json option [@default None]) ;
+      snapshots : (json option [@default None]) ;
+      memory : (json option [@default None]) ;
+      statevector : (json option [@default None]) ;
+      unitary : (json option [@default None]) ;
     } [@@deriving yojson]
 
   type t = {
@@ -161,7 +162,7 @@ module QObjResult = struct
       status : (string option [@default None]) ;
       date : (string option [@default None]) ;
       success : bool ;
-      header : (Yojson.Safe.t option [@default None]);
+      header : (json option [@default None]);
       execution_id : (string option [@default None]) ;
       
     } [@@deriving yojson]

@@ -1,6 +1,7 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open Coll
+open Yojson_helpers
 open Misc_functions
 open Sexplib0.Sexp_conv
 open Qc_environment
@@ -144,7 +145,114 @@ let get ~headers params url =
 
 end
 
+module Configuration = struct
+  type capabilities_t = {
+      openPulse: bool
+    ; maxExperiments: int option [@default None]
+    } [@@deriving yojson, sexp]
+
+  type t = {
+      limit: int
+    ; capabilities: capabilities_t
+    } [@@deriving yojson, sexp]
+end
+
+module Device = struct
+  type t = {
+      priority: int
+    ; name: string
+    ; deleted :  bool
+    ; configuration: Configuration.t option [@default None]
+    } [@@deriving yojson, sexp]
+end
+
+module Dict = struct
+  type 'b t = (string * 'b) list [@@deriving sexp]
+
+  let to_yojson b_to_yojson l =
+    let l = List.map (fun (k,v) -> (k,b_to_yojson v)) l in
+    `Assoc l
+
+  type 'b _list = 'b list [@@deriving yojson, sexp]
+  let of_yojson b_of_yojson j =
+    let open Rresult.R in
+    match j with
+      `Assoc l ->
+      let keys = List.map fst l in
+      let jvals = List.map snd l in
+      (_list_of_yojson b_of_yojson (`List jvals))
+        >>= (fun vals ->
+        Rresult.R.ok (List.map2 (fun k v -> (k,v)) keys vals))
+    | _ -> Rresult.R.error "Dict.of_yojson"
+
+end
+
+module Project = struct
+
+  type t = {
+      name: string
+    ; title: string
+    ; isDefault: bool
+    ; description: string
+    ; creationDate: string
+    ; deleted: bool
+    ; devices: Device.t Dict.t
+    ; priority: int
+    ; users : string list
+    } [@@deriving yojson, sexp]
+end
+
+module Group = struct
+
+type projects_map_t = (string * Project.t) list
+
+  type t = {
+      name: string
+    ; title: string
+    ; isDefault: bool
+    ; description: string
+    ; creationDate: string
+    ; deleted: bool
+    ; projects : Project.t Dict.t
+    ; priority: int
+    } [@@deriving yojson, sexp]
+end
+
+module Provider = struct
+
+type groups_map_t = (string * Group.t) list
+
+type t = {
+    name : string
+  ; title : string
+  ; description : string
+  ; creationDate : string
+  ; deleted : bool
+  ; _private: bool [@key "private"]
+  ; licenseNotRequired : bool
+  ; isDefault: bool
+  ; analytics: bool
+  ; _class: string [@key "class"]
+  ; priority: int
+  ; id : string
+  ; ownerId : string
+  ; device: string list
+  ; groups : Group.t Dict.t
+  } [@@deriving yojson, sexp]
+end
+
 module Session  = struct
+
+  type api_t = {
+      api_auth : string [@key "api-auth"]
+    ; api_app : string [@key "api-app"]
+    ; api_utils : string [@key "api-utils"]
+    ; version : string
+    } [@@deriving yojson, sexp]
+
+  type login_request_t = {
+      api_token : string [@key "apiToken"]
+    } [@@deriving yojson, sexp]
 
 type token_t = {
     id: string ;
@@ -153,11 +261,53 @@ type token_t = {
     userId: string;
   } [@@deriving yojson, sexp]
 
+type services_t = {
+    quantumLab: string
+  ; runtime : string
+}  [@@deriving yojson, sexp]
+
+type urls_t = {
+    http: string
+  ; ws: string
+  ; services : services_t
+  } [@@deriving yojson, sexp]
+
+type terms_t = {
+    accepted: bool
+  } [@@deriving yojson, sexp]
+
+type login_account_t = {
+    provider: string
+  } [@@deriving yojson, sexp]
+
+type user_info_t = {
+    email: string
+  ; username : string
+  ; userType: string
+  ; firstName: string
+  ; lastName : string
+  ; institution : string
+  ; roles: json list
+  ; ibmQNetwork : bool
+  ; qNetworkRoles : json list
+  ; canScheduleBackends: bool
+  ; applications : string list
+  ; urls: urls_t
+  ; needsRefill: bool
+  ; emailVerified : bool
+  ; terms: terms_t
+  ; loginAccounts : login_account_t list
+  ; readOnly: bool
+  ; id : string
+} [@@deriving yojson]
+
 type t = {
-    key : string ;
-    account : Credentials.Single.t ;
-    mutable token : token_t option ;
-    mutable diary : (string, string) LM.t ;
+    key : string
+  ; account : Credentials.Single.t
+  ; mutable token : token_t option
+  ; mutable diary : (string, string) LM.t
+  ; mutable api : api_t option
+  ; mutable user_info : user_info_t option
   }
 
 module Diary = struct
@@ -213,24 +363,44 @@ let mk ?key accounts =
     | _ -> failwith "Session.mk: msut supply key into inifile" in
   let account = MLM.map accounts key in
   let sess = {
-      key ;
-      account ;
-      token = None ;
-      diary = LM.mk () ;
+      key
+    ; account
+    ; token = None
+    ; diary = LM.mk ()
+    ; api = None
+    ; user_info = None
     } in
   let diary = Diary.load sess in
   sess.diary <- diary ;
   sess
 
-let obtain_token session =
+let _get_api session =
+  let url = session.account.Credentials.Single.url ^ "/version" in
+  let headers = [
+      ("User-Agent", "python-requests/2.28.0") ;
+      ("Accept", "*/*") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
+    ] in
+  let call = RPC.get ~headers [] url in
+  let resp_body = call # get_resp_body() in
+  let api = 
+    resp_body
+    |> Yojson.Safe.from_string
+    |> api_t_of_yojson
+    |> CCResult.get_exn in
+  session.api <- Some api
+
+let _obtain_token session =
   let url = session.account.Credentials.Single.url ^ "/users/loginWithToken" in
   let headers = [
-      ("User-Agent", "python-requests/2.21.0") ;
+      ("User-Agent", "python-requests/2.28.0") ;
       ("Accept", "*/*") ;
-      ("x-qx-client-application", "qiskit-api-py") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
+      ("Content-type", "application/json") ;
     ] in
   let apiToken = session.account.Credentials.Single.token in
-  let call = RPC.post ~headers ["apiToken", apiToken] url in
+  let login_request_s = { api_token = apiToken } |> login_request_t_to_yojson |> Yojson.Safe.to_string in
+  let call = RPC.post_object ~headers ~body:login_request_s [] url in
   let resp_body = call # get_resp_body() in
   let token =
     resp_body
@@ -238,6 +408,57 @@ let obtain_token session =
     |> token_t_of_yojson
     |> CCResult.get_exn in
   session.token <- Some token
+
+let access_token session =
+  match session.token with
+  | None -> failwith "access_token: no token (did you forget to run obtain_token?)"
+  | Some t -> t.id
+
+let urls session =
+  match session.user_info with
+  | None -> failwith "urls: no user_info (did you forget to run setup?)"
+  | Some ui -> ui.urls
+
+let _get_user_info session =
+  let url = session.account.Credentials.Single.url ^ "/users/me" in
+  let headers = [
+      ("User-Agent", "python-requests/2.28.0") ;
+      ("Accept", "*/*") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
+      ("X-Access-Token", access_token session) ;
+    ] in
+  let call = RPC.get ~headers [] url in
+  let resp_body = call # get_resp_body() in
+  let user_info = 
+    resp_body
+    |> Yojson.Safe.from_string
+    |> user_info_t_of_yojson
+    |> CCResult.get_exn in
+  session.user_info <- Some user_info
+
+let _get_user_hubs session =
+  let url = (urls session).http ^ "/Network" in
+  let headers = [
+      ("User-Agent", "python-requests/2.28.0") ;
+      ("Accept", "*/*") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
+      ("X-Access-Token", access_token session) ;
+    ] in
+  let call = RPC.get ~headers [] url in
+  let resp_body = call # get_resp_body() in
+  resp_body
+(*
+  let user_info = 
+    resp_body
+    |> Yojson.Safe.from_string
+    |> user_info_t_of_yojson
+    |> CCResult.get_exn in
+  session.user_info <- Some user_info
+ *)
+let setup session =
+  _get_api session ;
+  _obtain_token session ;
+  _get_user_info session 
 
 let get_backends_url session =
   let open Credentials in
@@ -249,19 +470,14 @@ let get_backends_url session =
        account.url hub group project
   | _ -> Printf.sprintf "%s/Backends/v/1" account.url
 
-let access_token session =
-  match session.token with
-  | None -> failwith "access_token: no token (did you forget to run obtain_token?)"
-  | Some t -> t.id
-
 let key session = session.key
 
 let available_backends session =
   let url = get_backends_url session in
   let headers = [
-      ("User-Agent", "python-requests/2.21.0") ;
+      ("User-Agent", "python-requests/2.28.0") ;
       ("Accept", "*/*") ;
-      ("x-qx-client-application", "qiskit-api-py") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
     ] in
   let token = access_token session in
   let call = RPC.get ~headers ["access_token", token] url in
@@ -303,9 +519,9 @@ let get_status_jobs ?(filter=[]) ?(limit=10) ?(skip=0) ~backend session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs/status" in
   let token = Session.access_token session in
   let headers = [
-      ("User-Agent", "python-requests/2.21.0") ;
+      ("User-Agent", "python-requests/2.28.0") ;
       ("Accept", "*/*") ;
-      ("x-qx-client-application", "qiskit-api-py") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
     ] in
   let query = {
       order = "creationDate DESC";
@@ -346,9 +562,9 @@ let get_status_job id_job session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
   let token = Session.access_token session in
   let headers = [
-      ("User-Agent", "python-requests/2.21.0") ;
+      ("User-Agent", "python-requests/2.28.0") ;
       ("Accept", "*/*") ;
-      ("x-qx-client-application", "qiskit-api-py") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
     ] in
   let url = url ^ "/" ^ id_job ^ "/status" in
   handle_response ~rpcname:"Job.get_status_job" ~typename:"ShortJobStatus"
@@ -359,9 +575,9 @@ let get_job id_job session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
   let token = Session.access_token session in
   let headers = [
-      ("User-Agent", "python-requests/2.21.0") ;
+      ("User-Agent", "python-requests/2.28.0") ;
       ("Accept", "*/*") ;
-      ("x-qx-client-application", "qiskit-api-py") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
     ] in
   let url = url ^ "/" ^ id_job in
   handle_response ~rpcname:"Job.get_job" ~typename:"JobStatus"
@@ -372,9 +588,9 @@ let cancel_job id_job session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
   let token = Session.access_token session in
   let headers = [
-      ("User-Agent", "python-requests/2.21.0") ;
+      ("User-Agent", "python-requests/2.28.0") ;
       ("Accept", "*/*") ;
-      ("x-qx-client-application", "qiskit-api-py") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
       ("Content-type", "application/json") ;
     ] in
   let url = url ^ "/" ^ id_job ^ "/cancel" in
@@ -386,9 +602,9 @@ let submit_job backend_name qobj ?(user_key=None) session =
   let url = session.Session.account.Credentials.Single.url ^ "/Jobs" in
   let token = Session.access_token session in
   let headers = [
-      ("User-Agent", "python-requests/2.21.0") ;
+      ("User-Agent", "python-requests/2.28.0") ;
       ("Accept", "*/*") ;
-      ("x-qx-client-application", "qiskit-api-py") ;
+      ("X-Qx-Client-Application", "qiskit/0.37.1") ;
       ("Content-type", "application/json") ;
     ] in
   let job = IBMJob.make_job ~backend_name qobj in

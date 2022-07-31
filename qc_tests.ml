@@ -490,7 +490,7 @@ let credentials_tests = "credentials tests" >:::
       assert_equal (Credentials.export accts)
         [("ibmq",
           {Qrpc_api.Credentials.Single.token = "975c";
-           url = "https://quantumexperience.ng.bluemix.net/api"; hub = None;
+           url = "https://auth.quantum-computing.ibm.com/api"; hub = None;
            group = None; project = None; verify = true ; diary = None});
          ("ibmq_ibmq_qc-ware_default",
           {Qrpc_api.Credentials.Single.token = "dcbd";
