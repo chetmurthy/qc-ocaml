@@ -146,10 +146,7 @@ let get ~headers params url =
 end
 
 module Configuration = struct
-  type capabilities_t = {
-      openPulse: bool
-    ; maxExperiments: int option [@default None]
-    } [@@deriving yojson, sexp]
+  type capabilities_t = (json [@sexp.opaque]) [@@deriving yojson, sexp]
 
   type t = {
       limit: int
@@ -198,8 +195,8 @@ module Project = struct
     ; deleted: bool
     ; devices: Device.t Dict.t
     ; priority: int
-    ; users : string list
-    } [@@deriving yojson, sexp]
+    ; users : (json [@sexp.opaque])
+    } [@@deriving yojson, sexp_of]
 end
 
 module Group = struct
@@ -215,10 +212,10 @@ type projects_map_t = (string * Project.t) list
     ; deleted: bool
     ; projects : Project.t Dict.t
     ; priority: int
-    } [@@deriving yojson, sexp]
+    } [@@deriving yojson, sexp_of]
 end
 
-module Provider = struct
+module Hub = struct
 
 type groups_map_t = (string * Group.t) list
 
@@ -238,7 +235,7 @@ type t = {
   ; ownerId : string
   ; device: string list
   ; groups : Group.t Dict.t
-  } [@@deriving yojson, sexp]
+  } [@@deriving yojson, sexp_of]
 end
 
 module Session  = struct
@@ -301,6 +298,8 @@ type user_info_t = {
   ; id : string
 } [@@deriving yojson]
 
+type hubs_t = Hub.t list [@@deriving yojson]
+
 type t = {
     key : string
   ; account : Credentials.Single.t
@@ -308,6 +307,7 @@ type t = {
   ; mutable diary : (string, string) LM.t
   ; mutable api : api_t option
   ; mutable user_info : user_info_t option
+  ; mutable hubs : hubs_t
   }
 
 module Diary = struct
@@ -369,6 +369,7 @@ let mk ?key accounts =
     ; diary = LM.mk ()
     ; api = None
     ; user_info = None
+    ; hubs = []
     } in
   let diary = Diary.load sess in
   sess.diary <- diary ;
@@ -419,7 +420,7 @@ let urls session =
   | None -> failwith "urls: no user_info (did you forget to run setup?)"
   | Some ui -> ui.urls
 
-let _get_user_info session =
+let _load_user_info session =
   let url = session.account.Credentials.Single.url ^ "/users/me" in
   let headers = [
       ("User-Agent", "python-requests/2.28.0") ;
@@ -436,7 +437,7 @@ let _get_user_info session =
     |> CCResult.get_exn in
   session.user_info <- Some user_info
 
-let _get_user_hubs session =
+let _load_hubs session =
   let url = (urls session).http ^ "/Network" in
   let headers = [
       ("User-Agent", "python-requests/2.28.0") ;
@@ -446,19 +447,37 @@ let _get_user_hubs session =
     ] in
   let call = RPC.get ~headers [] url in
   let resp_body = call # get_resp_body() in
-  resp_body
-(*
-  let user_info = 
+  let hubs = 
     resp_body
     |> Yojson.Safe.from_string
-    |> user_info_t_of_yojson
+    |> hubs_t_of_yojson
     |> CCResult.get_exn in
-  session.user_info <- Some user_info
- *)
+  session.hubs <- hubs
+
 let setup session =
-  _get_api session ;
-  _obtain_token session ;
-  _get_user_info session 
+  _get_api session
+  ; _obtain_token session
+  ; _load_user_info session
+  ; _load_hubs session 
+
+let user_hubs session =
+  let hubs = 
+    session.hubs
+    |> List.concat_map (fun h ->
+           let hubname = h.Hub.name in
+           h.Hub.groups
+           |> List.concat_map (fun (_, g) ->
+                  let groupname = g.Group.name in
+                  g.Group.projects
+                  |> List.map (fun (_, p) ->
+                         let open Project in
+                         let projectname = p.name in
+                         (hubname, groupname, projectname, p.isDefault))
+                )
+         ) in
+  let defaults = List.filter (fun (_,_,_,isdef) -> isdef) hubs in
+  let rest = List.filter (fun (_,_,_,isdef) -> not isdef) hubs in
+  defaults@rest |> List.map (fun (h,g,p,_) -> (h,g,p))
 
 let get_backends_url session =
   let open Credentials in
