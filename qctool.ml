@@ -424,6 +424,72 @@ module Unroll = struct
     (term, info)
 end
 
+module Parse = struct
+  type t = {
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      only_parse : bool ;
+      (** stop after parsing *)
+
+      iterations : int ; [@default 1]
+
+      qasmfile : string ;
+      (** qasmfile to submit *)
+
+      include_path : string list ; [@default []] [@sep ':'] [@aka ["I"]]
+      (** path for finding included QASM files *)
+
+    } [@@deriving cmdliner,show]
+
+  let do_parse p =
+    let { debug ; qasmfile ; iterations ; only_parse ; include_path } = p in
+
+    for i = 1 to iterations do
+      let open Qasmparser in
+      let vers,pl = full_parse_from_file ~path:include_path PA.mainprogram qasmfile in
+      if only_parse then () else
+        let (envs, p) = TYCHK.program pl in
+        ()
+    done
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_parse $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "parse" in
+    (term, info)
+end
+
+module Ast = struct
+  type t = {
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      only_to_dag : bool ;
+      (** stop after converting to DAG *)
+
+      qasmfile : string ;
+      (** qasmfile to submit *)
+
+      include_path : string list ; [@default []] [@sep ':'] [@aka ["I"]]
+      (** path for finding included QASM files *)
+
+    } [@@deriving cmdliner,show]
+
+  let do_ast p =
+    let { debug ; only_to_dag ;qasmfile ; include_path } = p in
+    let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
+    if only_to_dag then () else
+    let pl = DAG.to_ast envs dag in  
+    ()
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_ast $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "ast" in
+    (term, info)
+end
+
 module Dot = struct
   type t = {
 
@@ -544,8 +610,7 @@ module ListJobs = struct
 end
 
 let _ =
-  if invoked_as "qctool" then
-
+  if not !Sys.interactive then
     Cmdliner.Term.(exit @@ eval_choice (Login.cmd "qctool") [
                                AvailableBackends.cmd;
                                CancelJob.cmd;
@@ -558,5 +623,7 @@ let _ =
                                ShowResult.cmd;
                                SubmitJob.cmd;
                                Unroll.cmd;
+                               Ast.cmd;
+                               Parse.cmd;
     ])
 ;;

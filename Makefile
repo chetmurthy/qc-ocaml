@@ -19,10 +19,13 @@ OBJECTS = $(CMO) $(CMX) $(CMI)
 RESULT=libqasm
 TESTS=qc_tests.byte large_tests.byte
 
-all: $(RESULT).cma $(RESULT).cmxa qctool $(TESTS)
+all: $(RESULT).cma $(RESULT).cmxa qctool qctool.opt $(TESTS)
 
 qctool: $(RESULT).cma qctool.ml
 	$(OCAMLFIND) ocamlc $(OCAMLCFLAGS) -package $(PACKAGES) -linkpkg -linkall -o $@ $^
+
+qctool.opt: $(RESULT).cmxa qctool.ml
+	$(OCAMLFIND) ocamlopt $(OCAMLCFLAGS) -package $(PACKAGES) -linkpkg -linkall -o $@ $^
 
 everything::
 	make realclean
