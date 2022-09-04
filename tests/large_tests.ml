@@ -1,8 +1,10 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open OUnit2
-open Misc_functions
+open Pa_ppx_utils
 open Coll
+open Std
+open Misc_functions
 open Qasmlex
 open Qasmsyntax
 open Qasmparser
@@ -30,7 +32,7 @@ let size_tests = "size tests" >:::
 
 (* Run the tests in test suite *)
 let _ =
-if invoked_as "large_tests" then
+if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
         size_tests ;
     ])

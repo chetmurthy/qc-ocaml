@@ -1,8 +1,10 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open OUnit2
-open Misc_functions
+open Pa_ppx_utils
 open Coll
+open Std
+open Misc_functions
 open Qasmlex
 open Qasmsyntax
 open Qasmparser
@@ -696,7 +698,7 @@ let trip_tests = "trip tests" >::: [
 
 (* Run the tests in test suite *)
 let _ =
-if invoked_as "qc_tests" then
+if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
         misc_tests ; lexer_tests; expr_parser_tests;
         statement_parser_tests; parser_tests;

@@ -1,6 +1,8 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 {
 open Lexing
+open Pa_ppx_utils
+open Std
 open Misc_functions
 open Qasmsyntax
 

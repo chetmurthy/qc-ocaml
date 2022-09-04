@@ -22,18 +22,18 @@ end
 module Experiment = struct
 
   type header_t = {
-      name : (string option [@default None]) ;
+      name : (string option [@sexp.default None][@yojson.default None]) ;
       memory_slots : int ;
       n_qubits : int ;
       qreg_sizes : (string * int) list ;
       creg_sizes : (string * int) list ;
       qubit_labels : (string * int) list ;
       clbit_labels : (string * int) list ;
-      compiled_circuit_qasm : (string option [@default None]) ;
+      compiled_circuit_qasm : (string option [@sexp.default None][@yojson.default None]) ;
     } [@@deriving yojson, sexp]
 
   type t = {
-      config: (ExperimentConfig.t option [@default None]) ;
+      config: (ExperimentConfig.t option [@sexp.default None][@yojson.default None]) ;
       header : header_t ;
       instructions : Instruction.t list ;
     } [@@deriving yojson, sexp]
@@ -44,7 +44,7 @@ module Qobj = struct
       max_credits : int ;
       memory_slots : int ;
       n_qubits : int ;
-      seed : (int [@default 1]) ;
+      seed : (int [@sexp.default 1][@yojson.default 1]) ;
       shots : int ;
       memory : bool ;
     } [@@deriving yojson, sexp]
@@ -64,7 +64,7 @@ module Qobj = struct
 
   type header_t = {
       backend_name : string ;
-      backend_version : (string option  [@default None]);
+      backend_version : (string option [@sexp.default None][@yojson.default None]);
     } [@@deriving yojson, sexp]
 
   type t = {

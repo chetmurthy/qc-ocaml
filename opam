@@ -1,0 +1,42 @@
+synopsis: "Quantum Computing Tools in OCaml"
+description:
+"""
+What it says on the tin.
+"""
+opam-version: "2.0"
+maintainer: "Chet Murthy <chetsky@gmail.com>"
+authors: ["Chet Murthy"]
+homepage: "https://github.com/chetmurthy/qc-ocaml"
+license: "GPL v3"
+bug-reports: "https://github.com/chetmurthy/qc-ocaml/issues"
+dev-repo: "git+https://github.com/chetmurthy/qc-ocaml.git"
+doc: "https://github.com/chetmurthy/qc-ocaml/doc"
+
+depends: [
+  "ocaml"       { >= "4.14.0" & < "4.15.0" }
+  "conf-perl"
+  "conf-perl-ipc-system-simple"
+  "conf-perl-string-shellquote"
+  "conf-gnutls"
+  "camlp5"      { >= "8.00" }
+  "pa_ppx"      { >= "0.07.02" }
+  "not-ocamlfind" { >= "0.01" }
+  "pcre" { >= "7.4.3" }
+  "ounit" {with-test}
+  "bos" { >= "0.2.0" }
+  "rresult"
+  "uuidm"
+  "ocamlnet"
+  "yojson"
+  "ocamlgraph"
+  "ocamldot"
+  "cmdliner"
+  "camlp-streams"
+  "ocaml-inifiles"
+  "not-ocamlfind"
+]
+build: [
+  [make "sys"]
+  [make "test"] {with-test}
+]
+install: [make "install"]

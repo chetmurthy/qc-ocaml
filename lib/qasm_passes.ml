@@ -1,6 +1,7 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
-open Misc_functions
+open Pa_ppx_utils
+open Std
 open Coll
 open Qasmsyntax
 open Qasmparser

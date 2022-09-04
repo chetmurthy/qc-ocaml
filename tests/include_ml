@@ -8,47 +8,7 @@
 
 #use "topfind";;
 
-#require "bos";;
-#require "camlp-streams";;
-#require "rresult";;
-#require "uuidm";;
-#require "containers";;
-#require "pcre";;
-#require "oUnit";;
-#require "oUnit.advanced";;
-#require "ocamlgraph" ;;
-#require "dot" ;;
-#require "netstring" ;;
-#require "netzip" ;;
-#require "netclient" ;;
-#require "netclient,nettls-gnutls" ;;
-#require "sexplib";;
-#require "yojson" ;;
-#require "ppx_deriving_yojson" ;;
-#require "inifiles" ;;
-#require "cmdliner";;
-
-#load "exc.cmo";;
-#load "misc_functions.cmo";;
-#load "yojson_helpers.cmo";;
-#load "gmap.cmo";;
-#load "gset.cmo";;
-#load "coll.cmo";;
-#load "qc_environment.cmo";;
-#load "qasmsyntax.cmo";;
-#load "qasmlex.cmo";;
-#load "qasmparser.cmo";;
-#load "qasmpp.cmo";;
-#load "qasmdag0.cmo";;
-#load "qasm_io.cmo";;
-#load "qasm_passes.cmo";;
-#load "qc_layout.cmo";;
-#load "qobj_types.cmo";;
-#load "qrpc_types.cmo";;
-#load "qc_symbolic.cmo";;
-#load "qobj_compile.cmo";;
-#load "qrpc_api.cmo";;
-#load "qc_tests.cmo";;
+#require "qc_ocaml";;
 
 #print_length 1048576 ;;
 

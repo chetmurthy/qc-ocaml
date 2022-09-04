@@ -1,11 +1,14 @@
 
+open Pa_ppx_utils
+open Std
+
 let stream_of_lexer_eof_function eof_function lexer lexbuf =
 let rec strec () =
     let tok = lexer lexbuf
     in if (eof_function tok) then [< >]
        else [< 'tok; strec() >]
 in [< strec () >]
-
+(*
 let stream_of_lexer_eof eoftok lexer lexbuf =
 let rec strec () =
     let tok = lexer lexbuf
@@ -32,10 +35,10 @@ let plist elem =
      [< e = elem; strm >] -> plist_rec (e::accum) strm
    | [< >]                         -> (List.rev accum)
   in plist_rec []
-
+ *)
 let ne_plist elem = parser
   [< e = elem; l = (plist elem) >] -> (e,l)
-
+(*
 let ne_plist_with_sep sep elem = 
  let rec do_rec = parser
   [< e = elem; l = (parser [< () = sep; l = do_rec >] -> l | [< >] -> []) >] -> e::l
@@ -45,7 +48,7 @@ let plist_with_sep sep elem = parser
     [< l = (ne_plist_with_sep sep elem) >] -> l
   | [< >] -> []
 
-
+ *)
 let ne_plist_with_sep_function sep elem = 
  let rec do_rec = parser
   [< e = elem; rv = (parser [< f = sep; l = do_rec >] -> f e l | [< >] -> e) >] -> rv
@@ -60,7 +63,7 @@ let cleanws s =
   let s = rv1.(1) in
   let rv2 = Pcre.extract ~rex:clean_right_re s in
   rv2.(1)
-
+(*
 let fst (a, _) = a
 let snd (_, b) = b
 
@@ -76,7 +79,7 @@ let invoked_as name =
   let path = Pcre.split ~rex:(Pcre.regexp "/") argv0 in
   let fname, _ = sep_last path in
   List.mem fname l
-
+ *)
 let rec prlist elem l = match l with 
     []   -> [< >]
   | h::t -> let e = elem h and r = prlist elem t in [< e; r >];;
@@ -87,7 +90,7 @@ let rec prlist_with_sep sep elem l = match l with
   | h::t ->
       let e = elem h and s = sep()
       in [< e; s; prlist_with_sep sep elem t >];;
-
+(*
 type ('a,'b) union = Inl of 'a | Inr of 'b
 
 let finally f arg finf =
@@ -110,7 +113,7 @@ let apply_to_out_channel f fna =
 	  let rv = f oc
 	  in close_out oc; rv
 	with exc -> (close_out oc; raise exc)
-
+ *)
 let file_contents fna =
   apply_to_in_channel
     (fun ic ->
@@ -119,7 +122,7 @@ let file_contents fna =
 	 really_input ic cbuf 0 len;
 	 Bytes.to_string cbuf)
     fna
-
+(*
 let subset l1 l2 =
   let t2 = Hashtbl.create 151 in
     List.iter (fun x-> Hashtbl.add t2 x ()) l2;
@@ -197,17 +200,17 @@ let interval n m =
   in interval_n ([],m)
 
 let range = interval 1
-
+ *)
 let swap f a b = f b a
-
+(*
 let combine l1 l2 = List.map2 (fun a b -> (a,b)) l1 l2
 let split l = (List.map fst l,List.map snd l)
-
+ *)
 let pp ppfun arg =
   let strm = ppfun arg in
   let l = list_of_stream strm in
   String.concat "" l
-
+(*
 let intersect l1 l2 = filter (fun x -> List.mem x l2) l1
 
 let diff_set l1 l2 =
@@ -233,7 +236,7 @@ let ends_with ~pat s =
 let pr_option f = function
     None -> [< >]
   | Some v -> f v
-
+ *)
 let error_to_failure ?(msg="") = function
   | Result.Error s -> 
     failwith (msg^": "^s)

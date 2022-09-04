@@ -1,8 +1,10 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
+open Pa_ppx_utils
 open Coll
-open Yojson_helpers
+open Std
 open Misc_functions
+open Yojson_helpers
 open Sexplib0.Sexp_conv
 open Qc_environment
 open Qrpc_types
@@ -146,12 +148,13 @@ let get ~headers params url =
 end
 
 module Configuration = struct
-  type capabilities_t = (json [@sexp.opaque]) [@@deriving yojson, sexp]
+  let sexp_of_json _ = Sexplib0.Sexp.Atom "<opaque>"
+  type capabilities_t = (json [@sexp.opaque]) [@@deriving yojson, sexp_of]
 
   type t = {
       limit: int
     ; capabilities: capabilities_t
-    } [@@deriving yojson, sexp]
+    } [@@deriving yojson, sexp_of]
 end
 
 module Device = struct
@@ -159,8 +162,8 @@ module Device = struct
       priority: int
     ; name: string
     ; deleted :  bool
-    ; configuration: Configuration.t option [@default None]
-    } [@@deriving yojson, sexp]
+    ; configuration: Configuration.t option [@sexp.default None][@yojson.default None]
+    } [@@deriving yojson, sexp_of]
 end
 
 module Dict = struct
@@ -185,6 +188,7 @@ module Dict = struct
 end
 
 module Project = struct
+  let sexp_of_json _ = Sexplib0.Sexp.Atom "<opaque>"
 
   type t = {
       name: string
@@ -388,7 +392,7 @@ let _get_api session =
     resp_body
     |> Yojson.Safe.from_string
     |> api_t_of_yojson
-    |> CCResult.get_exn in
+    |> Rresult.R.get_ok in
   session.api <- Some api
 
 let _obtain_token session =
@@ -407,7 +411,7 @@ let _obtain_token session =
     resp_body
     |> Yojson.Safe.from_string
     |> token_t_of_yojson
-    |> CCResult.get_exn in
+    |> Rresult.R.get_ok in
   session.token <- Some token
 
 let access_token session =
@@ -434,7 +438,7 @@ let _load_user_info session =
     resp_body
     |> Yojson.Safe.from_string
     |> user_info_t_of_yojson
-    |> CCResult.get_exn in
+    |> Rresult.R.get_ok in
   session.user_info <- Some user_info
 
 let _load_hubs session =
@@ -451,7 +455,7 @@ let _load_hubs session =
     resp_body
     |> Yojson.Safe.from_string
     |> hubs_t_of_yojson
-    |> CCResult.get_exn in
+    |> Rresult.R.get_ok in
   session.hubs <- hubs
 
 let login session =
@@ -538,8 +542,8 @@ module Job = struct
 
   type job_query_t = {
       order : string ;
-      limit : (int [@default 10]) ;
-      skip : (int [@default 0]) ;
+      limit : (int [@sexp.default 10][@yojson.default 10]) ;
+      skip : (int [@sexp.default 0][@yojson.default 0]) ;
       where : job_query_where_t ;
     }  [@@deriving yojson, sexp]
 

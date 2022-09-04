@@ -1,5 +1,7 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
+open Pa_ppx_utils
+open Std
 open Misc_functions
 
 exception SyntaxError of string
@@ -313,6 +315,7 @@ module AST = struct
 end
 
 module TYCHK = struct
+  open Pa_ppx_utils
   open Coll
 
   exception TypeError of bool * string
@@ -472,7 +475,7 @@ module TYCHK = struct
     begin match register_dims with
     | [] -> ()
     | h::t ->
-       if not (for_all ((=) h) t) then
+       if not (List.for_all ((=) h) t) then
          raise (TypeError(false, "registers with different dimensions in qargs"))
     end ;
 

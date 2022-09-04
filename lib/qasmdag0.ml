@@ -1,7 +1,9 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
-open Misc_functions
+open Pa_ppx_utils
+open Std
 open Coll
+open Misc_functions
 open Qc_environment
 open Qasmsyntax
 open Qasmparser
@@ -282,7 +284,7 @@ module Dot = Graph.Graphviz.Dot(struct
     }
 
 let generate_qubit_instances envs l =
-  if for_all (function AST.INDEXED _ -> true | _ -> false) l then
+  if List.for_all (function AST.INDEXED _ -> true | _ -> false) l then
     [l]
   else
     let regid =
@@ -297,7 +299,7 @@ let generate_qubit_instances envs l =
                | AST.IT(AST.QREG id) -> AST.INDEXED(AST.QREG id, i)) l)
 
   let generate_cbit_instances envs l =
-    if for_all (function AST.INDEXED _ -> true | _ -> false) l then
+    if List.for_all (function AST.INDEXED _ -> true | _ -> false) l then
       [l]
     else
       let regid =
