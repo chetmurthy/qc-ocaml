@@ -16,7 +16,7 @@ PACKAGES := $(PACKAGES),qc_ocaml,oUnit
 SYNTAX := camlp5o
 
 TESTS= \
-	qc_tests.byte \
+	qc_tests.byte qasm0_tests.byte \
 
 LARGE_TESTS= \
 	large_tests.byte \
@@ -24,7 +24,7 @@ LARGE_TESTS= \
 ALL_TESTS = $(TESTS) $(LARGE_TESTS)
 
 ML=\
-	qc_tests.ml large_tests.ml
+	qc_tests.ml qasm0_tests.ml large_tests.ml
 
 
 CMO := $(ML:.ml=.cmo)
@@ -39,7 +39,7 @@ large-tests: $(LARGE_TESTS) $(LARGE_TESTS:.byte=.opt) $(LARGE_TESTS:.byte=.test)
 %.test : %.opt
 	mkdir -p _build && ./$<
 
-.PRECIOUS: large_tests.cmo qc_tests.cmo large_tests.cmx qc_tests.cmx
+.PRECIOUS: large_tests.cmo qc_tests.cmo qasm0_tests.cmo large_tests.cmx qc_tests.cmx qasm0_tests.cmx
 %_tests.byte: %_tests.cmo
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) -package $(PACKAGES) \
 	-linkpkg -linkall -syntax camlp5o $^ -o $@
