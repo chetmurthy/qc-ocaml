@@ -6,10 +6,9 @@ open Std
 open Misc_functions
 open Qasm0_tokens
 
-let locate ~comments lb v =
+let locate lb v =
   let loc = Ploc.make_unlined (Lexing.lexeme_start lb, Lexing.lexeme_end lb) in
-  let loc = Ploc.with_comment loc comments in
-  (v, loc)
+  (loc, v)
 
 }
 
@@ -23,15 +22,39 @@ let number = digit+
 let id = alpha (alpha | digit | '_' | '-')*
 let sqstring = "'" [^ '\'']+ "'"
 let comma_sep_ids = (id ",")* id
+let comment = "#" [^ '\n' '\r']*
 
 rule line = parse
-  ("#" [^ '\n' '\r'] newline) as line { locate lexbuf (Comment line, line) }
-| (white? "qubit" white (id as id) white? newline) as line { locate lexbuf (Qubit id, line) }
-| (white? "cbit" white (id as id) white? newline) as line { locate lexbuf (Cbit id, line) }
-| (white? "def" white (id as id)","(number as num)","(sqstring as tex) white? newline) as line
+  (comment newline) as line { locate lexbuf (Comment line, line) }
+| (white? newline) { line lexbuf }
+| (white? "qubit" white (id as id) white? comment? newline) as line { locate lexbuf (Qubit id, line) }
+| (white? "cbit" white (id as id) white? comment? newline) as line { locate lexbuf (Cbit id, line) }
+| (white? "def" white (id as id)","(number as num)","(sqstring as tex) white? comment? newline) as line
   { locate lexbuf (Def(id,int_of_string num,tex), line) }
-| (white? "defbox" white (id as id)","(number as num1)","(number as num2)","(sqstring as tex) white? newline) as line
+| (white? "defbox" white (id as id)","(number as num1)","(number as num2)","(sqstring as tex) white? comment? newline) as line
   { locate lexbuf (Defbox(id,int_of_string num1,int_of_string num2,tex), line) }
-| (white? (id as id) white (comma_sep_ids as ids) white? newline) as line
+| (white? (id as id) white (comma_sep_ids as ids) white? comment? newline) as line
   { locate lexbuf (Gate(id,Pcre.split ~pat:"," ids), line) }
 | eof { locate lexbuf (EOF, "") }
+
+{
+  let token lexbuf =
+    try
+      line lexbuf
+    with Failure _ ->
+      let p = Lexing.lexeme_start_p lexbuf in
+      raise (Qasmsyntax.SyntaxError (Printf.sprintf "lexing: failed in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
+
+  let make_lexer ?(fname="") buf =
+    let lb = Lexing.from_string buf in
+    lb.lex_start_p <- { lb.lex_start_p with pos_fname = fname } ;
+    lb.lex_curr_p <- { lb.lex_curr_p with pos_fname = fname } ;
+    stream_of_lexer_eof_function (fun (_, (e,_)) -> e = EOF) token lb
+
+  let make_lexer_from_channel ?(fname="") ic =
+    let lb = Lexing.from_channel ic in
+    lb.lex_start_p <- { lb.lex_start_p with pos_fname = fname } ;
+    lb.lex_curr_p <- { lb.lex_curr_p with pos_fname = fname } ;
+    stream_of_lexer_eof_function (fun (_, (e,_)) -> e = EOF) token lb
+
+}

@@ -19,7 +19,7 @@ open Coll ;;
 open Std ;;
 open Misc_functions ;;
 open Qasmsyntax ;;
-open Qasmlex ;;
+open Qasm2_lexer ;;
 open Qasmparser ;;
 open Qasmpp ;;
 open Qasmdag0 ;;
@@ -33,6 +33,21 @@ open Qrpc_types ;;
 open Qrpc_api ;;
 open Qc_tests ;;
 open OUnit2 ;;
+
+let lexbuf_contents lb =
+  let open Lexing in
+  let pos = lb.lex_curr_pos in
+  let len = lb.lex_buffer_len - lb.lex_curr_pos in
+  (Bytes.to_string (Bytes.sub lb.lex_buffer pos len))
+;;
+
+let pp_lexbuf lb =
+  Format.print_string "#<lexbuf:<";
+  Format.print_string (lexbuf_contents lb);
+  Format.print_string ">>"
+;;
+#install_printer pp_lexbuf ;;
+
 
 (*
 #trace header ;;

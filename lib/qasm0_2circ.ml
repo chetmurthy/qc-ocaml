@@ -457,5 +457,27 @@ module Parse = struct
      Ast.comment it ("% "^line) ;
      Ast.gate loc it (id,ids) ;
      parse it strm
+  | [< >] -> it
      
 end
+
+let catch_parse_error pfun tokstrm =
+  try pfun tokstrm
+  with Stream.Error _ ->
+        match Stream.peek tokstrm with
+        | None -> Fmt.(failwithf "parse error at EOF")
+        | Some(loc, tok) ->
+           Fmt.(raise_failwithf loc "parse error")
+
+let parse1 strm =
+  let ast = Ast.mk() in
+  Parse.parse ast strm
+
+let full_parse pfun ?(fname="") buf =
+  let tokstrm = Qasm0_lexer.make_lexer ~fname buf in
+  catch_parse_error pfun tokstrm
+
+let full_parse_from_file pfun fname =
+let ic = open_in fname in
+  let tokstrm = Qasm0_lexer.make_lexer_from_channel ~fname ic in
+  catch_parse_error pfun tokstrm
