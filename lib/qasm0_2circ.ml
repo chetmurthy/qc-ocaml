@@ -52,14 +52,14 @@ module QGate = struct
     let yloc = MLM.mk () in
     let wiretype = MLM.mk () in
     if not (MLM.in_dom master op) then
-      Fmt.(raise_failwithf loc "[qgate] OOPS! unknown gate op %s on %a" op (list string) qubits) ;
+      Fmt.(raise_failwithf loc "[qgate] OOPS! unknown gate op %s on %a" op (list ~sep:(const string ",") string) qubits) ;
 
     let nqubits = List.length qubits in
     let (nbits, nctrl, texsym) = MLM.map master op in
     if nbits <> nqubits then
-      Fmt.(raise_failwithf loc "[qgate] OOPS! wrong number of qubits in op %s on %a" op (list string) qubits) ;
+      Fmt.(raise_failwithf loc "[qgate] OOPS! wrong number of qubits in op %s on %a" op (list ~sep:(const string ",") string) qubits) ;
     if not (distinct qubits) then
-      Fmt.(raise_failwithf loc "[qgate] OOPS! duplicate bit operands in op %s on %a" op (list string) qubits) ;
+      Fmt.(raise_failwithf loc "[qgate] OOPS! duplicate bit operands in op %s on %a" op (list ~sep:(const string ",") string) qubits) ;
     {
       name = op
     ; qubits = qubits
@@ -289,7 +289,7 @@ module QGate = struct
       |> List.iter (fun k ->
              if List.nth ytab (k+1) - List.nth ytab k <> 1 then
                Fmt.(raise_failwithf g.loc "[qgate] OOPS! multi-qubit gate targets not consecutive %s %a"
-                      g.name (list string) g.qubits)
+                      g.name (list ~sep:(const string ",") string) g.qubits)
            )
 
 (*
@@ -359,7 +359,7 @@ end
 
 module Ast = struct
   type t = {
-      bits : (string,  Wire.t) MLM.t
+      bits : (string,  (Wire.t * string option)) MLM.t
     ; mutable comments : string list
     ; gateMasterDef : (string, (int * int * string)) MLM.t
     ; mutable gates : QGate.t list
@@ -400,11 +400,11 @@ module Ast = struct
   let comment it s =
     it.comments <- it.comments @ [s]
 
-  let qubit it id =
-    MLM.add it.bits (id, Quantum)
+  let qubit it (id, initval_opt) =
+    MLM.add it.bits (id, (Quantum, initval_opt))
 
-  let cbit it id =
-    MLM.add it.bits (id, Classical)
+  let cbit it (id, initval_opt) =
+    MLM.add it.bits (id, (Classical, initval_opt))
 
   let def it (id, nctrl, qtex) =
     let qtexlen = String.length qtex in
@@ -437,13 +437,13 @@ module Parse = struct
   | [< '(loc, (Comment line, _)) ; strm >] ->
      Ast.comment it ("% "^line) ;
      parse it strm
-  | [< '(loc,(Qubit id, line)) ; strm >] ->
+  | [< '(loc,(Qubit (id, initval_opt), line)) ; strm >] ->
      Ast.comment it ("% "^line) ;
-     Ast.qubit it id ;
+     Ast.qubit it (id, initval_opt) ;
      parse it strm
-  | [< '(loc,(Cbit id, line)) ; strm >] ->
+  | [< '(loc,(Cbit(id, initval_opt), line)) ; strm >] ->
      Ast.comment it ("% "^line) ;
-     Ast.cbit it id ;
+     Ast.cbit it (id, initval_opt) ;
      parse it strm
   | [< '(loc,(Def(id, n, tex), line)) ; strm >] ->
      Ast.comment it ("% "^line) ;

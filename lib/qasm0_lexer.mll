@@ -13,13 +13,14 @@ let locate lb v =
 }
 
 let white = [' ' '\t']+
+let nonwhite = [^ ' ' '\t' '\r' '\n']+
 let newline = '\r' | '\n' | "\r\n"
 let lc_alpha = ['a'-'z']
 let uc_alpha = ['A'-'Z']
 let alpha = (lc_alpha | uc_alpha)
 let digit = ['0'-'9']
 let number = digit+
-let id = alpha (alpha | digit | '_' | '-')*
+let id = (alpha | '\\') (alpha | digit | '_' | '-' | '\\')*
 let sqstring = "'" [^ '\'']+ "'"
 let comma_sep_ids = (id ",")* id
 let comment = "#" [^ '\n' '\r']*
@@ -27,8 +28,17 @@ let comment = "#" [^ '\n' '\r']*
 rule line = parse
   (comment newline) as line { locate lexbuf (Comment line, line) }
 | (white? newline) { line lexbuf }
-| (white? "qubit" white (id as id) white? comment? newline) as line { locate lexbuf (Qubit id, line) }
-| (white? "cbit" white (id as id) white? comment? newline) as line { locate lexbuf (Cbit id, line) }
+
+| (white? "qubit" white (id as id) white? comment? newline) as line
+  { locate lexbuf (Qubit(id, None), line) }
+| (white? "qubit" white (id as id)","(nonwhite as initval) white? comment? newline) as line
+  { locate lexbuf (Qubit(id,  Some initval) , line) }
+
+| (white? "cbit" white (id as id) white? comment? newline) as line
+  { locate lexbuf (Cbit(id, None), line) }
+| (white? "cbit" white (id as id)","(nonwhite as initval) white? comment? newline) as line
+  { locate lexbuf (Cbit(id, Some initval), line) }
+
 | (white? "def" white (id as id)","(number as num)","(sqstring as tex) white? comment? newline) as line
   { locate lexbuf (Def(id,int_of_string num,tex), line) }
 | (white? "defbox" white (id as id)","(number as num1)","(number as num2)","(sqstring as tex) white? comment? newline) as line
@@ -42,7 +52,7 @@ rule line = parse
     try
       line lexbuf
     with Failure _ ->
-      let p = Lexing.lexeme_start_p lexbuf in
+      let p = Lexing.lexeme_end_p lexbuf in
       raise (Qasmsyntax.SyntaxError (Printf.sprintf "lexing: failed in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
 
   let make_lexer ?(fname="") buf =
