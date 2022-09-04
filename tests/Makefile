@@ -16,7 +16,12 @@ PACKAGES := $(PACKAGES),qc_ocaml,oUnit
 SYNTAX := camlp5o
 
 TESTS= \
-	qc_tests.byte large_tests.byte \
+	qc_tests.byte \
+
+LARGE_TESTS= \
+	large_tests.byte \
+
+ALL_TESTS = $(TESTS) $(LARGE_TESTS)
 
 ML=\
 	qc_tests.ml large_tests.ml
@@ -28,7 +33,8 @@ CMX := $(ML:.ml=.cmx)
 CMT := $(ML:.ml=.cmt)
 CMTI := $(MLI:.mli=.cmti)
 
-all: $(TESTS) $(TESTS:.byte=.opt) $(TESTS:.byte=.test)
+all: $(ALL_TESTS) $(ALL_TESTS:.byte=.opt) $(TESTS:.byte=.test)
+large-tests: $(LARGE_TESTS) $(LARGE_TESTS:.byte=.opt) $(LARGE_TESTS:.byte=.test)
 
 %.test : %.opt
 	mkdir -p _build && ./$<
