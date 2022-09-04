@@ -73,6 +73,6 @@ module Qobj = struct
       header : header_t ;
       qobj_id : string ;
       schema_version : string ;
-      _type : experiment_type_t [@key "type"] ;
+      _type : experiment_type_t [@sexp.key "type"][@yojson.key "type"] ;
     } [@@deriving yojson, sexp]
 end

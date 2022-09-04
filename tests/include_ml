@@ -9,6 +9,8 @@
 #use "topfind";;
 
 #require "qc_ocaml";;
+#require "oUnit";;
+#load "qc_tests.cmo";;
 
 #print_length 1048576 ;;
 
@@ -30,6 +32,7 @@ open Qobj_compile ;;
 open Qrpc_types ;;
 open Qrpc_api ;;
 open Qc_tests ;;
+open OUnit2 ;;
 
 (*
 #trace header ;;

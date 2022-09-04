@@ -28,11 +28,12 @@ CMX := $(ML:.ml=.cmx)
 CMT := $(ML:.ml=.cmt)
 CMTI := $(MLI:.mli=.cmti)
 
-all: $(TESTS:.byte=.test)
+all: $(TESTS) $(TESTS:.byte=.opt) $(TESTS:.byte=.test)
 
 %.test : %.opt
 	mkdir -p _build && ./$<
 
+.PRECIOUS: large_tests.cmo qc_tests.cmo large_tests.cmx qc_tests.cmx
 %_tests.byte: %_tests.cmo
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) -package $(PACKAGES) \
 	-linkpkg -linkall -syntax camlp5o $^ -o $@
