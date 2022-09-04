@@ -1,4 +1,5 @@
 *.cm*
 *.o
 *.a
+qasm0_lexer.ml
 qasm2_lexer.ml
