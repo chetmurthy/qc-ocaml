@@ -16,7 +16,7 @@ PACKAGES := $(PACKAGES),bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.utils,p
 
 TARGET := qc_ocaml.cma
 ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
-	qc_environment.ml qasmsyntax.ml qc_symbolic.ml qasmlex.ml \
+	qc_environment.ml qasmsyntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qasmparser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml
 MLI= gmap.mli gset.mli
@@ -57,7 +57,7 @@ clean::
 EXTERNAL := $(shell $(OCAMLFIND) query -predicates byte -format '%m' $(PACKAGES) | grep local-install)
 $(CMO) $(CMI) $(CMX): $(EXTERNAL)
 
-depend:: qasmlex.ml
+depend:: qasm2_lexer.ml
 	echo "$(CMO) $(CMI) $(CMX): $(EXTERNAL)" > .depend.NEW
 	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5o $(ML) $(MLI) >> .depend.NEW \
 		&& mv .depend.NEW .depend

@@ -23,7 +23,7 @@ let expand_include ~path strm =
     parser
   | [< '(_, T_INCLUDE fname) ; strm >] ->
      let ic = open_file_from ~path fname in
-     [< exprec (Qasmlex.make_body_lexer_from_channel ~fname ic) ; exprec strm >]
+     [< exprec (Qasm2_lexer.make_body_lexer_from_channel ~fname ic) ; exprec strm >]
   | [< 'tok ; strm >] -> [< 'tok ; exprec strm >]
   | [< >] -> [< >]
   in
@@ -40,24 +40,24 @@ let catch_parse_error pfun tokstrm =
 
 
 let full_parse ~path pfun ?(fname="") buf =
-  let tokstrm = Qasmlex.make_lexer ~fname buf in
+  let tokstrm = Qasm2_lexer.make_lexer ~fname buf in
   let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
 let full_parse_from_file ~path pfun fname =
 let ic = open_in fname in
-  let tokstrm = Qasmlex.make_lexer_from_channel ~fname ic in
+  let tokstrm = Qasm2_lexer.make_lexer_from_channel ~fname ic in
   let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
 let body_parse ~path pfun ?(fname="") buf =
-  let tokstrm = Qasmlex.make_body_lexer ~fname buf in
+  let tokstrm = Qasm2_lexer.make_body_lexer ~fname buf in
   let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
 let body_parse_from_file ~path pfun fname =
 let ic = open_in fname in
-  let tokstrm = Qasmlex.make_body_lexer_from_channel ~fname ic in
+  let tokstrm = Qasm2_lexer.make_body_lexer_from_channel ~fname ic in
   catch_parse_error pfun (expand_include ~path tokstrm)
 
 (*

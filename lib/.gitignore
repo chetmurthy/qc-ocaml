@@ -1,4 +1,4 @@
 *.cm*
 *.o
 *.a
-qasmlex.ml
+qasm2_lexer.ml

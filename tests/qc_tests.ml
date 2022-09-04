@@ -5,7 +5,7 @@ open Pa_ppx_utils
 open Coll
 open Std
 open Misc_functions
-open Qasmlex
+open Qasm2_lexer
 open Qasmsyntax
 open Qasmparser
 open Qasm_io
