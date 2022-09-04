@@ -40,7 +40,7 @@ qctool.opt: qctool.cmx
 	-linkpkg -linkall -syntax camlp5o $^ -o $@
 
 clean::
-	rm -f  *.ppo.* $(EXE))
+	rm -f  *.ppo.* $(EXE)
 
 EXTERNAL := $(shell $(OCAMLFIND) query -predicates byte -format '%m' $(PACKAGES) | grep local-install)
 

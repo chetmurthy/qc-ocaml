@@ -15,8 +15,8 @@ MKCAMLP5=$(LAUNCH) mkcamlp5
 PACKAGES := $(PACKAGES),bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.utils,pa_ppx.deriving_plugins.sexp,pa_ppx.deriving_plugins.yojson,pcre,ocamlgraph,dot,yojson,inifiles,pa_ppx.deriving_plugins.std,camlp-streams
 
 TARGET := qc_ocaml.cma
-ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml gmap.ml \
-	gset.ml qc_environment.ml qasmsyntax.ml qc_symbolic.ml qasmlex.ml \
+ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
+	qc_environment.ml qasmsyntax.ml qc_symbolic.ml qasmlex.ml \
 	qasmparser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml
 MLI= gmap.mli gset.mli
