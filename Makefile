@@ -8,16 +8,14 @@ WD=$(shell pwd)
 DESTDIR=
 RM=rm
 
-SYSDIRS= lib
+SYSDIRS= lib exe
 
 TESTDIRS= tests
 
 all test: sys
 	set -e; for i in $(TESTDIRS); do cd $$i; $(MAKE) all; cd ..; done
 
-sys: plugins
-
-plugins:
+sys:
 	set -e; for i in $(SYSDIRS); do cd $$i; $(MAKE) all; cd ..; done
 
 doc: all
