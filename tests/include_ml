@@ -12,7 +12,9 @@
 
 #print_length 1048576 ;;
 
+open Pa_ppx_utils ;;
 open Coll ;;
+open Std ;;
 open Misc_functions ;;
 open Qasmsyntax ;;
 open Qasmlex ;;

@@ -28,9 +28,9 @@ CMX := $(ML:.ml=.cmx)
 CMT := $(ML:.ml=.cmt)
 CMTI := $(MLI:.mli=.cmti)
 
-all: $(TESTS:.byte=)
+all: $(TESTS:.byte=.test)
 
-% : %.opt
+%.test : %.opt
 	mkdir -p _build && ./$<
 
 %_tests.byte: %_tests.cmo

@@ -13,6 +13,6 @@ description = "qc-ocaml library"
 
 archive(byte) = "qc_ocaml.cma"
 archive(native) = "qc_ocaml.cmxa"
-requires = "bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.utils,pa_ppx.runtime,pcre,ocamlgraph,dot,yojson,inifiles,cmdliner,camlp-streams"
+requires = "bos,rresult,uuidm,nettls-gnutls,netclient,camlp-streams,pa_ppx.utils,pa_ppx.runtime,pcre,ocamlgraph,dot,yojson,inifiles,cmdliner"
 
 EOF

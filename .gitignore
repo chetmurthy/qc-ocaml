@@ -7,3 +7,4 @@ qasmlex.ml
 *.byte
 *.opt
 qctool
+local-install
