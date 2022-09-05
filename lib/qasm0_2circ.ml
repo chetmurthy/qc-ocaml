@@ -17,6 +17,10 @@ module Wire = struct
   let wire ty = match ty with
       Quantum -> {|\w|}
     | Classical -> {|\W|}
+
+  let alt_wire ty = match ty with
+      Quantum -> {|-|}
+    | Classical -> {|=|}
 end
 
 (*
@@ -81,6 +85,8 @@ module QGate = struct
     ; nctrl 
     ; texsym
     }
+
+  let append_endtex g s = g.endtex <- g.endtex ^ s
 
   let set_bittype g (qb, ty) =
     MLM.add g.wiretype (qb, ty)
@@ -235,13 +241,13 @@ module QGate = struct
              append sacc (defid g k {|\b|})
            ) ;
 
-      let wt = Wire.wire (get_wiretype g controls) in
+      let wt = Wire.alt_wire (get_wiretype g controls) in
       controls
       |> List.iter (fun qb ->
              if MLM.map g.yloc qb < ytop then
-               g.endtex <- g.endtex ^ Fmt.(str {|\ar@{%s}"%s";"%s"|} wt xytop (MLM.map g.xy qb))
+               append_endtex g Fmt.(str {|\ar@@{%s}"%s";"%s"|} wt xytop (MLM.map g.xy qb))
              else
-               g.endtex <- g.endtex ^ Fmt.(str {|\ar@{%s}"%s";"%s"|} wt xybot (MLM.map g.xy qb))
+               append_endtex g Fmt.(str {|\ar@@{%s}"%s";"%s"|} wt xybot (MLM.map g.xy qb))
            ) ;
 
       String.concat "\n" !sacc
@@ -275,10 +281,10 @@ module QGate = struct
       let s = String.concat "\n" !sacc  in
       let (last, first) = sep_last g.qubits in
       let qbtarget = MLM.map g.xy last in
-      let wt = Wire.wire (get_wiretype g first) in
+      let wt = Wire.alt_wire (get_wiretype g first) in
       first
       |> List.iter (fun qb ->
-             g.endtex <- g.endtex ^ Fmt.(str {|\ar@{%s}"%s";"%s"|} wt qbtarget (MLM.map g.xy qb))
+             append_endtex g Fmt.(str {|\ar@@{%s}"%s";"%s"|} wt qbtarget (MLM.map g.xy qb))
            ) ;
       s
 
@@ -313,10 +319,10 @@ module QGate = struct
             return(defid(0,texsym) + '\n' + defid(1,texsym))
  *)
     let double_sym_gate g texsym =
-      let wt = Wire.wire (get_wiretype g g.qubits) in
+      let wt = Wire.alt_wire (get_wiretype g g.qubits) in
       let qb0 = MLM.map g.xy (car g.qubits) in
       let qb1 = MLM.map g.xy (cadr g.qubits) in
-      g.endtex <- g.endtex ^ Fmt.(str {|\ar@{%s}"%s";"%s"|} wt qb0 qb1) ;
+      append_endtex g Fmt.(str {|\ar@@{%s}"%s";"%s"|} wt qb0 qb1) ;
       (defid g 0 texsym) ^ "\n" ^ (defid g 1 texsym)
 
     let latex ~master g =
@@ -371,14 +377,16 @@ end
 
 module Ast = struct
   type t = {
-      bits : (string,  (Wire.t * string option)) MLM.t
+      bitnames : string list ref
+    ; bits : (string,  (Wire.t * string option)) MLM.t
     ; comments : string list ref
     ; gateMasterDef : (string, (int * int * string)) MLM.t
     ; gates : QGate.t list ref
     }
         
   let mk () = {
-      bits = MLM.mk()
+      bitnames = ref []
+    ; bits = MLM.mk()
     ; comments  = ref []
     ; gateMasterDef =
         MLM.ofList () [
@@ -412,9 +420,11 @@ module Ast = struct
   let comment it s = append it.comments s
 
   let qubit it (id, initval_opt) =
+    append it.bitnames id ;
     MLM.add it.bits (id, (Quantum, initval_opt))
 
   let cbit it (id, initval_opt) =
+    append it.bitnames id ;
     MLM.add it.bits (id, (Classical, initval_opt))
 
   let def it (id, nctrl, qtex) =
@@ -447,6 +457,9 @@ module Parse = struct
     parser
   | [< '(loc, (Comment line, _)) ; strm >] ->
      Ast.comment it line ;
+     parse it strm
+  | [< '(loc, (Blank, line)) ; strm >] ->
+     Ast.comment it ("% "^line) ;
      parse it strm
   | [< '(loc,(Qubit (id, initval_opt), line)) ; strm >] ->
      Ast.comment it ("% "^line) ;
@@ -501,13 +514,14 @@ module Circuit = struct
 
  *)
 
-  let setnames it bits =
+  let setnames it (bitnames, bits) =
     let do_name n (ty,initval_opt) =
       Vector.push it.qubitnames n ;
       MLM.add it.is_cbit (n, ty = Wire.Classical) ;
       Option.iter (fun initval -> MLM.add it.initval (n, initval)) initval_opt
     in
-    MLM.app do_name bits
+    bitnames
+    |> List.iter (fun name -> do_name name (MLM.map bits name))
 
 (*
     def add_op(self,gate):	# add gate to circuit
@@ -546,12 +560,14 @@ module Circuit = struct
            if not(MLM.in_dom it.qbtab qb) then
              Fmt.(raise_failwithf g.loc {|[qcircuit] No qubit %s "%s %a"|} qb g.name (list ~sep:(const string ",") string) g.qubits) ;
            let ts =
-             if not (MLM.in_dom it.qbtab qb) || Vector.length (MLM.map it.qbtab qb) = 0 then
+             if Vector.length (MLM.map it.qbtab qb) = 0 then
                1
              else
                (List.nth !(it.optab) (vector_wrapped_get (MLM.map it.qbtab qb) (-1))).timeseq + 1
            in
-           g.timeseq <- ts
+           Vector.push (MLM.map it.qbtab qb) g.id ;
+           if ts > g.timeseq then
+             g.timeseq <- ts ;
          ) ;
     make_id g it.qb2idx ;
     if g.timeseq > Vector.length it.circuit then
@@ -577,12 +593,12 @@ module Circuit = struct
     let l = it.circuit
             |> Vector.to_list
             |> List.mapi (fun km1 timestep ->
-                   [Fmt.(str "%%  Time %02d:" (km1+1))]@
+                   [Fmt.(str "%%  Time %02d:\n" (km1+1))]@
                      (timestep
                       |> Vector.to_list
                       |> List.map (fun gidx ->
                              let op = List.nth !(it.optab) gidx in
-                             Fmt.(str "%%    Gate %02d %s(%a)" op.id op.name (list ~sep:(const string ",") string) op.qubits)))
+                             Fmt.(str "%%    Gate %02d %s(%a)\n" op.id op.name (list ~sep:(const string ",") string) op.qubits)))
                  )
             |> List.concat in
     l @ ["\n"]
@@ -722,7 +738,7 @@ module Circuit = struct
     @(it.matrix
       |> Vector.to_list
       |> List.mapi (fun k y ->
-             Fmt.(str "%% %s: %s" (Vector.get it.qubitnames k) (String.concat ", " (Vector.to_list y)))
+             Fmt.(str "%% %s: %s\n" (Vector.get it.qubitnames k) (String.concat ", " (Vector.to_list y)))
            )
      )
 
@@ -789,13 +805,25 @@ module Circuit = struct
 \input{xyqcirc.tex}
 
 % definitions for the circuit elements
+
 |} ;
     !(it.optab)
     |> List.iter (fun g ->
-           append sacc (QGate.Latex.latex ~master:it.ast.Ast.gateMasterDef g)
+           append sacc (QGate.Latex.latex ~master:it.ast.Ast.gateMasterDef g) ;
+           append sacc "\n"
          ) ;
+
+    append sacc "\n% definitions for bit labels and initial states\n\n" ;
+    (interval 0 ((Vector.length it.matrix) - 1))
+    |> List.iter (fun j ->
+           let qb = Vector.get it.qubitnames j in
+           append sacc Fmt.(str {|\def\b%s{%s}|}  (num2name(j+1)) (qb2label it qb)) ;
+           append sacc "\n"
+         ) ;
+
     append sacc {|
 % The quantum circuit as an xymatrix
+
 \xymatrix@R=5pt@C=10pt{
 |} ;
     let ntime = (Vector.length it.circuit) + 2 in
@@ -841,7 +869,7 @@ module Circuit = struct
         ; circuit = Vector.create ~dummy:(Vector.create ~dummy:0)
         ; matrix = Vector.create ~dummy:(Vector.create ~dummy:"")
       } in
-    setnames it ast.Ast.bits ;
+    setnames it (!(ast.Ast.bitnames), ast.Ast.bits) ;
     it.qubitnames
     |> Vector.iteri (fun km1 name ->
            MLM.add it.qbtab (name, Vector.create ~dummy:0) ;
@@ -873,6 +901,7 @@ let document strm =
   let comments = String.concat "" !(ast.Ast.comments) in
   let comments = Pcre.substitute ~pat:"#" ~subst:(fun _ -> "%") comments in
   [comments]
+  @["\n"]
   @(Circuit.format_sequence qc)
   @(Circuit.format_matrix qc)
   @(Circuit.format_latex qc)

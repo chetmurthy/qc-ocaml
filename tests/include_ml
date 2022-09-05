@@ -11,6 +11,7 @@
 #require "qc_ocaml";;
 #require "oUnit";;
 #load "qc_tests.cmo";;
+#load "qasm0_tests.cmo";;
 
 #print_length 1048576 ;;
 
@@ -52,6 +53,16 @@ let pp_lexbuf lb =
 ;;
 #install_printer pp_lexbuf ;;
 
+(*
+let ast = Top.(full_parse_from_file parse1) "/home/chet/Hack/QASM/src/qasm2circ-v1.4/test/test1.qasm";;
+let qc = Circuit.mk ast ;;
+!(ast.Ast.gates)
+|> List.iter (Circuit.add_op qc) ;;
+List.iter print_string (Circuit.format_sequence qc) ;;
+List.iter print_string (Circuit.format_matrix qc) ;;
+List.iter print_string (Circuit.format_latex qc) ;;
+ *)
+List.iter print_string Top.(full_parse_from_file document "/home/chet/Hack/QASM/src/qasm2circ-v1.4/test/test1.qasm");;
 
 (*
 #trace header ;;

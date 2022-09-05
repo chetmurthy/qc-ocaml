@@ -27,7 +27,7 @@ let comment = "#" [^ '\n' '\r']*
 
 rule line = parse
   (comment newline) as line { locate lexbuf (Comment line, line) }
-| (white? newline) { line lexbuf }
+| (white? newline) as line { locate lexbuf (Blank, line) }
 
 | (white? "qubit" white (id as id) white? comment? newline) as line
   { locate lexbuf (Qubit(id, None), line) }
