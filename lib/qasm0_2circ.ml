@@ -573,7 +573,7 @@ module Circuit = struct
 
  *)
 
-  let output_sequence it =
+  let format_sequence it =
     let l = it.circuit
             |> Vector.to_list
             |> List.mapi (fun km1 timestep ->
@@ -715,16 +715,16 @@ module Circuit = struct
             print '%% %s: %s' % (self.qubitnames[k],join(y,', '))
             k += 1
  *)
-  let output_matrix it =
+  let format_matrix it =
     if Vector.length it.matrix = 0 then
       make_matrix it ;
-    ["% Qubit circuit matrix:\n%\n"]@
-    (it.matrix
-     |> Vector.to_list
-     |> List.mapi (fun k y ->
-            Fmt.(str "%% %s: %s" (Vector.get it.qubitnames k) (String.concat ", " (Vector.to_list y)))
-          )
-    )
+    ["% Qubit circuit matrix:\n%\n"]
+    @(it.matrix
+      |> Vector.to_list
+      |> List.mapi (fun k y ->
+             Fmt.(str "%% %s: %s" (Vector.get it.qubitnames k) (String.concat ", " (Vector.to_list y)))
+           )
+     )
 
 (*
 
@@ -779,7 +779,7 @@ module Circuit = struct
         print ''
         print r'\end{document}'
  *)
-  let latex it =
+  let format_latex it =
     let open QGate in
     if Vector.length it.matrix = 0 then
       make_matrix it ;
@@ -842,7 +842,12 @@ module Circuit = struct
         ; matrix = Vector.create ~dummy:(Vector.create ~dummy:"")
       } in
     setnames it ast.Ast.bits ;
-    ()
+    it.qubitnames
+    |> Vector.iteri (fun km1 name ->
+           MLM.add it.qbtab (name, Vector.create ~dummy:0) ;
+           MLM.add it.qb2idx (name, km1+1)
+         ) ;
+    it
 
 end
 
@@ -859,6 +864,18 @@ let catch_parse_error pfun tokstrm =
 let parse1 strm =
   let ast = Ast.mk() in
   Parse.parse ast strm
+
+let document strm =
+  let ast = parse1 strm in
+  let qc = Circuit.mk ast in
+  !(ast.Ast.gates)
+  |> List.iter (Circuit.add_op qc) ;
+  let comments = String.concat "" !(ast.Ast.comments) in
+  let comments = Pcre.substitute ~pat:"#" ~subst:(fun _ -> "%") comments in
+  [comments]
+  @(Circuit.format_sequence qc)
+  @(Circuit.format_matrix qc)
+  @(Circuit.format_latex qc)
 
 let full_parse pfun ?(fname="") buf =
   let tokstrm = Qasm0_lexer.make_lexer ~fname buf in
