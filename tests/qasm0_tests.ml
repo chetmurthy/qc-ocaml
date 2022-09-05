@@ -8,8 +8,11 @@ open Misc_functions
 open Qasm0_lexer
 open Qasm0_2circ
 
-let diff_files f1 f2 outf =
+let smart_diff_files f1 f2 outf =
   ignore(Unix.system(Fmt.(str "diff -Bwiu %s %s > %s" f1 f2 outf)))
+
+let dumb_diff_files f1 f2 outf =
+  ignore(Unix.system(Fmt.(str "diff -u %s %s > %s" f1 f2 outf)))
 
 let file_contents f =
   f
@@ -22,18 +25,25 @@ let diff_file_string f1 s2 =
   let out_tmpf = Filename.temp_file "qasm" ".diff-output" in
   output_string oc s2 ;
   close_out oc ;
-  diff_files f1 tmpf out_tmpf ;
-  let result = file_contents out_tmpf in
+  smart_diff_files f1 tmpf out_tmpf ;
+  let smart_result = file_contents out_tmpf in
+  dumb_diff_files f1 tmpf out_tmpf ;
+  let dumb_result = file_contents out_tmpf in
   Unix.unlink tmpf ;
   Unix.unlink out_tmpf ;
-  result
+  (smart_result, dumb_result)
 
 let compare_diff_file_string f1 s2 = 
   let s1 : string = file_contents f1 in
   if s1 = s2 then true
   else begin
-      let diffres = diff_file_string f1 s2 in
-      Fmt.(pf stderr "\n================ DIFFERENCES ================\n%s" diffres) ;
+      let (smart_result, dumb_result) = diff_file_string f1 s2 in
+      Fmt.(pf stderr {|
+================ SMART DIFFERENCES ================
+%s
+================ DUMB DIFFERENCES ================
+%s
+|} smart_result dumb_result) ;
       false
     end
 

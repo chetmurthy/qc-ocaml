@@ -847,11 +847,12 @@ module Circuit = struct
 |} ;
     !(it.optab)
     |> List.iter (fun g ->
-           if g.endtex <> "" then
+           if g.endtex <> "" then begin
              append sacc g.endtex ;
+             append sacc "\n"
+             end
          ) ;
-    append sacc {|
-}
+    append sacc {|}
 
 \end{document}
 |} ;
