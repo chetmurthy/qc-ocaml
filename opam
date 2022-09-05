@@ -14,6 +14,7 @@ doc: "https://github.com/chetmurthy/qc-ocaml/doc"
 
 depends: [
   "ocaml"       { >= "4.14.0" & < "4.15.0" }
+  "conf-diffutils"
   "conf-perl"
   "conf-perl-ipc-system-simple"
   "conf-perl-string-shellquote"

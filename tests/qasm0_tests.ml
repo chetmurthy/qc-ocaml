@@ -8,6 +8,35 @@ open Misc_functions
 open Qasm0_lexer
 open Qasm0_2circ
 
+let diff_files f1 f2 outf =
+  ignore(Unix.system(Fmt.(str "diff -Bwiu %s %s > %s" f1 f2 outf)))
+
+let file_contents f =
+  f
+  |> Fpath.v
+  |> Bos.OS.File.read
+  |> Rresult.R.get_ok
+
+let diff_file_string f1 s2 =
+  let (tmpf,  oc) = Filename.open_temp_file "qasm" "" in
+  let out_tmpf = Filename.temp_file "qasm" ".diff-output" in
+  output_string oc s2 ;
+  close_out oc ;
+  diff_files f1 tmpf out_tmpf ;
+  let result = file_contents out_tmpf in
+  Unix.unlink tmpf ;
+  Unix.unlink out_tmpf ;
+  result
+
+let compare_diff_file_string f1 s2 = 
+  let s1 : string = file_contents f1 in
+  if s1 = s2 then true
+  else begin
+      let diffres = diff_file_string f1 s2 in
+      Fmt.(pf stderr "\n================ DIFFERENCES ================\n%s" diffres) ;
+      false
+    end
+
 let misc_tests = "misc tests" >:::
   [
     "simple" >::
@@ -56,6 +85,36 @@ let parser_tests = "parser tests" >:::
       )
   ]
 
+let test_tex_file base =
+  let qasmfile = Fmt.(str "testdata/qasm0/%s.qasm" base) in
+  let texfile = Fmt.(str "testdata/qasm0-tex/%s.tex" base) in
+  base >:: (fun ctxt ->
+    let l = Top.(full_parse_from_file document qasmfile) in
+    let s = String.concat "" l in
+    assert_equal ~cmp:compare_diff_file_string texfile s
+  )
+
+let tex_tests = "tex tests" >:::
+  (["test1"
+   ; "test2"
+   ; "test3"
+   ; "test4"
+   ; "test5"
+   ; "test6"
+   ; "test7"
+   ; "test8"
+   ; "test9"
+   ; "test10"
+   ; "test11"
+   ; "test12"
+   ; "test13"
+   ; "test14"
+   ; "test15"
+   ; "test16"
+   ; "test17"
+   ; "test18"
+   ]
+   |> List.map test_tex_file)
 
 let test_parse_file fname =
   fname >:: (fun ctxt ->
@@ -85,5 +144,6 @@ if not !Sys.interactive then
       ; lexer_tests
       ; parser_tests
       ; parse_file_tests
+      ; tex_tests
     ])
 ;;
