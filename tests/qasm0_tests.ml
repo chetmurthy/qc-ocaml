@@ -20,7 +20,7 @@ let lexer_tests = "lexer tests" >:::
   [
     "simple" >::
       (fun ctxt ->
-        let _ = full_parse list_of_stream {|
+        let _ = Top.full_parse list_of_stream {|
 	def	c-P,1,'\m{e^{i\alpha} & 0 \cr 0 & e^{-i\alpha}}'
 	def	Ryt,0,'\m{\cos{\theta}&-\sin{\theta}\cr\sin{\theta}&\cos{\theta}}'
 
@@ -39,7 +39,7 @@ let parser_tests = "parser tests" >:::
   [
     "simple" >::
       (fun ctxt ->
-        let _ = full_parse parse1 {|# 
+        let _ = Top.(full_parse parse1) {|# 
 # File:   test1.qasm
 # Date:   22-Mar-04
 # Author: I. Chuang <ichuang@mit.edu>
@@ -59,7 +59,7 @@ let parser_tests = "parser tests" >:::
 
 let test_parse_file fname =
   fname >:: (fun ctxt ->
-    let rv = full_parse_from_file parse1 fname in
+    let rv = Top.(full_parse_from_file parse1) fname in
     ()
   )
 

@@ -4,6 +4,13 @@ open Pa_ppx_utils
 open Coll
 open Std
 
+let append r v = r := !r @ [v]
+let vector_wrapped_get v n =
+  let n = if n < 0 then
+            (Vector.length v) + n
+          else n in
+  Vector.get v n
+
 module Wire = struct
   type t = Quantum | Classical
 
@@ -32,8 +39,8 @@ module QGate = struct
   type t = {
         name : string
       ; qubits : string list
-      ; timeseq : int
-      ; id : int
+      ; mutable timeseq : int
+      ; mutable id : int
       ; mutable endtex : string
       ; xy : (string, string) MLM.t
       ; yloc : (string, int) MLM.t
@@ -77,6 +84,11 @@ module QGate = struct
 
   let set_bittype g (qb, ty) =
     MLM.add g.wiretype (qb, ty)
+
+  let set_bittype_bool g (qb, b) =
+    set_bittype g (qb, if b then Wire.Classical else Wire.Quantum)
+
+
 
 (*
     def xid(self):			# return ID string for gate timestep
@@ -209,18 +221,18 @@ module QGate = struct
       let myid = xytop in
       let dstr = String.make (nbits - nctrl - 1) 'd' in
       let w = Wire.wire (MLM.map g.wiretype qb) in
-      push sacc Fmt.(str {|\def\%s{\gnqubit{%s}{%s}%s\A{%s}}|}  myid u dstr w myid) ;
+      append sacc Fmt.(str {|\def\%s{\gnqubit{%s}{%s}%s\A{%s}}|}  myid u dstr w myid) ;
 
       (except qb targets)
       |> List.iter (fun qb ->
              let myid = MLM.map g.xy qb in
              let w = Wire.wire (MLM.map g.wiretype qb) in
-             push sacc Fmt.(str {|\def\%s{\gspace{%s}%s\A{%s}}|} myid u w myid)
+             append sacc Fmt.(str {|\def\%s{\gspace{%s}%s\A{%s}}|} myid u w myid)
            ) ;
 
       controls
       |> List.iteri (fun k _ ->
-             push sacc (defid g k {|\b|})
+             append sacc (defid g k {|\b|})
            ) ;
 
       let wt = Wire.wire (get_wiretype g controls) in
@@ -232,7 +244,7 @@ module QGate = struct
                g.endtex <- g.endtex ^ Fmt.(str {|\ar@{%s}"%s";"%s"|} wt xybot (MLM.map g.xy qb))
            ) ;
 
-      String.concat "\n" (List.rev !sacc)
+      String.concat "\n" !sacc
 
 (*
         def ctrl_op(nctrl,u):		# controlled operation
@@ -257,10 +269,10 @@ module QGate = struct
       let sacc = ref [] in
       (interval 0 (nctrl-1))
       |> List.iter (fun k ->
-             push sacc (defid g k {|\b|})
+             append sacc (defid g k {|\b|})
            ) ;
-      push sacc (defid g nctrl u) ;
-      let s = String.concat "\n" (List.rev !sacc)  in
+      append sacc (defid g nctrl u) ;
+      let s = String.concat "\n" !sacc  in
       let (last, first) = sep_last g.qubits in
       let qbtarget = MLM.map g.xy last in
       let wt = Wire.wire (get_wiretype g first) in
@@ -360,14 +372,14 @@ end
 module Ast = struct
   type t = {
       bits : (string,  (Wire.t * string option)) MLM.t
-    ; mutable comments : string list
+    ; comments : string list ref
     ; gateMasterDef : (string, (int * int * string)) MLM.t
-    ; mutable gates : QGate.t list
+    ; gates : QGate.t list ref
     }
         
   let mk () = {
       bits = MLM.mk()
-    ; comments  = []
+    ; comments  = ref []
     ; gateMasterDef =
         MLM.ofList () [
             ({|cnot|},     ( 2 , 1 , {|\o|}        ))
@@ -394,11 +406,10 @@ module Ast = struct
           ; ({|toffoli|},  ( 3 , 2 , {|\o|}       ))
           ; ({|Utwo|},     ( 2 , 0 , {|U|}         ))
           ]
-    ; gates = []
+    ; gates = ref []
     }
 
-  let comment it s =
-    it.comments <- it.comments @ [s]
+  let comment it s = append it.comments s
 
   let qubit it (id, initval_opt) =
     MLM.add it.bits (id, (Quantum, initval_opt))
@@ -426,7 +437,7 @@ module Ast = struct
 
   let gate loc it (id, args) =
     let g = QGate.mk loc ~master:it.gateMasterDef id args in
-    it.gates <- it.gates @ [g]
+    append it.gates g
 
 end
 
@@ -435,7 +446,7 @@ module Parse = struct
   let rec parse it =
     parser
   | [< '(loc, (Comment line, _)) ; strm >] ->
-     Ast.comment it ("% "^line) ;
+     Ast.comment it line ;
      parse it strm
   | [< '(loc,(Qubit (id, initval_opt), line)) ; strm >] ->
      Ast.comment it ("% "^line) ;
@@ -461,6 +472,382 @@ module Parse = struct
      
 end
 
+module Circuit = struct
+  type t = {
+      ast : Ast.t
+    ; initval : (string, string) MLM.t
+    ; is_cbit : (string, bool) MLM.t
+    ; qubitnames : string Vector.t
+    ; qbtab : (string, int Vector.t) MLM.t
+    ; qb2idx : (string, int) MLM.t
+    ; optab : QGate.t list ref
+    ; circuit : int Vector.t Vector.t
+    ; mutable matrix : string Vector.t Vector.t
+    }
+
+(*
+    def setnames(self,names,types):	# set bit names and types (+ initval)
+
+        def do_name(n,type):		# set names & extract initial values
+            tmp = n.split(',')			# check for initial value
+            self.qubitnames.append(tmp[0])	# add to name list
+            self.is_cbit[tmp[0]] = type		# 0 = qubit, 1 = cbit
+            if(len(tmp)>1):
+                self.initval[tmp[0]] = tmp[1]	# add initial value for qubit
+
+        self.qubitnames = []
+        for k in range(len(names)):		# loop over qubit names
+            do_name(names[k],types[k])		# process name and type
+
+ *)
+
+  let setnames it bits =
+    let do_name n (ty,initval_opt) =
+      Vector.push it.qubitnames n ;
+      MLM.add it.is_cbit (n, ty = Wire.Classical) ;
+      Option.iter (fun initval -> MLM.add it.initval (n, initval)) initval_opt
+    in
+    MLM.app do_name bits
+
+(*
+    def add_op(self,gate):	# add gate to circuit
+
+        self.optab.append(gate)		# put gate into table of gates
+        gate.id = len(self.optab)-1	# give the gate a unique ID number
+        # print "%% adding op %s(%s) IDs: %s" % (gate.name,gate.args,
+        #                                       join(gate.xy.values(),','))
+        
+        for qb in gate.qubits:		# put gate on qubits it acts upon
+            if(self.qbtab.has_key(qb)==0):	# check for syntax error
+                s = (qb,gate.linenum,gate.name + ' ' + gate.args)
+                do_error('[qcircuit] No qubit %s in line %d: "%s"' % s)
+            if(len(self.qbtab[qb])==0):	# if first gate, timestep = 1
+                ts = 1
+            else:			# otherwise, timestep = last+1
+                ts = self.optab[self.qbtab[qb][-1]].timeseq+1
+            self.qbtab[qb].append(gate.id)
+            if(ts>gate.timeseq):	# set timeseq number for gate
+                gate.timeseq = ts	# to be largest of its qubits
+
+        gate.make_id(self.qb2idx)	# make gate ID's (do after timestep)
+
+        if(gate.timeseq > len(self.circuit)):	# add new timestep if necessary
+            self.circuit.append([])
+        self.circuit[gate.timeseq-1].append(gate.id)	# add gate to circuit
+
+ *)
+
+  let add_op it g =
+    let open QGate in
+    append it.optab g ;
+    g.id <- (List.length !(it.optab) - 1) ;
+    g.qubits
+    |> List.iter (fun qb ->
+           if not(MLM.in_dom it.qbtab qb) then
+             Fmt.(raise_failwithf g.loc {|[qcircuit] No qubit %s "%s %a"|} qb g.name (list ~sep:(const string ",") string) g.qubits) ;
+           let ts =
+             if not (MLM.in_dom it.qbtab qb) || Vector.length (MLM.map it.qbtab qb) = 0 then
+               1
+             else
+               (List.nth !(it.optab) (vector_wrapped_get (MLM.map it.qbtab qb) (-1))).timeseq + 1
+           in
+           g.timeseq <- ts
+         ) ;
+    make_id g it.qb2idx ;
+    if g.timeseq > Vector.length it.circuit then
+      Vector.push it.circuit (Vector.create ~dummy:0) ;
+    Vector.push (Vector.get it.circuit (g.timeseq - 1)) g.id
+
+(*
+        
+    def output_sequence(self):	# output time-sequence of gates
+        k = 1				# timestep counter
+        for timestep in self.circuit:	# loop over timesteps
+            print "%%  Time %02d:" % k
+            for g in timestep:		# loop over events in this timestep
+                op = self.optab[g]
+                print "%%    Gate %02d %s(%s)" % (op.id,
+                                                     op.name,op.args)
+            k += 1
+        print ""
+
+ *)
+
+  let output_sequence it =
+    let l = it.circuit
+            |> Vector.to_list
+            |> List.mapi (fun km1 timestep ->
+                   [Fmt.(str "%%  Time %02d:" (km1+1))]@
+                     (timestep
+                      |> Vector.to_list
+                      |> List.map (fun gidx ->
+                             let op = List.nth !(it.optab) gidx in
+                             Fmt.(str "%%    Gate %02d %s(%a)" op.id op.name (list ~sep:(const string ",") string) op.qubits)))
+                 )
+            |> List.concat in
+    l @ ["\n"]
+
+(*
+    def make_matrix(self):	# make circuit matrix, of qubit vs timestep
+        
+        self.matrix = []
+        ntime = len(self.circuit)+2	# total number of timsteps
+        wires = ['n','N']		# single or double wire for qubit/cbit
+
+        for qb in self.qubitnames:	# loop over qubits
+            self.matrix.append([])	# start with empty row
+            k = 1			# timestep counter
+            cbit = self.is_cbit[qb]	# cbit=0 means qubit type (single wire)
+            gidtab = self.qbtab[qb]	# table of gate IDs
+            for gid in gidtab:		# loop over IDs for gates on qubit
+                g = self.optab[gid]	# gate with that ID
+                while(g.timeseq>k):	# output null ops until gate acts
+                    self.matrix[-1].append('%s  ' % wires[cbit])
+                    k += 1		# increment timestep  
+                g.set_bittype(qb,cbit)	# set qubit type (cbit/qubit)
+                self.matrix[-1].append(g.xy[qb])
+                k += 1			# increment timestep
+                if(g.texsym=='\meter'):	# if measurement gate then cbit=1
+                    cbit = 1
+                if(g.texsym.find('\dmeter')>=0): # alternative measurement gate
+                    cbit = 1
+                if(g.name=='measure'):	# if measurement gate then cbit=1
+                    cbit = 1		# switch to double wire
+                if(g.name=='zero'):	# if zero gate then cbit=0
+                    cbit = 0		# switch to single wire
+            while(k<ntime):		# fill in null ops until end of circuit
+                k += 1			# unless last g was space or discard
+                if((g.name!='space')&(g.name!='discard')):
+                    self.matrix[-1].append('%s  ' % wires[cbit])
+ *)
+  let make_matrix it =
+    let open QGate in
+    Vector.clear it.matrix ;
+    let ntime = (Vector.length it.circuit) + 2 in
+    let to_wire b = if b then "N" else "n" in
+    it.qubitnames
+    |> Vector.iter (fun qb  ->
+           Vector.push it.matrix (Vector.create ~dummy:"") ;
+           let k = ref 1 in
+           let cbit = ref (MLM.map it.is_cbit qb) in
+           let gidtab = MLM.map it.qbtab qb in
+           gidtab
+           |> Vector.iter (fun gid ->
+                  let g = List.nth !(it.optab) gid in
+                  while (g.timeseq > !k) do
+                    let txt = Fmt.(str "%s  " (to_wire !cbit)) in
+                    Vector.push (vector_wrapped_get it.matrix (-1)) txt ;
+                    incr k
+                  done ;
+                  set_bittype_bool g (qb, !cbit) ;
+                  Vector.push (vector_wrapped_get it.matrix (-1)) (MLM.map g.xy qb) ;
+                  incr k ;
+                  if g.texsym = {|\meter|} then
+                    cbit := true
+                  else if Pcre.(pmatch ~pat:(quote {|\meter|}) g.texsym) then
+                    cbit := true
+                  else if g.name = "measure" then
+                    cbit := true
+                    else if g.name = "zero" then
+                    cbit := false ;
+                ) ;
+           let last_gid = vector_wrapped_get gidtab (-1) in
+           let last_g = List.nth !(it.optab) last_gid in
+           while !k < ntime do
+             incr k ;
+             if last_g.name <> "space" && last_g.name <> "discard" then
+               let txt = Fmt.(str "%s  " (to_wire !cbit)) in
+               Vector.push (vector_wrapped_get it.matrix (-1)) txt
+           done
+         )
+
+    (*
+
+    def qb2label(self,qb):	# make latex format label for qubit name
+
+        m = re.compile('([A-z]+)(\d+)').search(qb)
+        if(m):			# make num subscript if name = alpha+numbers
+            label = "%s_{%s}" % (m.group(1),m.group(2))
+        else:
+            label = qb			# othewise use just what was specified
+        if(self.is_cbit[qb]):
+            if(self.initval.has_key(qb)):	# qubit has initial value?
+                label = r'   {%s = %s}' % (label,self.initval[qb])
+            else:
+                label = r'   {%s}' % (label)
+        else:
+            if(self.initval.has_key(qb)):	# qubit has initial value?
+                label = r'\qv{%s}{%s}' % (label,self.initval[qb])
+            else:
+                label = r' \q{%s}' % (label)
+        return(label)
+     *)
+  let qb2label it qb =
+    let label = match Pcre.exec ~pat:{|([A-z]+)(\d+)|} qb with
+        exception Not_found -> qb
+      | ss ->
+         let ident = Pcre.get_substring ss 1 in
+         let num = Pcre.get_substring ss 2 in
+         Fmt.(str "%s_{%s}" ident num) in
+    let label =
+      if MLM.map it.is_cbit qb then
+        if MLM.in_dom it.initval qb then
+          Fmt.(str "   {%s = %s}" label (MLM.map it.initval qb))
+        else
+          Fmt.(str "   {%s}" label)
+      else
+        if MLM.in_dom it.initval qb then
+          Fmt.(str {|\qv{%s}{%s}|} label (MLM.map it.initval qb))
+        else
+          Fmt.(str {| \q{%s}|} label) in
+    label
+
+(*
+
+    def output_matrix(self):	# output circuit matrix, of qubit vs timestep
+
+        if(len(self.matrix)==0):	# make circuit matrix if not done
+            self.make_matrix()
+
+        k = 0
+        print "% Qubit circuit matrix:\n%"
+        for y in self.matrix:	# loop over qubits
+            print '%% %s: %s' % (self.qubitnames[k],join(y,', '))
+            k += 1
+ *)
+  let output_matrix it =
+    if Vector.length it.matrix = 0 then
+      make_matrix it ;
+    ["% Qubit circuit matrix:\n%\n"]@
+    (it.matrix
+     |> Vector.to_list
+     |> List.mapi (fun k y ->
+            Fmt.(str "%% %s: %s" (Vector.get it.qubitnames k) (String.concat ", " (Vector.to_list y)))
+          )
+    )
+
+(*
+
+    def output_latex(self):	# output latex with xypic for circuit
+
+        if(len(self.matrix)==0):	# make circuit matrix if not done
+            self.make_matrix()
+
+        print ''
+        print r'\documentclass[preview]{standalone}'        # output latex header
+        print r'\input{xyqcirc.tex}'
+
+        # now go through all gates and output latex definitions
+        print ""
+        print "% definitions for the circuit elements\n"
+        for g in self.optab:
+            print g.latex()		# output \def\gXY{foo} lines
+
+        # now output defs for qubit labels and initial states
+        print ""
+        print "% definitions for bit labels and initial states\n"
+        for j in range(len(self.matrix)):
+            qb = self.qubitnames[j]
+            print r"\def\b%s{%s}" % (num2name(j+1),self.qb2label(qb))
+
+        # now output circuit
+        print ""
+        # print r'\xymatrix@R=15pt@C=12pt{'
+        print "% The quantum circuit as an xymatrix\n"
+        print r'\xymatrix@R=5pt@C=10pt{'
+
+        ntime = len(self.circuit)+2	# total number of timsteps
+        j = 0				# counter for timestep
+        stab = []			# table of strings
+        for y in self.matrix:		# loop over qubits
+            qb = self.qubitnames[j]	# qubit name
+            ops = join(map(lambda(x):'\\'+x,y),' &')
+            stab.append(r'\b%s & %s' % (num2name(j+1),ops)) 
+            j += 1			# increment timestep
+        stab[0] = '    ' + stab[0]
+        print join(stab,'\n\\\\  ')
+
+        # now go through all gates and output final latex (eg vertical lines)
+        print "%"
+        print "% Vertical lines and other post-xymatrix latex\n%"
+        for g in self.optab:
+            if(g.endtex!=""):
+                print g.endtex		# output end latex commands
+
+        # now end the xymatrix & latex document
+        print r'}'
+        print ''
+        print r'\end{document}'
+ *)
+  let latex it =
+    let open QGate in
+    if Vector.length it.matrix = 0 then
+      make_matrix it ;
+    let sacc = ref [] in
+    append sacc {|
+\documentclass[preview]{standalone}
+\input{xyqcirc.tex}
+
+% definitions for the circuit elements
+|} ;
+    !(it.optab)
+    |> List.iter (fun g ->
+           append sacc (QGate.Latex.latex ~master:it.ast.Ast.gateMasterDef g)
+         ) ;
+    append sacc {|
+% The quantum circuit as an xymatrix
+\xymatrix@R=5pt@C=10pt{
+|} ;
+    let ntime = (Vector.length it.circuit) + 2 in
+    let j = ref 0 in
+    let stab = Vector.create ~dummy:"" in
+    it.matrix
+    |> Vector.to_list
+    |> List.iter (fun y ->
+           let qb = Vector.get it.qubitnames !j  in
+           let ops = String.concat " &" (y |> Vector.to_list |>  List.map (fun x -> "\\"^x)) in
+           Vector.push stab Fmt.(str {|\b%s & %s|} (num2name(!j+1)) ops) ;
+           incr j
+         ) ;
+    Vector.set stab 0 ("    "^(Vector.get stab 0)) ;
+    append sacc (String.concat "\n\\\\  " (Vector.to_list stab)) ;
+
+    append sacc {|
+%
+% Vertical lines and other post-xymatrix latex
+%
+|} ;
+    !(it.optab)
+    |> List.iter (fun g ->
+           if g.endtex <> "" then
+             append sacc g.endtex ;
+         ) ;
+    append sacc {|
+}
+
+\end{document}
+|} ;
+    !sacc
+
+  let mk ast =
+    let it = {
+        ast
+        ; initval = MLM.mk()
+        ; is_cbit = MLM.mk()
+        ; qubitnames = Vector.create ~dummy:""
+        ; qbtab = MLM.mk()
+        ; qb2idx = MLM.mk()
+        ; optab = ref []
+        ; circuit = Vector.create ~dummy:(Vector.create ~dummy:0)
+        ; matrix = Vector.create ~dummy:(Vector.create ~dummy:"")
+      } in
+    setnames it ast.Ast.bits ;
+    ()
+
+end
+
+module Top = struct
+
 let catch_parse_error pfun tokstrm =
   try pfun tokstrm
   with Stream.Error _ ->
@@ -481,3 +868,5 @@ let full_parse_from_file pfun fname =
 let ic = open_in fname in
   let tokstrm = Qasm0_lexer.make_lexer_from_channel ~fname ic in
   catch_parse_error pfun tokstrm
+  
+end
