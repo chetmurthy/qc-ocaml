@@ -214,12 +214,12 @@ module QGate = struct
       let sacc = ref [] in
       let (controls, targets) = sep_firstn nctrl g.qubits in
       let qb =
-        let min_yloc = MLM.fold (fun minval (k, v) -> min minval v) (-1) g.yloc in
+        let min_yloc = List.fold_left (fun minval k -> min minval (MLM.map g.yloc k)) max_int targets in
         List.hd (MLM.inv g.yloc min_yloc) in
       let ytop = MLM.map g.yloc qb in
       let xytop = MLM.map g.xy qb in
       let qb_bot =
-        let max_yloc = MLM.fold (fun maxval (k, v) -> max maxval v) max_int g.yloc in
+        let max_yloc = List.fold_left (fun maxval k -> max maxval (MLM.map g.yloc k)) (-1) targets in
         List.hd (MLM.inv g.yloc max_yloc) in
       let ybot = MLM.map g.yloc qb_bot in
       let xybot = MLM.map g.xy qb_bot in
@@ -432,7 +432,7 @@ module Ast = struct
     let tex = String.sub qtex 1 (qtexlen - 2) in
     let texsym = 
       if tex = "bullet" then {|\b|}
-      else if Pcre.pmatch ~pat:{|\dmeter|} tex then tex
+      else if Pcre.(pmatch ~pat:(quote {|\dmeter|}) tex) then tex
       else Printf.sprintf {|\op{%s}|} tex in
     if MLM.in_dom it.gateMasterDef id then
       failwithf "[qasm_parser] oops! duplicate def for op %s" id ;
@@ -660,12 +660,12 @@ module Circuit = struct
                   incr k ;
                   if g.texsym = {|\meter|} then
                     cbit := true
-                  else if Pcre.(pmatch ~pat:(quote {|\meter|}) g.texsym) then
+                  else if Pcre.(pmatch ~pat:(quote {|\dmeter|}) g.texsym) then
                     cbit := true
                   else if g.name = "measure" then
                     cbit := true
-                    else if g.name = "zero" then
-                    cbit := false ;
+                  else if g.name = "zero" then
+                    cbit := false
                 ) ;
            let last_gid = vector_wrapped_get gidtab (-1) in
            let last_g = List.nth !(it.optab) last_gid in

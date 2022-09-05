@@ -54,16 +54,18 @@ let pp_lexbuf lb =
 #install_printer pp_lexbuf ;;
 
 (*
-let ast = Top.(full_parse_from_file parse1) "/home/chet/Hack/QASM/src/qasm2circ-v1.4/test/test1.qasm";;
+#trace QGate.Latex.latex ;;
+#trace QGate.Latex.do_multiqubit ;;
+let ast = Top.(full_parse_from_file parse1) "testdata/qasm0/test15.qasm";;
 let qc = Circuit.mk ast ;;
 !(ast.Ast.gates)
 |> List.iter (Circuit.add_op qc) ;;
 List.iter print_string (Circuit.format_sequence qc) ;;
 List.iter print_string (Circuit.format_matrix qc) ;;
 List.iter print_string (Circuit.format_latex qc) ;;
- *)
-List.iter print_string Top.(full_parse_from_file document "/home/chet/Hack/QASM/src/qasm2circ-v1.4/test/test1.qasm");;
 
+List.iter print_string Top.(full_parse_from_file document "testdata/qasm0/test15.qasm");;
+ *)
 (*
 #trace header ;;
 #trace grab_real ;;

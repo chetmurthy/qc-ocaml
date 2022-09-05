@@ -9,7 +9,7 @@ open Qasm0_lexer
 open Qasm0_2circ
 
 let smart_diff_files f1 f2 outf =
-  ignore(Unix.system(Fmt.(str "diff -Bwiu %s %s > %s" f1 f2 outf)))
+  ignore(Unix.system(Fmt.(str "diff -Bwu %s %s > %s" f1 f2 outf)))
 
 let dumb_diff_files f1 f2 outf =
   ignore(Unix.system(Fmt.(str "diff -u %s %s > %s" f1 f2 outf)))
