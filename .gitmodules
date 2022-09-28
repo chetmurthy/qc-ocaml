@@ -1,0 +1,3 @@
+[submodule "qasm2circ"]
+	path = qasm2circ
+	url = git@github.com:chetmurthy/qasm2circ.git
