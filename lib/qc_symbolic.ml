@@ -1,6 +1,6 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
-open Qasmsyntax
+open Qasm2syntax
 
 module Eval = struct
 

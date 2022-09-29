@@ -3,6 +3,7 @@
 open Pa_ppx_utils
 open Std
 open Misc_functions
+open Qc_misc
 
 exception SyntaxError of string
 
@@ -11,12 +12,6 @@ exception SyntaxError of string
 real      := ([0-9]+\.[0-9]*|[0-9]*\.[0-9]+)([eE][-+]?[0-9]+)?
 
 *)
-
-module RealNumeral = struct
-  type t = string
-  let mk s =
-    s
-end
 
 type rawtoken =
   | T_EOF

@@ -3,7 +3,7 @@
 open Pa_ppx_utils
 open Std
 open Coll
-open Qasmsyntax
+open Qasm2syntax
 open Qasmparser
 open Qasmpp
 open Qasmdag0

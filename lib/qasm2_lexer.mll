@@ -4,7 +4,8 @@ open Lexing
 open Pa_ppx_utils
 open Std
 open Misc_functions
-open Qasmsyntax
+open Qc_misc
+open Qasm2syntax
 
 module TA = TokenAux
 

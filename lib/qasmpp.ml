@@ -3,7 +3,7 @@
 open Pa_ppx_utils
 open Std
 open Misc_functions
-open Qasmsyntax
+open Qasm2syntax
 open Qasmparser
 open Qc_environment
 

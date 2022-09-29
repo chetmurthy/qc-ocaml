@@ -16,7 +16,7 @@ PACKAGES := $(PACKAGES),vector,bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.
 
 TARGET := qc_ocaml.cma
 ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
-	qc_environment.ml qasmsyntax.ml qc_symbolic.ml qasm2_lexer.ml \
+	qc_misc.ml qc_environment.ml qasm2syntax.ml qlam_syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qasmparser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
 MLI= gmap.mli gset.mli

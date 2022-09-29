@@ -5,7 +5,7 @@ open Std
 open Coll
 open Misc_functions
 open Qc_environment
-open Qasmsyntax
+open Qasm2syntax
 open Qasmparser
 open Qasmpp
 

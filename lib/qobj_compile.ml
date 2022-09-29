@@ -7,8 +7,7 @@ open Std
 open Coll
 open Misc_functions
 open Qc_environment
-open Qasmsyntax
-open Qasmsyntax
+open Qasm2syntax
 open Qasmparser
 open Qasmdag0
 open Qasmpp
