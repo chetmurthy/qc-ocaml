@@ -12,15 +12,20 @@ LAUNCH=env TOP=$(TOP) $(TOP)/tools/LAUNCH
 OCAMLFIND=$(LAUNCH) ocamlfind
 NOT_OCAMLFIND=$(LAUNCH) not-ocamlfind
 MKCAMLP5=$(LAUNCH) mkcamlp5
-PACKAGES := $(PACKAGES),vector,bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.sexp,pa_ppx.deriving_plugins.yojson,pcre,ocamlgraph,dot,yojson,inifiles,pa_ppx.deriving_plugins.std,camlp-streams
+PACKAGES := $(PACKAGES),vector,bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.sexp,pa_ppx.deriving_plugins.yojson,pcre,ocamlgraph,dot,yojson,inifiles,pa_ppx.deriving_plugins.std,camlp-streams,camlp5.extend
 
 TARGET := qc_ocaml.cma
-ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
+OML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qlam_syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qlam_lexer.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
-MLI= gmap.mli gset.mli
+RML = qlam_parser.ml
+ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
+	qc_misc.ml qc_environment.ml qasm2syntax.ml qlam_syntax.ml qc_symbolic.ml qasm2_lexer.ml \
+	qlam_lexer.ml qlam_parser.ml \
+	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
+	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
 
 CMO := $(ML:.ml=.cmo)
 CMI := $(ML:.ml=.cmi)
@@ -46,7 +51,7 @@ META: META.pl
 install::
 	mkdir -p $(DESTDIR)/lib
 	./META.pl $(DESTDIR)/lib > META
-	$(NOT_OCAMLFIND) reinstall-if-diff qc_ocaml -destdir $(DESTDIR)/lib META $(TARGET) $(TARGET:.cma=.cmxa) $(TARGET:.cma=.a) $(CMI) $(wildcard *.cmt*)
+	$(NOT_OCAMLFIND) reinstall-if-diff qc_ocaml -destdir $(DESTDIR)/lib META $(TARGET) $(TARGET:.cma=.cmxa) $(TARGET:.cma=.a) $(CMX) $(CMI) $(wildcard *.cmt*)
 	$(RM) -f META
 
 local-install::
@@ -55,12 +60,20 @@ local-install::
 clean::
 	rm -rf META
 
+qlam_parser.cmo:  qlam_parser.ml
+	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qlam_parser.cmx:  qlam_parser.ml
+	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+
 EXTERNAL := $(shell $(OCAMLFIND) query -predicates byte -format '%m' $(PACKAGES) | grep local-install)
 $(CMO) $(CMI) $(CMX): $(EXTERNAL)
 
 depend:: qasm0_lexer.ml qasm2_lexer.ml qlam_lexer.ml
 	echo "$(CMO) $(CMI) $(CMX): $(EXTERNAL)" > .depend.NEW
-	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5o $(ML) $(MLI) >> .depend.NEW \
+	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5o $(OML) $(MLI) >> .depend.NEW
+	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5r $(RML) $(RMLI) >> .depend.NEW \
 		&& mv .depend.NEW .depend
 
 -include .depend
