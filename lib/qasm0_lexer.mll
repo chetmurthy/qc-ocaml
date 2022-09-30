@@ -54,7 +54,7 @@ rule line = parse
       line lexbuf
     with Failure _ ->
       let p = Lexing.lexeme_end_p lexbuf in
-      raise (Qasm2syntax.SyntaxError (Printf.sprintf "lexing: failed in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
+      raise (SyntaxError (Printf.sprintf "lexing: failed in file \"%s\" at char %d" p.Lexing.pos_fname p.Lexing.pos_cnum))
 
   let make_lexer ?(fname="") buf =
     let lb = Lexing.from_string buf in

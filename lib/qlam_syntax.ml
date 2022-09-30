@@ -1,6 +1,54 @@
 
 open Qc_misc
 
+type rawtoken =
+  | T_EOF
+  (* special symbols *)
+  | T_OPENQASM of RealNumeral.t
+  | T_INCLUDE of string
+
+  (* special characters *)
+  | T_SEMICOLON
+  | T_LBRACE
+  | T_RBRACE
+  | T_LBRACKET
+  | T_RBRACKET
+  | T_LPAREN
+  | T_RPAREN
+  | T_EQEQ
+  | T_COMMA
+  | T_DASH
+  | T_PLUS
+  | T_STAR
+  | T_STARSTAR
+  | T_SLASH
+  | T_CARET
+  | T_DASHGT
+
+  (* reserved words *)
+  | T_BARRIER
+  | T_COS
+  | T_CREG
+  | T_CX
+  | T_EXP
+  | T_GATE
+  | T_IF
+  | T_LN
+  | T_PI
+  | T_QREG
+  | T_SIN
+  | T_SQRT
+  | T_TAN
+  | T_U
+  | T_MEASURE
+  | T_OPAQUE
+  | T_RESET
+  | T_LET | T_IN | T_AND
+
+  | T_INTEGER of int
+  | T_REAL of RealNumeral.t
+  | T_ID of string
+
 module PC = struct
 
 type t =

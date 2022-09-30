@@ -8,7 +8,7 @@ open Qobj_types
 open Qrpc_api
 open Qasm_io
 open Qobj_compile
-open Qasmsyntax
+open Qasm2syntax
 open Qasmpp
 open Qasmdag0
 open Qasm_passes

@@ -5,8 +5,6 @@ open Std
 open Misc_functions
 open Qc_misc
 
-exception SyntaxError of string
-
 (* a string that matches 
 
 real      := ([0-9]+\.[0-9]*|[0-9]*\.[0-9]+)([eE][-+]?[0-9]+)?
@@ -71,42 +69,6 @@ module LexState = struct
   let past_head st =
     assert(is_at_head st) ;
     st.at_head <- false
-end
-
-module TokenAux = struct
-  type t = {
-      comments: string list ;
-      startpos : Lexing.position ;
-      endpos : Lexing.position ;
-    }
-
-  let mk coms lb = {
-      comments = [cleanws coms] ;
-      startpos = Lexing.lexeme_start_p lb ;
-      endpos = Lexing.lexeme_end_p lb ;
-    }
-
-  let mt = {
-      comments = [] ;
-      startpos = Lexing.dummy_pos ;
-      endpos = Lexing.dummy_pos ;
-    }
-
-  let append a1 a2 =
-    {
-      comments = a1.comments @ a2.comments ;
-      startpos = a1.startpos ;
-      endpos = a2.endpos ;
-    }
-  let appendlist l =
-    assert (l <> []) ;
-    List.fold_left append (List.hd l) (List.tl l)
-
-  let comment_string a =
-    String.concat "" a.comments
-
-  let startpos a = a.startpos
-  let endpos a = a.endpos
 end
 
 type token = TokenAux.t * rawtoken

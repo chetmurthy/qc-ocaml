@@ -3,6 +3,7 @@
 open Pa_ppx_utils
 open Std
 open Misc_functions
+open Qc_misc
 open Qasm2syntax
 
 let open_file_from ~path fname =
