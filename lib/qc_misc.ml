@@ -44,3 +44,17 @@ module TokenAux = struct
   let startpos a = a.startpos
   let endpos a = a.endpos
 end
+
+module ID = struct
+  let id_re = Pcre.regexp "^([A-Za-z](?:[A-Za-z_0-9_]*[A-Za-z])?)([0-9]*)$"
+  let mk s =
+    let ss = Pcre.extract ~rex:id_re s in
+    let strn = ss.(2) in
+    let n = if strn = "" then -1 else int_of_string strn in
+    (ss.(1),  n)
+
+  let unmk (s,n) =
+    if n = -1 then s else
+      Printf.sprintf  "%s%d" s n
+
+end

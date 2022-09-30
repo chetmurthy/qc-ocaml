@@ -70,7 +70,7 @@ type t =
   ID of var_t
 | CONST of PC.t
 | BINOP of binop_t * t * t
-| UNOP of binop_t * t
+| UNOP of unop_t * t
 | UFUN of ufun_t * t
 end
 
@@ -83,10 +83,10 @@ type qgatename_t = QGATE of string * int
 type qgate_t =
   QGATELAM of PE.var_t list * qvar_t list * cvar_t list * t
 | QGATE of qgatename_t
-| QBARRIER
-| QBIT | QDISCARD
-| QMEASURE
-| QRESET
+| QBARRIER of qvar_t list
+| QBIT | QDISCARD of qvar_t list
+| QMEASURE of qvar_t list
+| QRESET of qvar_t list
 
 and t =
   QLET of qbinding_t list * t
