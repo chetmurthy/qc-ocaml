@@ -6,7 +6,7 @@ open Coll
 open Misc_functions
 open Qc_environment
 open Qasm2syntax
-open Qasmparser
+open Qasm2_parser
 open Qasmpp
 
 (* The first implementation of a Multigraph DAG.

@@ -7,7 +7,7 @@ open Std
 open Misc_functions
 open Qasm2_lexer
 open Qasm2syntax
-open Qasmparser
+open Qasm2_parser
 open Qasmpp
 open Qasmdag0
 

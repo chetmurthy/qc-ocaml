@@ -449,7 +449,7 @@ module Parse = struct
     let { debug ; qasmfile ; iterations ; only_parse ; include_path } = p in
 
     for i = 1 to iterations do
-      let open Qasmparser in
+      let open Qasm2_parser in
       let vers,pl = full_parse_from_file ~path:include_path PA.mainprogram qasmfile in
       if only_parse then () else
         let (envs, p) = TYCHK.program pl in

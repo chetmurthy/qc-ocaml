@@ -21,7 +21,7 @@ open Std ;;
 open Misc_functions ;;
 open Qasmsyntax ;;
 open Qasm2_lexer ;;
-open Qasmparser ;;
+open Qasm2_parser ;;
 open Qasmpp ;;
 open Qasmdag0 ;;
 open Qasm_io ;;

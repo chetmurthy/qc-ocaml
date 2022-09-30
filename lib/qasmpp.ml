@@ -4,7 +4,7 @@ open Pa_ppx_utils
 open Std
 open Misc_functions
 open Qasm2syntax
-open Qasmparser
+open Qasm2_parser
 open Qc_environment
 
 module CSTPP = struct

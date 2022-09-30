@@ -8,7 +8,7 @@ open Coll
 open Misc_functions
 open Qc_environment
 open Qasm2syntax
-open Qasmparser
+open Qasm2_parser
 open Qasmdag0
 open Qasmpp
 open Qc_symbolic

@@ -4,7 +4,7 @@ open Pa_ppx_utils
 open Std
 open Coll
 open Qasm2syntax
-open Qasmparser
+open Qasm2_parser
 open Qasmpp
 open Qasmdag0
 
