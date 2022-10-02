@@ -80,8 +80,10 @@ type qvar_t = QV of string * int
 type cvar_t = CV of string * int
 type qgatename_t = QGATE of string * int
 
-type qgate_t =
-  QGATELAM of PE.var_t list * qvar_t list * cvar_t list * t
+type qgatelam_t = PE.var_t list * qvar_t list * cvar_t list * t
+
+and qgate_t =
+  QGATELAM of qgatelam_t
 | QGATE of qgatename_t
 | QBARRIER of qvar_t list
 | QBIT | QDISCARD of qvar_t list
@@ -96,3 +98,12 @@ and t =
 and qbinding_t =
   qvar_t list * cvar_t list * t
 end
+
+module QEnv = struct
+type item =
+  QGATEDEF of QC.qgatename_t * QC.qgatelam_t
+| QINCLUDE of string * t
+and t = item list
+end
+
+type t = QEnv.t * QC.t

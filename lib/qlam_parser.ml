@@ -3,33 +3,87 @@ open Qlam_syntax ;
 
 value g = Grammar.gcreate (Plexer.gmake ());
 value qcirc = Grammar.Entry.create g "qcirc";
-value qgate = Grammar.Entry.create g "qgate";
+value qbinding = Grammar.Entry.create g "qbinding";
+value env = Grammar.Entry.create g "env";
+value env_item = Grammar.Entry.create g "env_item";
+value top = Grammar.Entry.create g "top";
+
+
+value with_input_file fname f arg =
+  let oinput_file = Pcaml.input_file.val in do {
+    Pcaml.input_file.val := fname ;
+    try let rv = f arg in do { Pcaml.input_file.val := oinput_file ; rv }
+    with exc -> do {
+      Pcaml.input_file.val := oinput_file ;
+      raise exc
+    }
+  }
+;
+
+value read_inc s =
+  s |> Fpath.v |> Bos.OS.File.read
+  |> Rresult.R.get_ok |> Stream.of_string
+  |> with_input_file s (Grammar.Entry.parse env)
+;
 
 EXTEND
-  GLOBAL: qcirc qgate ;
+  GLOBAL: qcirc qbinding env env_item top ;
+
+  env: [ [
+    l = LIST0 env_item -> l
+  ] ]
+  ;
+
+  env_item: [ [
+      "gate" ; gname = qgatename ; "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars ;
+        "=" ; qc = qcirc ; ";" -> QEnv.QGATEDEF gname (pvl, qvl, cvl, qc)
+              | "include" ; s = STRING ; ";" -> QEnv.QINCLUDE s (read_inc s)
+  ] ]
+  ;
+
+  top: [ [
+    e = env ; qc = qcirc -> (e, qc)
+    ] ]
+  ;
+
   qgate: [ [
       "qbit" ; "(" ; ")" -> QC.QBIT
-    | "qdiscard" ; qvl = LIST1 qvar -> QC.QDISCARD qvl
-    | "barrier" ; qvl = LIST1 qvar -> QC.QBARRIER qvl
-    | "measure" ; qvl = LIST1 qvar -> QC.QMEASURE qvl
-    | "reset" ; qvl = LIST1 qvar -> QC.QRESET qvl
+    | "qdiscard" ; qvl = ne_qvars -> QC.QDISCARD qvl
+    | "barrier" ; qvl = ne_qvars -> QC.QBARRIER qvl
+    | "measure" ; qvl = ne_qvars -> QC.QMEASURE qvl
+    | "reset" ; qvl = ne_qvars -> QC.QRESET qvl
     | gname = qgatename -> QC.QGATE gname
-    | "gatefun" ; "[" ; "(" ; pvl = LIST1 paramvar ; ")" ; "(" ; qvl = LIST1 qvar ; "/" ; cvl = LIST1 cvar ; ")" ;
-      qc = qcirc ; "]" -> QC.QGATELAM pvl qvl cvl qc
+    | "gatefun" ; "[" ; "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars ;
+      qc = qcirc ; "]" -> QC.QGATELAM (pvl, qvl, cvl, qc)
   ] ]
   ;
 
   qcirc: [ [
       "let" ; l = LIST1 qbinding ; "in" ; qc = qcirc -> QC.QLET l qc
-    | "(" ; qvl = LIST1 qvar ; ")" -> QC.QWIRES qvl []
-    | "(" ; qvl = LIST1 qvar ; "/" ; cvl = LIST1 cvar ; ")" -> QC.QWIRES qvl cvl
-    | g = qgate ; pl = params ; "(" ; qvl = LIST1 qvar ; "/" ; cvl = LIST1 cvar ; ")" ->
+    | (qvl,cvl) = paren_qvars_cvars -> QC.QWIRES qvl cvl
+    | g = qgate ; pl = params ; (qvl,cvl) = qvars_cvars ->
        QC.QGATEAPP g pl qvl cvl
   ] ]
   ;
 
+  paramvars: [ [ l = LIST0 paramvar SEP "," -> l ] ] ;
+  qvars: [ [ l = LIST0 qvar SEP "," -> l ] ] ;
+  ne_qvars: [ [ l = LIST1 qvar SEP "," -> l ] ] ;
+  cvars: [ [ l = LIST0 cvar SEP "," -> l ] ] ;
+  ne_cvars: [ [ l = LIST1 cvar SEP "," -> l ] ] ;
+  qvars_cvars: [ [
+      (qvl, cvl) = paren_qvars_cvars -> (qvl, cvl)
+    | qv = qvar -> ([qv], [])
+  ] ]
+  ;
+  paren_qvars_cvars: [ [
+      "(" ; qvl = qvars ; "/" ; cvl = ne_cvars ; ")" -> (qvl, cvl)
+    | "(" ; qvl = qvars ; ")" -> (qvl, [])
+  ] ]
+  ;
+
   params: [ [
-      "(" ; l = LIST1 param ; ")" -> l
+      "(" ; l = LIST1 param SEP "," ; ")" -> l
     | -> []
   ] ] ;
 
@@ -69,17 +123,18 @@ EXTEND
   ;
 
   qbinding: [ [
-      qvl = LIST1 qvar ; "=" ; qc = qcirc -> (qvl, [], qc)
-    | qvl = LIST1 qvar ; "/" ; cvl = LIST1 cvar ; "=" ; qc = qcirc -> (qvl, cvl, qc)
+      (qvl,cvl) = qvars_cvars ; "=" ; qc = qcirc -> (qvl, cvl, qc)
   ] ]
   ;
 
   ident: [ [
-       id = LIDENT -> (id, 0)
+       id = LIDENT -> ID.mk id
+     | id = UIDENT -> ID.mk id
   ] ]
   ;
   paramvar: [ [ (s,n) = ident -> PE.PV s n ] ] ;
   qvar: [ [ (s,n) = ident -> QV s n ] ] ;
   cvar: [ [ (s,n) = ident -> CV s n ] ] ;
   qgatename: [ [ (s,n) = ident -> QGATE s n ] ] ;
+
 END;
