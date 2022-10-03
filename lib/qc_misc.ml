@@ -6,7 +6,7 @@ open Misc_functions
 exception SyntaxError of string
 
 module RealNumeral = struct
-  type t = string
+  type t = string[@@deriving (yojson, eq)]
   let mk s =
     s
   let unmk s = s
@@ -49,7 +49,7 @@ module TokenAux = struct
 end
 
 module ID = struct
-  type t = string * int
+  type t = string * int[@@deriving (yojson, eq)]
   let id_re = Pcre.regexp "^([A-Za-z](?:[A-Za-z_0-9_]*[A-Za-z])?)([0-9]*)$"
   let mk s =
     let ss = Pcre.extract ~rex:id_re s in
