@@ -158,7 +158,7 @@ let item pps = function
            QC.qvars_cvars (qvl, cvl)
            QC.qcirc qc)
   | QINCLUDE (s, _) ->
-     Fmt.(pf pps "include %a" (quote string) s)
+     Fmt.(pf pps "include %a ;" (quote string) s)
 
 let newline_sep pps () = Fmt.(pf pps "@.")
 
@@ -168,3 +168,6 @@ let pp pps l =
 end
 
 type t = QEnv.t * QC.t
+
+let pp pps (env, qc) =
+  Fmt.(pf pps "%a@.%a%!" QEnv.pp env QC.qcirc qc)
