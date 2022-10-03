@@ -111,17 +111,21 @@ let paren_qvars_cvars pps = function
     (qvl, []) ->
      Fmt.(pf pps "(%a)" (list ~sep:(const string ", ") qvar) qvl)
   | (qvl, cvl) ->
-     Fmt.(pf pps "(%a / %a)" (list ~sep:(const string ", ") qvar) qvl  (list ~sep:(const string ", ") cvar) cvl)
+     Fmt.(pf pps "(%a : %a)" (list ~sep:(const string ", ") qvar) qvl  (list ~sep:(const string ", ") cvar) cvl)
 
 let qvars_cvars pps = function
-    ([qv], []) ->
-     Fmt.(pf pps "%a" qvar qv)
-  | x ->  paren_qvars_cvars pps x
+    (qvl, []) ->
+     Fmt.(pf pps "%a" (list qvar) qvl)
+  | (qvl, cvl) ->
+     Fmt.(pf pps "%a : %a" (list qvar) qvl  (list cvar) cvl)
+
 
 let rec qcirc pps = function
     QLET (bl, qc) ->
      Fmt.(pf pps "@[<v>let @[%a@] in@ %a@]" (list ~sep:and_sep binding) bl qcirc qc)
   | QWIRES (qvl, cvl) -> paren_qvars_cvars pps (qvl, cvl)
+  | QGATEAPP (qg, [], qvl, cvl) ->
+     Fmt.(pf  pps "%a %a" qgate qg qvars_cvars (qvl, cvl))
   | QGATEAPP (qg, pel, qvl, cvl) ->
      Fmt.(pf  pps "%a (%a) %a" qgate qg (list ~sep:(const string ", ") PE.pp) pel qvars_cvars (qvl, cvl))
   | QBARRIER qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
@@ -140,8 +144,10 @@ and qgate pps = function
   | QGATE qg ->  Fmt.(pf pps "%a" qgatename qg)
 
 and binding pps = function
-    (qvl,  cvl, qc) ->
-    Fmt.(pf pps "%a = %a" qvars_cvars (qvl,cvl) qcirc qc)
+    ([qv],  [], qc) ->
+    Fmt.(pf pps "%a = %a" qvar qv qcirc qc)
+  | (qvl,  cvl, qc) ->
+    Fmt.(pf pps "%a = %a" paren_qvars_cvars (qvl,cvl) qcirc qc)
 end
 
 module QEnv = struct

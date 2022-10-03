@@ -8,6 +8,8 @@
 
 #use "topfind";;
 
+#require "camlp5";;
+#require"pa_ppx.runtime_fat" ;;
 #require "qc_ocaml";;
 #require "oUnit";;
 #print_length 1048576 ;;
@@ -34,6 +36,7 @@ open OUnit2 ;;
 open Qasm0_lexer ;;
 open Qasm0_2circ ;;
 
+Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 
 let lexbuf_contents lb =
   let open Lexing in

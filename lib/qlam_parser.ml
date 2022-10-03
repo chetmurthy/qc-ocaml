@@ -73,18 +73,18 @@ EXTEND
   ;
 
   paramvars: [ [ l = LIST0 paramvar SEP "," -> l ] ] ;
-  qvars: [ [ l = LIST0 qvar SEP "," -> l ] ] ;
-  ne_qvars: [ [ l = LIST1 qvar SEP "," -> l ] ] ;
-  cvars: [ [ l = LIST0 cvar SEP "," -> l ] ] ;
-  ne_cvars: [ [ l = LIST1 cvar SEP "," -> l ] ] ;
+  qvars: [ [ l = LIST0 qvar -> l ] ] ;
+  ne_qvars: [ [ l = LIST1 qvar -> l ] ] ;
+  cvars: [ [ l = LIST0 cvar -> l ] ] ;
+  ne_cvars: [ [ l = LIST1 cvar -> l ] ] ;
   qvars_cvars: [ [
-      (qvl, cvl) = paren_qvars_cvars -> (qvl, cvl)
-    | qv = qvar -> ([qv], [])
+      qvl = qvars ; ":" ; cvl = ne_cvars -> (qvl, cvl)
+    | qvl = qvars -> (qvl, [])
   ] ]
   ;
   paren_qvars_cvars: [ [
-      "(" ; qvl = qvars ; "/" ; cvl = ne_cvars ; ")" -> (qvl, cvl)
-    | "(" ; qvl = qvars ; ")" -> (qvl, [])
+      "(" ; qvl = LIST0 qvar SEP "," ; "/" ; cvl = LIST1 cvar SEP "," ; ")" -> (qvl, cvl)
+    | "(" ; qvl = LIST0 qvar SEP "," ; ")" -> (qvl, [])
   ] ]
   ;
 
@@ -133,7 +133,8 @@ EXTEND
   ;
 
   qbinding: [ [
-      (qvl,cvl) = qvars_cvars ; "=" ; qc = qcirc -> (qvl, cvl, qc)
+      (qvl,cvl) = paren_qvars_cvars ; "=" ; qc = qcirc -> (qvl, cvl, qc)
+    | qv = qvar ; "=" ; qc = qcirc -> ([qv], [], qc)
   ] ]
   ;
 
