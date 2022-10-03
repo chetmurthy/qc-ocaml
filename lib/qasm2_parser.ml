@@ -6,24 +6,11 @@ open Misc_functions
 open Qc_misc
 open Qasm2syntax
 
-let open_file_from ~path fname =
-  try
-    let fname =
-      try_find (fun dir ->
-          let fname = Printf.sprintf "%s/%s" dir fname in
-          if Sys.file_exists fname then fname
-          else failwith "caught") path in
-    open_in fname
-  with Failure _ ->
-    Exc.die (Printf.sprintf "Qasmparser.open_file_from: cannot open file %s for read on path [%s]"
-               fname
-           (String.concat "; " path))
-
 let expand_include ~path strm =
   let rec exprec =
     parser
   | [< '(_, T_INCLUDE fname) ; strm >] ->
-     let ic = open_file_from ~path fname in
+     let ic = open_in (find_file_from ~path fname) in
      [< exprec (Qasm2_lexer.make_body_lexer_from_channel ~fname ic) ; exprec strm >]
   | [< 'tok ; strm >] -> [< 'tok ; exprec strm >]
   | [< >] -> [< >]

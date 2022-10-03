@@ -1,5 +1,9 @@
+open Pa_ppx_utils ;
 open Qc_misc ;
 open Qlam_syntax ;
+
+value include_path = ref [] ;
+value add_include (s : string) = Std.push include_path s ;
 
 value g = Grammar.gcreate (Plexer.gmake ());
 value qcirc = Grammar.Entry.create g "qcirc";
@@ -21,6 +25,7 @@ value with_input_file fname f arg =
 ;
 
 value read_inc s =
+  let s = find_file_from ~{path=include_path.val} s in
   s |> Fpath.v |> Bos.OS.File.read
   |> Rresult.R.get_ok |> Stream.of_string
   |> with_input_file s (Grammar.Entry.parse env)

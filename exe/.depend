@@ -1,0 +1,3 @@
+qctool.cmo qctool.cmi qctool.cmx: ../local-install/lib/qc_ocaml/META
+qctool.cmo :
+qctool.cmx :

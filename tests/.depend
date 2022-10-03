@@ -1,0 +1,7 @@
+qasm2_tests.cmo qasm0_tests.cmo large_tests.cmo qasm2_tests.cmi qasm0_tests.cmi large_tests.cmi qasm2_tests.cmx qasm0_tests.cmx large_tests.cmx: ../local-install/lib/qc_ocaml/META
+large_tests.cmo :
+large_tests.cmx :
+qasm0_tests.cmo :
+qasm0_tests.cmx :
+qasm2_tests.cmo :
+qasm2_tests.cmx :

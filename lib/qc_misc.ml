@@ -1,4 +1,6 @@
 
+open Pa_ppx_utils
+open Std
 open Misc_functions
 
 exception SyntaxError of string
@@ -58,3 +60,14 @@ module ID = struct
       Printf.sprintf  "%s%d" s n
 
 end
+
+let find_file_from ~path fname =
+  try
+    try_find (fun dir ->
+        let fname = Printf.sprintf "%s/%s" dir fname in
+        if Sys.file_exists fname then fname
+        else failwith "caught") path
+  with Failure _ ->
+    Exc.die (Printf.sprintf "Qasmparser.open_file_from: cannot open file %s for read on path [%s]"
+               fname
+           (String.concat "; " path))
