@@ -41,9 +41,14 @@ EXTEND
   ;
 
   env_item: [ [
-      "gate" ; gname = qgatename ; "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars ;
-        "=" ; qc = qcirc ; ";" -> QEnv.QGATEDEF gname (pvl, qvl, cvl, qc)
-              | "include" ; s = STRING ; ";" -> QEnv.QINCLUDE s (read_include s)
+      "gate" ; gname = qgatename ; gargs = gate_args ;
+        "=" ; qc = qcirc ; ";" -> QEnv.QGATEDEF gname (gargs, qc)
+    | "gate" ; gname = qgatename ; gargs = gate_args ; ";" -> QEnv.QGATEOPAQUE gname gargs
+    | "include" ; s = STRING ; ";" -> QEnv.QINCLUDE s (read_include s)
+  ] ]
+  ;
+  gate_args: [ [
+      "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars -> (pvl, qvl, cvl)
   ] ]
   ;
 
@@ -54,8 +59,8 @@ EXTEND
 
   qgate: [ [
       gname = qgatename -> QC.QGATE loc gname
-    | "gatefun" ; "[" ; "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars ;
-      qc = qcirc ; "]" -> QC.QGATELAM loc (pvl, qvl, cvl, qc)
+    | "gatefun" ; "[" ; gargs = gate_args ;
+      qc = qcirc ; "]" -> QC.QGATELAM loc (gargs, qc)
   ] ]
   ;
 

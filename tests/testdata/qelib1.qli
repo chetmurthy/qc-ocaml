@@ -1,3 +1,6 @@
+gate U(a,b,c) q ;
+gate CX () p q ;
+
 gate u3(theta,phi,lambda) q =
 let q = U(theta,phi,lambda) q in
 (q);

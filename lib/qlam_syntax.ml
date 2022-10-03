@@ -100,7 +100,8 @@ value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
 value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
 value qgatename pps = fun [ (QG _ id) -> ident pps id ] ;
 
-type qgatelam_t = (list paramvar_t * list qvar_t * list cvar_t * t)
+type qgatelam_t = (qgateargs_t * t)
+and qgateargs_t = (list paramvar_t * list qvar_t * list cvar_t)
 
 and qgate_t = [
   QGATELAM of loc and qgatelam_t
@@ -151,7 +152,7 @@ value rec qcirc pps = fun [
 ]
 
 and qgate pps = fun [
-  QGATELAM _ (pvl, qvl,  cvl, qc) ->
+  QGATELAM _ ((pvl, qvl,  cvl), qc) ->
     Fmt.(pf pps "gatefun [@[@ (%a)@ %a@ %a@]]"
            (list ~{sep=(const string ", ")} paramvar) pvl
            qvars_cvars (qvl, cvl)
@@ -171,18 +172,24 @@ end ;
 module QEnv = struct
 type item = [
   QGATEDEF of QC.qgatename_t and QC.qgatelam_t
+| QGATEOPAQUE of QC.qgatename_t and QC.qgateargs_t
 | QINCLUDE of string and t
   ]
 and t = list item
 [@@deriving (to_yojson, eq);] ;
 
 value item pps = fun [
-    QGATEDEF gname (pvl, qvl, cvl, qc) ->
+    QGATEDEF gname ((pvl, qvl, cvl), qc) ->
     Fmt.(pf pps "gate %a (%a) %a = %a ;"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
            QC.qvars_cvars (qvl, cvl)
            QC.qcirc qc)
+  | QGATEOPAQUE gname (pvl, qvl, cvl) ->
+    Fmt.(pf pps "gate %a (%a) %a ;"
+           QC.qgatename gname
+           (list ~{sep=(const string ", ")} paramvar) pvl
+           QC.qvars_cvars (qvl, cvl))
   | QINCLUDE s _ ->
      Fmt.(pf pps "include %a ;" (quote string) s)
 ] ;
@@ -190,7 +197,7 @@ value item pps = fun [
 value newline_sep pps () = Fmt.(pf pps "@.") ;
 
 value pp pps l =
-  Fmt.(pf pps "%a" (list ~{sep=newline_sep} item) l) ;
+  Fmt.(pf pps "@[<v>%a@]" (list ~{sep=newline_sep} item) l) ;
 
 end ;
 
