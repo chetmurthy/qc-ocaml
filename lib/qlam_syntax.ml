@@ -120,7 +120,7 @@ let qvars_cvars pps = function
 
 let rec qcirc pps = function
     QLET (bl, qc) ->
-     Fmt.(pf pps "let @[%a@]@ in %a" (list ~sep:and_sep binding) bl qcirc qc)
+     Fmt.(pf pps "@[<v>let @[%a@] in@ %a@]" (list ~sep:and_sep binding) bl qcirc qc)
   | QWIRES (qvl, cvl) -> paren_qvars_cvars pps (qvl, cvl)
   | QGATEAPP (qg, pel, qvl, cvl) ->
      Fmt.(pf  pps "%a (%a) %a" qgate qg (list ~sep:(const string ", ") PE.pp) pel qvars_cvars (qvl, cvl))
