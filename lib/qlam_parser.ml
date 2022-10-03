@@ -53,22 +53,22 @@ EXTEND
   ;
 
   qgate: [ [
-      gname = qgatename -> QC.QGATE gname
+      gname = qgatename -> QC.QGATE loc gname
     | "gatefun" ; "[" ; "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars ;
-      qc = qcirc ; "]" -> QC.QGATELAM (pvl, qvl, cvl, qc)
+      qc = qcirc ; "]" -> QC.QGATELAM loc (pvl, qvl, cvl, qc)
   ] ]
   ;
 
   qcirc: [ [
-      "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QC.QLET l qc
-    | (qvl,cvl) = paren_qvars_cvars -> QC.QWIRES qvl cvl
-    | ["qubit"| "qbit"] ; "(" ; ")" -> QC.QBIT
-    | "qdiscard" ; qvl = ne_qvars -> QC.QDISCARD qvl
-    | "barrier" ; qvl = ne_qvars -> QC.QBARRIER qvl
-    | "measure" ; qvl = ne_qvars -> QC.QMEASURE qvl
-    | "reset" ; qvl = ne_qvars -> QC.QRESET qvl
+      "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QC.QLET loc l qc
+    | (qvl,cvl) = paren_qvars_cvars -> QC.QWIRES loc qvl cvl
+    | ["qubit"| "qbit"] ; "(" ; ")" -> QC.QBIT loc
+    | "qdiscard" ; qvl = ne_qvars -> QC.QDISCARD loc qvl
+    | "barrier" ; qvl = ne_qvars -> QC.QBARRIER loc qvl
+    | "measure" ; qvl = ne_qvars -> QC.QMEASURE loc qvl
+    | "reset" ; qvl = ne_qvars -> QC.QRESET loc qvl
     | g = qgate ; pl = params ; (qvl,cvl) = qvars_cvars ->
-       QC.QGATEAPP g pl qvl cvl
+       QC.QGATEAPP loc g pl qvl cvl
   ] ]
   ;
 
@@ -95,20 +95,20 @@ EXTEND
 
   param: [
     "add" LEFTA [
-      e1 = SELF ; "+" ; e2 = SELF -> PE.BINOP PE.ADD e1 e2
-    | e1 = SELF ; "-" ; e2 = SELF -> PE.BINOP PE.SUB e1 e2
+      e1 = SELF ; "+" ; e2 = SELF -> PE.BINOP loc PE.ADD e1 e2
+    | e1 = SELF ; "-" ; e2 = SELF -> PE.BINOP loc PE.SUB e1 e2
     ]
   | "mul" LEFTA [
-      e1 = SELF ; "*" ; e2 = SELF -> PE.BINOP PE.MUL e1 e2
-    | e1 = SELF ; "/" ; e2 = SELF -> PE.BINOP PE.DIV e1 e2
+      e1 = SELF ; "*" ; e2 = SELF -> PE.BINOP loc PE.MUL e1 e2
+    | e1 = SELF ; "/" ; e2 = SELF -> PE.BINOP loc PE.DIV e1 e2
     ]
-  | "uminus" LEFTA [ "-" ; e1 = SELF -> PE.UNOP PE.UMINUS e1 ]
+  | "uminus" LEFTA [ "-" ; e1 = SELF -> PE.UNOP loc PE.UMINUS e1 ]
   | "pow" RIGHTA [
-      e1 = SELF ; "**" ; e2 = SELF -> PE.BINOP PE.POW e1 e2
+      e1 = SELF ; "**" ; e2 = SELF -> PE.BINOP loc PE.POW e1 e2
     ]
   | "simple" [
-      id = paramvar -> PE.ID id
-    | c = paramconst -> PE.CONST c
+      id = paramvar -> PE.ID loc id
+    | c = paramconst -> PE.CONST loc c
     | "(" ; p = SELF ; ")" -> p
     | uf = ufun ; "(" ; p = param ; ")" -> uf p
     ]
@@ -116,12 +116,12 @@ EXTEND
   ;
 
   ufun: [ [
-      "sin" -> (fun x ->  PE.UFUN PE.SIN x)
-    | "cos" -> (fun x -> PE.UFUN PE.COS x)
-    | "tan" -> (fun  x -> PE.UFUN PE.TAN x)
-    | "exp" -> (fun x -> PE.UFUN PE.EXP x)
-    | "ln" ->  (fun x -> PE.UFUN PE.LN x)
-    | "sqrt" -> (fun x -> PE.UFUN PE.SQRT x)
+      "sin" -> (fun x ->  PE.UFUN loc PE.SIN x)
+    | "cos" -> (fun x -> PE.UFUN loc PE.COS x)
+    | "tan" -> (fun  x -> PE.UFUN loc PE.TAN x)
+    | "exp" -> (fun x -> PE.UFUN loc PE.EXP x)
+    | "ln" ->  (fun x -> PE.UFUN loc PE.LN x)
+    | "sqrt" -> (fun x -> PE.UFUN loc PE.SQRT x)
     ] ]
   ;
 
@@ -143,10 +143,10 @@ EXTEND
      | id = UIDENT -> ID.mk id
   ] ]
   ;
-  paramvar: [ [ x = ident -> PV x ] ] ;
-  qvar: [ [ x = ident -> QV x ] ] ;
-  cvar: [ [ x = ident -> CV x ] ] ;
-  qgatename: [ [ x = ident -> QG x ] ] ;
+  paramvar: [ [ x = ident -> PV loc x ] ] ;
+  qvar: [ [ x = ident -> QV loc x ] ] ;
+  cvar: [ [ x = ident -> CV loc x ] ] ;
+  qgatename: [ [ x = ident -> QG loc x ] ] ;
 
 END;
 
