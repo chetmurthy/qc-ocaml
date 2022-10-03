@@ -10,7 +10,7 @@
 
 #require "qc_ocaml";;
 #require "oUnit";;
-#load "qc_tests.cmo";;
+#load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
 
 #print_length 1048576 ;;
@@ -32,7 +32,7 @@ open Qobj_types ;;
 open Qobj_compile ;;
 open Qrpc_types ;;
 open Qrpc_api ;;
-open Qc_tests ;;
+open Qasm2_tests ;;
 open OUnit2 ;;
 
 open Qasm0_lexer ;;
@@ -122,3 +122,6 @@ Session.available_backends session ;;
 Job.submit_job "ibmq_16_melbourne" qobj session ;;
 
  *)
+open Qlam_syntax ;;
+open Qlam_parser ;;
+add_include "testdata" ;;

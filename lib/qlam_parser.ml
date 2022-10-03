@@ -101,8 +101,12 @@ EXTEND
       e1 = SELF ; "*" ; e2 = SELF -> PE.BINOP PE.MUL e1 e2
     | e1 = SELF ; "/" ; e2 = SELF -> PE.BINOP PE.DIV e1 e2
     ]
-  | "pow" LEFTA [ "-" ; e1 = SELF -> PE.UNOP PE.UMINUS e1 ]
-  | "simple" [ id = paramvar -> PE.ID id
+  | "uminus" LEFTA [ "-" ; e1 = SELF -> PE.UNOP PE.UMINUS e1 ]
+  | "pow" RIGHTA [
+      e1 = SELF ; "**" ; e2 = SELF -> PE.BINOP PE.POW e1 e2
+    ]
+  | "simple" [
+      id = paramvar -> PE.ID id
     | c = paramconst -> PE.CONST c
     | "(" ; p = SELF ; ")" -> p
     | uf = ufun ; "(" ; p = param ; ")" -> uf p
@@ -137,9 +141,9 @@ EXTEND
      | id = UIDENT -> ID.mk id
   ] ]
   ;
-  paramvar: [ [ (s,n) = ident -> PE.PV s n ] ] ;
-  qvar: [ [ (s,n) = ident -> QV s n ] ] ;
-  cvar: [ [ (s,n) = ident -> CV s n ] ] ;
-  qgatename: [ [ (s,n) = ident -> QGATE s n ] ] ;
+  paramvar: [ [ x = ident -> PV x ] ] ;
+  qvar: [ [ x = ident -> QV x ] ] ;
+  cvar: [ [ x = ident -> CV x ] ] ;
+  qgatename: [ [ x = ident -> QG x ] ] ;
 
 END;

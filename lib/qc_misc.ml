@@ -9,6 +9,7 @@ module RealNumeral = struct
   type t = string
   let mk s =
     s
+  let unmk s = s
 end
 
 module TokenAux = struct
@@ -48,6 +49,7 @@ module TokenAux = struct
 end
 
 module ID = struct
+  type t = string * int
   let id_re = Pcre.regexp "^([A-Za-z](?:[A-Za-z_0-9_]*[A-Za-z])?)([0-9]*)$"
   let mk s =
     let ss = Pcre.extract ~rex:id_re s in
@@ -68,6 +70,6 @@ let find_file_from ~path fname =
         if Sys.file_exists fname then fname
         else failwith "caught") path
   with Failure _ ->
-    Exc.die (Printf.sprintf "Qasmparser.open_file_from: cannot open file %s for read on path [%s]"
+    Exc.die (Printf.sprintf "Qc_misc.open_file_from: cannot open file %s for read on path [%s]"
                fname
            (String.concat "; " path))

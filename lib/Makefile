@@ -17,13 +17,12 @@ PACKAGES := $(PACKAGES),vector,bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.
 TARGET := qc_ocaml.cma
 OML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qlam_syntax.ml qc_symbolic.ml qasm2_lexer.ml \
-	qlam_lexer.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
 RML = qlam_parser.ml
 ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qlam_syntax.ml qc_symbolic.ml qasm2_lexer.ml \
-	qlam_lexer.ml qlam_parser.ml \
+	qlam_parser.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
 
@@ -70,7 +69,7 @@ qlam_parser.cmx:  qlam_parser.ml
 EXTERNAL := $(shell $(OCAMLFIND) query -predicates byte -format '%m' $(PACKAGES) | grep local-install)
 $(CMO) $(CMI) $(CMX): $(EXTERNAL)
 
-depend:: qasm0_lexer.ml qasm2_lexer.ml qlam_lexer.ml
+depend:: qasm0_lexer.ml qasm2_lexer.ml
 	echo "$(CMO) $(CMI) $(CMX): $(EXTERNAL)" > .depend.NEW
 	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5o $(OML) $(MLI) >> .depend.NEW
 	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5r $(RML) $(RMLI) >> .depend.NEW \
