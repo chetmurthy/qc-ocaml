@@ -7,6 +7,7 @@ value add_include (s : string) = Std.push include_path s ;
 
 value g = Grammar.gcreate (Plexer.gmake ());
 value qcirc = Grammar.Entry.create g "qcirc";
+value qgate = Grammar.Entry.create g "qgate";
 value qbinding = Grammar.Entry.create g "qbinding";
 value env = Grammar.Entry.create g "env";
 value env_item = Grammar.Entry.create g "env_item";
@@ -24,7 +25,7 @@ value with_input_file fname f arg =
   }
 ;
 
-value read_inc s =
+value read_include s =
   let s = find_file_from ~{path=include_path.val} s in
   s |> Fpath.v |> Bos.OS.File.read
   |> Rresult.R.get_ok |> Stream.of_string
@@ -32,7 +33,7 @@ value read_inc s =
 ;
 
 EXTEND
-  GLOBAL: qcirc qbinding env env_item top ;
+  GLOBAL: qcirc qgate qbinding env env_item top ;
 
   env: [ [
     l = LIST0 env_item -> l
@@ -42,7 +43,7 @@ EXTEND
   env_item: [ [
       "gate" ; gname = qgatename ; "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars ;
         "=" ; qc = qcirc ; ";" -> QEnv.QGATEDEF gname (pvl, qvl, cvl, qc)
-              | "include" ; s = STRING ; ";" -> QEnv.QINCLUDE s (read_inc s)
+              | "include" ; s = STRING ; ";" -> QEnv.QINCLUDE s (read_include s)
   ] ]
   ;
 
@@ -52,20 +53,20 @@ EXTEND
   ;
 
   qgate: [ [
-      "qbit" ; "(" ; ")" -> QC.QBIT
-    | "qdiscard" ; qvl = ne_qvars -> QC.QDISCARD qvl
-    | "barrier" ; qvl = ne_qvars -> QC.QBARRIER qvl
-    | "measure" ; qvl = ne_qvars -> QC.QMEASURE qvl
-    | "reset" ; qvl = ne_qvars -> QC.QRESET qvl
-    | gname = qgatename -> QC.QGATE gname
+      gname = qgatename -> QC.QGATE gname
     | "gatefun" ; "[" ; "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars ;
       qc = qcirc ; "]" -> QC.QGATELAM (pvl, qvl, cvl, qc)
   ] ]
   ;
 
   qcirc: [ [
-      "let" ; l = LIST1 qbinding ; "in" ; qc = qcirc -> QC.QLET l qc
+      "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QC.QLET l qc
     | (qvl,cvl) = paren_qvars_cvars -> QC.QWIRES qvl cvl
+    | ["qubit"| "qbit"] ; "(" ; ")" -> QC.QBIT
+    | "qdiscard" ; qvl = ne_qvars -> QC.QDISCARD qvl
+    | "barrier" ; qvl = ne_qvars -> QC.QBARRIER qvl
+    | "measure" ; qvl = ne_qvars -> QC.QMEASURE qvl
+    | "reset" ; qvl = ne_qvars -> QC.QRESET qvl
     | g = qgate ; pl = params ; (qvl,cvl) = qvars_cvars ->
        QC.QGATEAPP g pl qvl cvl
   ] ]
@@ -88,7 +89,7 @@ EXTEND
   ;
 
   params: [ [
-      "(" ; l = LIST1 param SEP "," ; ")" -> l
+      "(" ; l = LIST0 param SEP "," ; ")" -> l
     | -> []
   ] ] ;
 
@@ -147,3 +148,9 @@ EXTEND
   qgatename: [ [ x = ident -> QG x ] ] ;
 
 END;
+
+value read_qcircuit s =
+  s |> Fpath.v |> Bos.OS.File.read
+  |> Rresult.R.get_ok |> Stream.of_string
+  |> with_input_file s (Grammar.Entry.parse top)
+;

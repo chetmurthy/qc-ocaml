@@ -92,15 +92,15 @@ type qgatelam_t = paramvar_t list * qvar_t list * cvar_t list * t
 and qgate_t =
   QGATELAM of qgatelam_t
 | QGATE of qgatename_t
-| QBARRIER of qvar_t list
-| QBIT | QDISCARD of qvar_t list
-| QMEASURE of qvar_t list
-| QRESET of qvar_t list
 
 and t =
   QLET of qbinding_t list * t
 | QWIRES of qvar_t list * cvar_t list
 | QGATEAPP of qgate_t * PE.t list * qvar_t list * cvar_t list
+| QBARRIER of qvar_t list
+| QBIT | QDISCARD of qvar_t list
+| QMEASURE of qvar_t list
+| QRESET of qvar_t list
 
 and qbinding_t =
   qvar_t list * cvar_t list * t
@@ -124,6 +124,11 @@ let rec qcirc pps = function
   | QWIRES (qvl, cvl) -> paren_qvars_cvars pps (qvl, cvl)
   | QGATEAPP (qg, pel, qvl, cvl) ->
      Fmt.(pf  pps "%a (%a) %a" qgate qg (list ~sep:(const string ", ") PE.pp) pel qvars_cvars (qvl, cvl))
+  | QBARRIER qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
+  | QBIT -> Fmt.(pf pps "qubit()")
+  | QDISCARD qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))
+  | QMEASURE qvl -> Fmt.(pf pps "measure %a" qvars_cvars (qvl, []))
+  | QRESET qvl -> Fmt.(pf pps "reset %a" qvars_cvars (qvl, []))
 
 and qgate pps = function
   QGATELAM (pvl, qvl,  cvl, qc) ->
@@ -133,11 +138,6 @@ and qgate pps = function
            qcirc qc)
 
   | QGATE qg ->  Fmt.(pf pps "%a" qgatename qg)
-  | QBARRIER qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
-  | QBIT -> Fmt.(pf pps "qubit()")
-  | QDISCARD qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))
-  | QMEASURE qvl -> Fmt.(pf pps "measure %a" qvars_cvars (qvl, []))
-  | QRESET qvl -> Fmt.(pf pps "reset %a" qvars_cvars (qvl, []))
 
 and binding pps = function
     (qvl,  cvl, qc) ->
