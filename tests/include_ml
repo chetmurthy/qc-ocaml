@@ -1,10 +1,4 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
-(*
-;;; Local Variables: ***
-;;; mode:tuareg ***
-;;; End: ***
-
-*)
 
 #use "topfind";;
 
@@ -122,12 +116,22 @@ Session.available_backends session ;;
 Job.submit_job "ibmq_16_melbourne" qobj session ;;
 
  *)
-
+(*
 #load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
 open Qasm2_tests ;;
-
+ *)
 
 open Qlam_syntax ;;
 open Qlam_parser ;;
+add_include "." ;;
 add_include "testdata" ;;
+
+open Qasm2syntax.AST ;;
+
+let (env,instrs) = full_to_ast_from_file ~path:["testdata"] "testdata/bell2.qasm" ;;
+instrs |>  Qconvert.ToLam.program |> pp Fmt.stdout  ;;
+
+(* Local Variables: *)
+(* mode: tuareg *)
+(* End: *)

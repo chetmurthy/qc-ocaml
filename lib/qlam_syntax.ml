@@ -132,9 +132,9 @@ value paren_qvars_cvars pps = fun [
 
 value qvars_cvars pps = fun [
     (qvl, []) ->
-     Fmt.(pf pps "%a" (list qvar) qvl)
+     Fmt.(pf pps "%a" (list ~{sep=const string " "} qvar) qvl)
   | (qvl, cvl) ->
-     Fmt.(pf pps "%a : %a" (list qvar) qvl  (list cvar) cvl)
+     Fmt.(pf pps "%a : %a" (list ~{sep=sp} qvar) qvl  (list ~{sep=const string " "} cvar) cvl)
 ] ;
 
 value rec qcirc pps = fun [
@@ -181,13 +181,13 @@ and t = list item
 
 value item pps = fun [
     QGATEDEF gname ((pvl, qvl, cvl), qc) ->
-    Fmt.(pf pps "gate %a (%a) %a = %a ;"
+    Fmt.(pf pps "@[<v 2>gate %a (%a) %a =@ %a@]@,;"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
            QC.qvars_cvars (qvl, cvl)
            QC.qcirc qc)
   | QGATEOPAQUE gname (pvl, qvl, cvl) ->
-    Fmt.(pf pps "gate %a (%a) %a ;"
+    Fmt.(pf pps "@[gate %a (%a) %a ;@]"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
            QC.qvars_cvars (qvl, cvl))
