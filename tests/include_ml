@@ -52,6 +52,9 @@ let pp_lexbuf lb =
 ;;
 #install_printer pp_lexbuf ;;
 
+let pp_tokenaux (t : Qc_misc.TokenAux.t) = Fmt.(pf stdout "<tokenaux>") ;;
+#install_printer pp_tokenaux ;;
+
 (*
 #trace QGate.Latex.latex ;;
 #trace QGate.Latex.do_multiqubit ;;

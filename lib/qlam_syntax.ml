@@ -7,6 +7,7 @@ value ident pps x = Fmt.(pf pps "%s" (ID.unmk x)) ;
 type loc = Ploc.t ;
 value loc_to_yojson (_ : loc) = `String "<loc>" ;
 value equal_loc _ _ = True ;
+value compare_loc _ _ = 0 ;
 
 module PC = struct
 
@@ -14,7 +15,7 @@ type t = [
     REAL of RealNumeral.t
   | NNINT of int
   | PI
-  ][@@deriving (to_yojson, eq);]
+  ][@@deriving (to_yojson, eq, ord);]
 ;
 value pp pps = fun [
     REAL s -> Fmt.(pf pps "%s" (RealNumeral.unmk s))
@@ -24,14 +25,14 @@ value pp pps = fun [
 ;
 end ;
 
-type paramvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, eq);] ;
+type paramvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, eq, ord);] ;
 value paramvar pps = fun [ (PV _ id) -> ident pps id ] ;
 
 module PE = struct
 
-type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, eq);] ;
-type unop_t = [ UMINUS ][@@deriving (to_yojson, eq);] ;
-type ufun_t = [ SIN | COS | TAN | EXP | LN | SQRT ][@@deriving (to_yojson, eq);] ;
+type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, eq, ord);] ;
+type unop_t = [ UMINUS ][@@deriving (to_yojson, eq, ord);] ;
+type ufun_t = [ SIN | COS | TAN | EXP | LN | SQRT ][@@deriving (to_yojson, eq, ord);] ;
 
 value string_of_ufun = fun [
     SIN -> "sin"
@@ -48,7 +49,7 @@ type t = [
 | BINOP of loc and binop_t and t and t
 | UNOP of loc and unop_t and t
 | UFUN of loc and ufun_t and t
-  ][@@deriving (to_yojson, eq);]
+  ][@@deriving (to_yojson, eq, ord);]
 ;
 value rec pp0 pps = fun [
   ID _ pv -> Fmt.(pf pps "%a" paramvar pv)
@@ -92,9 +93,9 @@ end
 module QC = struct
 open Fmt ;
 
-type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, eq);] ;
-type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, eq);] ;
-type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, eq);] ;
+type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, eq, ord);] ;
+type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, eq, ord);] ;
+type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, eq, ord);] ;
 
 value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
 value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
@@ -118,7 +119,7 @@ and t = [
   ]
 and qbinding_t =
   (list qvar_t * list cvar_t * t)
-[@@deriving (to_yojson, eq);] ;
+[@@deriving (to_yojson, eq, ord);] ;
 
 value and_sep pps () = Fmt.(pf pps "@ and ") ;
 
@@ -176,7 +177,7 @@ type item = [
 | QINCLUDE of string and t
   ]
 and t = list item
-[@@deriving (to_yojson, eq);] ;
+[@@deriving (to_yojson, eq, ord);] ;
 
 value item pps = fun [
     QGATEDEF gname ((pvl, qvl, cvl), qc) ->
@@ -201,7 +202,7 @@ value pp pps l =
 
 end ;
 
-type t = (QEnv.t * QC.t)[@@deriving (to_yojson, eq);] ;
+type t = (QEnv.t * QC.t)[@@deriving (to_yojson, eq, ord);] ;
 
 value pp pps (env, qc) =
   Fmt.(pf pps "%a@.%a%!" QEnv.pp env QC.qcirc qc) ;

@@ -71,6 +71,12 @@ qlam_syntax.cmo:  qlam_syntax.ml
 qlam_syntax.cmx:  qlam_syntax.ml
 	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
+qconvert.cmo:  qconvert.ml
+	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qconvert.cmx:  qconvert.ml
+	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
 
 
 EXTERNAL := $(shell $(OCAMLFIND) query -predicates byte -format '%m' $(PACKAGES) | grep local-install)
