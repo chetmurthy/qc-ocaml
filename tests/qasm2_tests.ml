@@ -2,6 +2,7 @@
 
 open OUnit2
 open Pa_ppx_utils
+open Pa_ppx_testutils
 open Coll
 open Std
 open Misc_functions
@@ -13,6 +14,20 @@ open Qasm_io
 open Qasmpp
 open Qasmdag0
 open Qasm_passes
+
+let matches ~pattern text =
+  match Str.search_forward (Str.regexp pattern) text 0 with
+    _ -> true
+  | exception Not_found -> false
+
+let assert_raises_exn_pattern ~msg pattern f =
+  Testutil.assert_raises_exn_pred ~exnmsg:msg
+    (function
+       Ploc.Exc(_, exn) when matches ~pattern (Printexc.to_string exn) -> true
+     | exn when matches ~pattern (Printexc.to_string exn) -> true
+     | _ -> false
+     )
+    f
 
 let misc_tests = "misc tests" >:::
   [
@@ -45,14 +60,14 @@ let misc_tests = "misc tests" >:::
 let extract_tokens ll =
   List.map
     (fun (a, tok) ->
-      (TA.comment_string a,
-       (TA.startpos a).Lexing.pos_fname,
+      (Ploc.comment a,
+       Ploc.file_name a,
        tok))
     (list_of_stream ll)
 
 let lexer_tests = "lexer tests" >:::
   [
-    "fanme" >::
+    "fname" >::
       (fun ctxt ->
         let ll = make_lexer ~fname:"foo" {|OPENQASM 2.0;
 // argle bargle
@@ -61,9 +76,8 @@ let lexer_tests = "lexer tests" >:::
         assert_equal (List.length toks) 1 ;
         let (aux, tok) = List.hd toks in
         assert_equal tok (T_OPENQASM "2.0") ;
-        assert_equal (TA.comment_string aux) "" ;
-        assert_equal (TA.startpos aux).Lexing.pos_fname "foo" ;
-        assert_equal (TA.endpos aux).Lexing.pos_fname "foo" ;
+        assert_equal (Ploc.comment aux) "" ;
+        assert_equal (Ploc.file_name aux) "foo" ;
       ) ;
     "header" >::
       (fun ctxt ->
@@ -126,7 +140,7 @@ h q[// bargle
 let test_parse_expr (name, txt, expect) =
   name >:: (fun ctx ->
     let (aux, e) = body_parse ~path:[] PA.expr txt in
-      assert_equal expect (TA.comment_string aux, e)
+      assert_equal expect (Ploc.comment aux, e)
   )
 
 let expr_parser_tests = "expr parser tests" >:::
@@ -144,15 +158,15 @@ let expr_parser_tests = "expr parser tests" >:::
 let test_parse_qop (name, txt, expect) =
   name >:: (fun ctx ->
     let (aux, e) = body_parse ~path:[] PA.qop txt in
-      assert_equal expect (TA.comment_string aux, e)
+      assert_equal expect (Ploc.comment aux, e)
   )
 
 let aux2comment_mapper = {
     CST.AuxMap.stmt = (fun aux _ ->
-      TA.comment_string aux
+      Ploc.comment aux
     ) ;
     gop = (fun aux _ ->
-      TA.comment_string aux
+      Ploc.comment aux
     )
   }
 
@@ -186,10 +200,10 @@ q, b;|},
 
      ]) @ [
     "fail">:: (fun ctxt ->
-      assert_raises ~msg:"should raise SyntaxError(parsing)"
-        (SyntaxError "parse error in file \"\" at char 23")
-               (fun () ->
-                 body_parse ~path:[] PA.statement "gate g a, b { cx a, b; measure a->b ;}")
+      assert_raises_exn_pattern ~msg:"should raise SyntaxError(parsing)"
+        "SyntaxError.*parse error"
+        (fun () ->
+          body_parse ~path:[] PA.statement "gate g a, b { cx a, b; measure a->b ;}")
     ) ;
    ]
   )
@@ -197,21 +211,21 @@ q, b;|},
 let test_roundtrip_main_buf (name, txt, expect) =
   name >:: (fun ctxt ->
     let rv = full_parse ~path:["testdata"] PA.mainprogram txt in
-    let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
+    let pretty = Misc_functions.pp (CSTPP.main ~skip_qelib:true) rv in
     assert_equal expect pretty
   )
 
 let test_roundtrip_main_file (name, fname, expect) =
   name >:: (fun ctxt ->
     let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
-    let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
+    let pretty = Misc_functions.pp (CSTPP.main ~skip_qelib:true) rv in
     assert_equal expect pretty
   )
 
 let test_roundtrip_program_file (name, fname, expect) =
   name >:: (fun ctxt ->
     let rv = body_parse_from_file ~path:["testdata"] PA.mainprogram fname in
-    let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
+    let pretty = Misc_functions.pp (CSTPP.main ~skip_qelib:true) rv in
     assert_equal expect pretty
   )
 
@@ -290,7 +304,7 @@ let test_typecheck_roundtrip (name, txt, expect_env, expect) =
     let pl = body_parse ~path:["testdata"] PA.program txt in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
-    let pretty_p = ASTPP.(pp (program ~skip_qelib:true) p) in
+    let pretty_p = Misc_functions.pp (ASTPP.program ~skip_qelib:true) p in
 
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
@@ -306,7 +320,7 @@ let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
     let vers,pl = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
-    let pretty_p = ASTPP.(pp (main ~skip_qelib:true) (vers, p)) in
+    let pretty_p = Misc_functions.pp (ASTPP.main ~skip_qelib:true) (vers, p) in
 
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
@@ -317,10 +331,10 @@ let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
   )
 
 
-let test_typecheck_fail (name, txt, msg, exn) =
+let test_typecheck_fail (name, txt, msg, exnpattern) =
   name >:: (fun ctxt ->
     let pl = body_parse ~path:["testdata"] PA.program txt in
-    assert_raises ~msg exn
+    assert_raises_exn_pattern ~msg exnpattern
       (fun () ->
         TYCHK.program pl)
   )
@@ -353,39 +367,40 @@ let open AST in
   (List.map test_typecheck_fail [
        ("qreg fail", "qreg q[1]; qreg q[1];",
         "should have caught repeated qreg declaration",
-        (TypeError (true,"Error file \"\", chars 11-21: qreg q already declared"))) ;
+        "TypeError.*true.*q already declared") ;
 
        ("CX fail", "qreg q[1]; qreg r[2]; CX q, r;",
         "should have caught mismatched args to CX",
-        (TypeError (true,"Error file \"\", chars 22-30: registers with different dimensions in qargs"))) ;
+        "TypeError.*true.*registers with different dimensions in qargs") ;
 
        ("CX fail 2", "qreg q[1]; qreg r[2]; CX q, q;",
         "should have caught mismatched args to CX",
-        (TypeError (true,"Error file \"\", chars 22-30: qargs are not distinct"))) ;
+        "TypeError.*true.*qargs are not distinct") ;
 
        ("CX fail 3", "gate h a,b,c,d { CX a,a ; }",
         "should have caught mismatched args to CX",
-        (TypeError (true,"Error file \"\", chars 17-25: qargs are not distinct"))) ;
+        "TypeError.*true.*qargs are not distinct") ;
 
        ("CX fail 3", "gate h a,b,c,d { CX a,a ; }",
         "should have caught mismatched args to CX",
-        (TypeError (true,"Error file \"\", chars 17-25: qargs are not distinct"))) ;
+        "TypeError.*true.*qargs are not distinct") ;
 
        ("gate fail 1", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,q,s[0], s[1];",
         "should have caught mismatched args to CX",
-        (TypeError (true,"Error file \"\", chars 61-78: qargs are not distinct"))) ;
+        "TypeError.*true.*qargs are not distinct") ;
 
        ("gate fail 2", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,r,q[0], s[1];",
         "should have caught mismatched args to CX",
-        (TypeError (true,"Error file \"\", chars 61-78: bit q[0] conflicts with register of same name"))) ;
+        "TypeError.*true.*bit.*conflicts with register of same name") ;
 
        ("gate fail 3", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,r,s[0], s[0];",
         "should have caught mismatched args to CX",
-        (TypeError (true,"Error file \"\", chars 61-78: qargs are not distinct"))) ;
+        "TypeError.*true.*qargs are not distinct") ;
 
-       ("gate fail 3", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,r,s[0], s[2];",
+       ("gate fail 4", "qreg q[2]; qreg r[2]; qreg s[2]; gate h a,b,c,d { CX a,b ; } h q,r,s[0], s[2];",
         "should have caught mismatched args to CX",
-        (TypeError (true,"Error file \"\", chars 61-78: bit s[2] out of dimension [0..2)"))) ;
+        "TypeError.*true.*bit.*out of dimension") ;
+
      ]
   )
   @
@@ -398,7 +413,7 @@ let open AST in
 let test_dag0 (name, txt) =
   name >:: (fun ctxt ->
     let _,dag = program_to_dag0 ~path:["testdata"] txt in
-    pp DAG.pp_dag dag ;
+    Misc_functions.pp DAG.pp_dag dag ;
     ()
   )
 
@@ -436,7 +451,7 @@ let unroll ~only txt =
   let dag = DAG.make envs p in
   let dag = Unroll.execute ~only envs dag in
   let pl = DAG.to_ast envs dag in  
-  pp (ASTPP.program ~skip_qelib:true) pl
+  Misc_functions.pp (ASTPP.program ~skip_qelib:true) pl
 
 let test_unroll (name, only, txt, expect) =
   name >:: (fun ctxt ->
@@ -593,7 +608,7 @@ let do_trip_test_circuit_to_qasm name dir =
   let qasm1 = Printf.sprintf "testdata/extracted-unit-tests/%s/1-orig.qasm" dir in
   let qasm2 = Printf.sprintf "testdata/extracted-unit-tests/%s/2-from-circuit.qasm" dir in
   let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram qasm1 in
-  let pretty = CSTPP.(pp (main ~skip_qelib:true) rv) in
+  let pretty = Misc_functions.pp (CSTPP.main ~skip_qelib:true) rv in
   if pretty <> (file_contents qasm2) then begin
       Printf.printf "\n================================ %s ================================\n" name ;
       Printf.printf "%s\n" pretty ;

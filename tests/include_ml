@@ -9,6 +9,7 @@
 #use "topfind";;
 
 #require "camlp5";;
+#require "pa_ppx.testutils";;
 #require"pa_ppx.runtime_fat" ;;
 #require "qc_ocaml";;
 #require "oUnit";;
@@ -32,9 +33,6 @@ open Qobj_compile ;;
 open Qrpc_types ;;
 open Qrpc_api ;;
 open OUnit2 ;;
-
-open Qasm0_lexer ;;
-open Qasm0_2circ ;;
 
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 
@@ -124,11 +122,11 @@ Session.available_backends session ;;
 Job.submit_job "ibmq_16_melbourne" qobj session ;;
 
  *)
-(*
+
 #load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
 open Qasm2_tests ;;
- *)
+
 
 open Qlam_syntax ;;
 open Qlam_parser ;;

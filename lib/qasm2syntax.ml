@@ -71,8 +71,7 @@ module LexState = struct
     st.at_head <- false
 end
 
-type token = TokenAux.t * rawtoken
-module TA = TokenAux
+type token = Ploc.t * rawtoken
 
 module CST = struct
   type expr =
@@ -275,7 +274,10 @@ module TYCHK = struct
   open Pa_ppx_utils
   open Coll
 
-  exception TypeError of bool * string
+type Pa_ppx_runtime_fat.Exceptions.t +=
+    TypeError of bool * string[@name "TypeError"]
+[@@deriving show, sexp, yojson, eq]
+
 
   module Env = struct
     type 'a t = {
@@ -392,14 +394,7 @@ module TYCHK = struct
     try
       (aux, raw_gate_op envs cparam qargs cst)
     with TypeError (false, msg) ->
-      let spos = TokenAux.startpos aux in
-      let epos = TokenAux.endpos aux in
-      let msg = Printf.sprintf "Error file \"%s\", chars %d-%d: %s"
-                  spos.Lexing.pos_fname
-                  spos.Lexing.pos_cnum
-                  epos.Lexing.pos_cnum
-                  msg in
-      raise (TypeError (true, msg))
+      Ploc.raise aux (TypeError(true, msg))
 
     (* to convert and typecheck a list of qargs (register OR bit):
 
@@ -470,14 +465,7 @@ module TYCHK = struct
     try
       (aux, raw_qop envs cst)
     with TypeError (false, msg) ->
-      let spos = TokenAux.startpos aux in
-      let epos = TokenAux.endpos aux in
-      let msg = Printf.sprintf "Error file \"%s\", chars %d-%d: %s"
-                  spos.Lexing.pos_fname
-                  spos.Lexing.pos_cnum
-                  epos.Lexing.pos_cnum
-                  msg in
-      raise (TypeError (true, msg))
+      Ploc.raise aux (TypeError (true, msg))
 
   let raw_stmt envs (cst: 'aux CST.raw_stmt_t) =
     match cst with
@@ -524,14 +512,7 @@ module TYCHK = struct
     try
       (aux,raw_stmt envs rst)
     with TypeError (false, msg) ->
-      let spos = TokenAux.startpos aux in
-      let epos = TokenAux.endpos aux in
-      let msg = Printf.sprintf "Error file \"%s\", chars %d-%d: %s"
-                  spos.Lexing.pos_fname
-                  spos.Lexing.pos_cnum
-                  epos.Lexing.pos_cnum
-                  msg in
-      raise (TypeError (true, msg))
+      Ploc.raise aux (TypeError (true, msg))
 
   let program l =
     let stmt1 envs cst =

@@ -64,7 +64,7 @@ let pr_comma = (fun () -> [< '"," >])
     | CST.RESET l -> [< 'prefix ; '"reset " ; id_or_indexed l ; '";\n" >]
 
   let qop ~prefix (aux, i) =
-    let commentstring = TA.comment_string aux in
+    let commentstring = Ploc.comment aux in
     match commentstring with
     | "" -> raw_qop ~prefix i
     | _ -> [< 'commentstring ; raw_qop ~prefix i >]
@@ -76,7 +76,7 @@ let pr_comma = (fun () -> [< '"," >])
     | CST.GATE_BARRIER l -> [< '"  " ; '"barrier "; prlist_with_sep pr_comma pr_id l ; '";\n" >]
 
   let gate_op (aux, gop) =
-    let commentstring = TA.comment_string aux in
+    let commentstring = Ploc.comment aux in
     match commentstring with
     | "" -> raw_gate_op gop
     | _ -> [< 'commentstring ; raw_gate_op gop >]
@@ -107,7 +107,7 @@ let pr_comma = (fun () -> [< '"," >])
 
   let stmt ~skip_qelib (aux, s) =
     if skippable ~skip_qelib s then [< >] else
-    let commentstring = TA.comment_string aux in
+    let commentstring = Ploc.comment aux in
     match commentstring with
     | "" -> raw_stmt s
     | _ -> [< 'commentstring ; raw_stmt s >]
@@ -185,7 +185,7 @@ module ASTPP = struct
     | AST.RESET l -> [< 'prefix ; '"reset " ; or_indexed pr_qreg l ; '";\n" >]
 
   let qop ~prefix (aux, i) =
-    let commentstring = TA.comment_string aux in
+    let commentstring = Ploc.comment aux in
     match commentstring with
     | "" -> raw_qop ~prefix i
     | _ -> [< 'commentstring ; raw_qop ~prefix i >]
@@ -199,7 +199,7 @@ module ASTPP = struct
     | AST.GATE_BARRIER l -> [< '"  " ; '"barrier "; prlist_with_sep pr_comma pr_qubit l ; '";\n" >]
 
   let gate_op (aux, gop) =
-    let commentstring = TA.comment_string aux in
+    let commentstring = Ploc.comment aux in
     match commentstring with
     | "" -> raw_gate_op gop
     | _ -> [< 'commentstring ; raw_gate_op gop >]
@@ -232,7 +232,7 @@ module ASTPP = struct
 
   let stmt ~skip_qelib (aux, s) =
     if skippable ~skip_qelib s then [< >] else
-    let commentstring = TA.comment_string aux in
+    let commentstring = Ploc.comment aux in
     match commentstring with
     | "" -> raw_stmt s
     | _ -> [< 'commentstring ; raw_stmt s >]

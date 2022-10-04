@@ -134,7 +134,7 @@ module Dot = Graph.Graphviz.Dot(struct
   type node_label_t =
     | INPUT of bit_t
     | OUTPUT of bit_t
-    | STMT of TA.t AST.raw_stmt_t
+    | STMT of Ploc.t AST.raw_stmt_t
 
   type node_info_t = {
       label: node_label_t ;
@@ -532,13 +532,13 @@ let generate_qubit_instances envs l =
       List.fold_left (fun acc n ->
           match (LM.map dag.node_info n).label with
           | INPUT _|OUTPUT _ -> acc
-          | STMT stmt -> (TA.mt, stmt)::acc) [] nodel in
+          | STMT stmt -> (Ploc.dummy, stmt)::acc) [] nodel in
     let stmts = List.rev stmts in
     let qregdecls = List.map (fun (id, dim) ->
-                        (TA.mt, AST.STMT_QREG(id, dim)))
+                        (Ploc.dummy, AST.STMT_QREG(id, dim)))
                   (LM.toList envs.Env.qregs) in
     let cregdecls = List.map (fun (id, dim) ->
-                        (TA.mt, AST.STMT_CREG(id, dim)))
+                        (Ploc.dummy, AST.STMT_CREG(id, dim)))
                   (LM.toList envs.Env.cregs) in
     (canon qregdecls) @ (canon cregdecls) @ stmts
 

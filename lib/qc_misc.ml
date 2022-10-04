@@ -3,7 +3,10 @@ open Pa_ppx_utils
 open Std
 open Misc_functions
 
-exception SyntaxError of string
+type t = exn = .. [@@deriving show, sexp, yojson, eq]
+type t +=
+    SyntaxError of string[@name "SyntaxError"]
+[@@deriving show, sexp, yojson, eq]
 
 module RealNumeral = struct
   type t = string[@@deriving (yojson, eq,  ord)]

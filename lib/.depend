@@ -1,4 +1,4 @@
-misc_functions.cmo exc.cmo http_helpers.cmo yojson_helpers.cmo qc_misc.cmo qc_environment.cmo qasm2syntax.cmo qlam_syntax.cmo qc_symbolic.cmo qasm2_lexer.cmo qlam_lexer.cmo qlam_parser.cmo qasm2_parser.cmo qasmpp.cmo qasmdag0.cmo qasm_io.cmo qasm_passes.cmo qc_layout.cmo qobj_types.cmo qobj_compile.cmo qrpc_types.cmo qrpc_api.cmo qasm0_tokens.cmo qasm0_lexer.cmo qasm0_2circ.cmo misc_functions.cmi exc.cmi http_helpers.cmi yojson_helpers.cmi qc_misc.cmi qc_environment.cmi qasm2syntax.cmi qlam_syntax.cmi qc_symbolic.cmi qasm2_lexer.cmi qlam_lexer.cmi qlam_parser.cmi qasm2_parser.cmi qasmpp.cmi qasmdag0.cmi qasm_io.cmi qasm_passes.cmi qc_layout.cmi qobj_types.cmi qobj_compile.cmi qrpc_types.cmi qrpc_api.cmi qasm0_tokens.cmi qasm0_lexer.cmi qasm0_2circ.cmi misc_functions.cmx exc.cmx http_helpers.cmx yojson_helpers.cmx qc_misc.cmx qc_environment.cmx qasm2syntax.cmx qlam_syntax.cmx qc_symbolic.cmx qasm2_lexer.cmx qlam_lexer.cmx qlam_parser.cmx qasm2_parser.cmx qasmpp.cmx qasmdag0.cmx qasm_io.cmx qasm_passes.cmx qc_layout.cmx qobj_types.cmx qobj_compile.cmx qrpc_types.cmx qrpc_api.cmx qasm0_tokens.cmx qasm0_lexer.cmx qasm0_2circ.cmx: 
+misc_functions.cmo exc.cmo http_helpers.cmo yojson_helpers.cmo qc_misc.cmo qc_environment.cmo qasm2syntax.cmo qc_symbolic.cmo qasm2_lexer.cmo qlam_syntax.cmo qlam_parser.cmo qconvert.cmo qasm2_parser.cmo qasmpp.cmo qasmdag0.cmo qasm_io.cmo qasm_passes.cmo qc_layout.cmo qobj_types.cmo qobj_compile.cmo qrpc_types.cmo qrpc_api.cmo qasm0_tokens.cmo qasm0_lexer.cmo qasm0_2circ.cmo misc_functions.cmi exc.cmi http_helpers.cmi yojson_helpers.cmi qc_misc.cmi qc_environment.cmi qasm2syntax.cmi qc_symbolic.cmi qasm2_lexer.cmi qlam_syntax.cmi qlam_parser.cmi qconvert.cmi qasm2_parser.cmi qasmpp.cmi qasmdag0.cmi qasm_io.cmi qasm_passes.cmi qc_layout.cmi qobj_types.cmi qobj_compile.cmi qrpc_types.cmi qrpc_api.cmi qasm0_tokens.cmi qasm0_lexer.cmi qasm0_2circ.cmi misc_functions.cmx exc.cmx http_helpers.cmx yojson_helpers.cmx qc_misc.cmx qc_environment.cmx qasm2syntax.cmx qc_symbolic.cmx qasm2_lexer.cmx qlam_syntax.cmx qlam_parser.cmx qconvert.cmx qasm2_parser.cmx qasmpp.cmx qasmdag0.cmx qasm_io.cmx qasm_passes.cmx qc_layout.cmx qobj_types.cmx qobj_compile.cmx qrpc_types.cmx qrpc_api.cmx qasm0_tokens.cmx qasm0_lexer.cmx qasm0_2circ.cmx: 
 exc.cmo :
 exc.cmx :
 http_helpers.cmo :
@@ -107,18 +107,6 @@ qc_symbolic.cmo : \
     qasm2syntax.cmo
 qc_symbolic.cmx : \
     qasm2syntax.cmx
-qlam_lexer.cmo : \
-    qlam_syntax.cmo \
-    qc_misc.cmo \
-    misc_functions.cmo
-qlam_lexer.cmx : \
-    qlam_syntax.cmx \
-    qc_misc.cmx \
-    misc_functions.cmx
-qlam_syntax.cmo : \
-    qc_misc.cmo
-qlam_syntax.cmx : \
-    qc_misc.cmx
 qobj_compile.cmo : \
     qobj_types.cmo \
     qc_symbolic.cmo \
@@ -159,9 +147,21 @@ qrpc_types.cmx : \
     qobj_types.cmx
 yojson_helpers.cmo :
 yojson_helpers.cmx :
+qconvert.cmo : \
+    qlam_syntax.cmo \
+    qc_misc.cmo \
+    qasm2syntax.cmo
+qconvert.cmx : \
+    qlam_syntax.cmx \
+    qc_misc.cmx \
+    qasm2syntax.cmx
 qlam_parser.cmo : \
     qlam_syntax.cmo \
     qc_misc.cmo
 qlam_parser.cmx : \
     qlam_syntax.cmx \
+    qc_misc.cmx
+qlam_syntax.cmo : \
+    qc_misc.cmo
+qlam_syntax.cmx : \
     qc_misc.cmx

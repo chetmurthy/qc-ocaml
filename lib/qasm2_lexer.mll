@@ -7,7 +7,13 @@ open Misc_functions
 open Qc_misc
 open Qasm2syntax
 
-module TA = TokenAux
+let locate ~comments lb v =
+  let comments = cleanws comments in
+  let spos = Lexing.lexeme_start_p lb in
+  let epos = Lexing.lexeme_end_p lb in
+  let open Lexing in
+  let loc = Ploc.make_loc spos.pos_fname spos.pos_lnum spos.pos_bol (spos.pos_cnum, epos.pos_cnum) comments in
+  (loc, v)
 
 }
 
@@ -30,7 +36,7 @@ rule header =
 
 and grab_real =
   parse
-| real_regexp { eat_header_suffix (TA.mk "" lexbuf, T_OPENQASM (RealNumeral.mk (Lexing.lexeme lexbuf))) lexbuf }
+| real_regexp { eat_header_suffix (locate ~comments:"" lexbuf (T_OPENQASM (RealNumeral.mk (Lexing.lexeme lexbuf)))) lexbuf }
 
 and eat_header_suffix rv =
   parse
@@ -42,7 +48,7 @@ and grab_comment_suffix st tok =
 
 and grab_include wscom =
   parse
-| [^ '"']+ { eat_include_suffix_1 (TA.mk wscom lexbuf, T_INCLUDE (Lexing.lexeme lexbuf)) lexbuf }
+| [^ '"']+ { eat_include_suffix_1 (locate ~comments:wscom lexbuf (T_INCLUDE (Lexing.lexeme lexbuf))) lexbuf }
 
 and eat_include_suffix_1 rv =
   parse
@@ -55,45 +61,45 @@ and body_token0 wscom =
 | (comment_regexp (white|newline)*)+ { body_token0 (Lexing.lexeme lexbuf) lexbuf }
 
 | "include" white+ '"' { grab_include wscom lexbuf }
-| ';' { (TA.mk wscom lexbuf, T_SEMICOLON) }
-| '{' { (TA.mk wscom lexbuf, T_LBRACE) }
-| '}' { (TA.mk wscom lexbuf, T_RBRACE) }
-| '[' { (TA.mk wscom lexbuf, T_LBRACKET) }
-| ']' { (TA.mk wscom lexbuf, T_RBRACKET) }
-| '(' { (TA.mk wscom lexbuf, T_LPAREN) }
-| ')' { (TA.mk wscom lexbuf, T_RPAREN) }
-| "==" { (TA.mk wscom lexbuf, T_EQEQ) }
-| ',' { (TA.mk wscom lexbuf, T_COMMA) }
-| '-' { (TA.mk wscom lexbuf, T_DASH) }
-| '+' { (TA.mk wscom lexbuf, T_PLUS) }
-| '*' { (TA.mk wscom lexbuf, T_STAR) }
-| "**" { (TA.mk wscom lexbuf, T_STARSTAR) }
-| '/' { (TA.mk wscom lexbuf, T_SLASH) }
-| '^' { (TA.mk wscom lexbuf, T_CARET) }
-| "->" { (TA.mk wscom lexbuf, T_DASHGT) }
+| ';' { locate ~comments:wscom lexbuf T_SEMICOLON }
+| '{' { locate ~comments:wscom lexbuf T_LBRACE }
+| '}' { locate ~comments:wscom lexbuf T_RBRACE }
+| '[' { locate ~comments:wscom lexbuf T_LBRACKET }
+| ']' { locate ~comments:wscom lexbuf T_RBRACKET }
+| '(' { locate ~comments:wscom lexbuf T_LPAREN }
+| ')' { locate ~comments:wscom lexbuf T_RPAREN }
+| "==" { locate ~comments:wscom lexbuf T_EQEQ }
+| ',' { locate ~comments:wscom lexbuf T_COMMA }
+| '-' { locate ~comments:wscom lexbuf T_DASH }
+| '+' { locate ~comments:wscom lexbuf T_PLUS }
+| '*' { locate ~comments:wscom lexbuf T_STAR }
+| "**" { locate ~comments:wscom lexbuf T_STARSTAR }
+| '/' { locate ~comments:wscom lexbuf T_SLASH }
+| '^' { locate ~comments: wscom lexbuf T_CARET }
+| "->" { locate ~comments:wscom lexbuf T_DASHGT }
 
-| "barrier" { (TA.mk wscom lexbuf, T_BARRIER) }
-| "cos" { (TA.mk wscom lexbuf, T_COS) }
-| "creg" { (TA.mk wscom lexbuf, T_CREG) }
-| "CX" { (TA.mk wscom lexbuf, T_CX) }
-| "exp" { (TA.mk wscom lexbuf, T_EXP) }
-| "gate" { (TA.mk wscom lexbuf, T_GATE) }
-| "if" { (TA.mk wscom lexbuf, T_IF) }
-| "ln" { (TA.mk wscom lexbuf, T_LN) }
-| "pi" { (TA.mk wscom lexbuf, T_PI) }
-| "qreg" { (TA.mk wscom lexbuf, T_QREG) }
-| "sin" { (TA.mk wscom lexbuf, T_SIN) }
-| "sqrt" { (TA.mk wscom lexbuf, T_SQRT) }
-| "tan" { (TA.mk wscom lexbuf, T_TAN) }
-| "U" { (TA.mk wscom lexbuf, T_U) }
-| "measure" { (TA.mk wscom lexbuf, T_MEASURE) }
-| "opaque" { (TA.mk wscom lexbuf, T_OPAQUE) }
-| "reset" { (TA.mk wscom lexbuf, T_RESET) }
-| eof { (TA.mk wscom lexbuf, T_EOF) }
+| "barrier" { locate ~comments:wscom lexbuf T_BARRIER }
+| "cos" { locate ~comments:wscom lexbuf T_COS }
+| "creg" { locate ~comments:wscom lexbuf T_CREG }
+| "CX" { locate ~comments:wscom lexbuf T_CX }
+| "exp" { locate ~comments:wscom lexbuf T_EXP }
+| "gate" { locate ~comments:wscom lexbuf T_GATE }
+| "if" { locate ~comments:wscom lexbuf T_IF }
+| "ln" { locate ~comments:wscom lexbuf T_LN }
+| "pi" { locate ~comments:wscom lexbuf T_PI }
+| "qreg" { locate ~comments:wscom lexbuf T_QREG }
+| "sin" { locate ~comments:wscom lexbuf T_SIN }
+| "sqrt" { locate ~comments:wscom lexbuf T_SQRT }
+| "tan" { locate ~comments:wscom lexbuf T_TAN }
+| "U" { locate ~comments:wscom lexbuf T_U }
+| "measure" { locate ~comments:wscom lexbuf T_MEASURE }
+| "opaque" { locate ~comments:wscom lexbuf T_OPAQUE }
+| "reset" { locate ~comments:wscom lexbuf T_RESET }
+| eof { locate ~comments:wscom lexbuf T_EOF }
 
-| real_regexp { (TA.mk wscom lexbuf, T_REAL (Lexing.lexeme lexbuf)) }
-| integer_regexp { (TA.mk wscom lexbuf, T_INTEGER (int_of_string (Lexing.lexeme lexbuf))) }
-| id_regexp { (TA.mk wscom lexbuf, T_ID (Lexing.lexeme lexbuf)) }
+| real_regexp { locate ~comments:wscom lexbuf (T_REAL (Lexing.lexeme lexbuf)) }
+| integer_regexp { locate ~comments:wscom lexbuf (T_INTEGER (int_of_string (Lexing.lexeme lexbuf))) }
+| id_regexp { locate ~comments:wscom lexbuf (T_ID (Lexing.lexeme lexbuf)) }
 
 {
   let token st lexbuf =
