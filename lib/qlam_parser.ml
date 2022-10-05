@@ -138,8 +138,8 @@ EXTEND
   ;
 
   qbinding: [ [
-      (qvl,cvl) = paren_qvars_cvars ; "=" ; qc = qcirc -> (qvl, cvl, qc)
-    | qv = qvar ; "=" ; qc = qcirc -> ([qv], [], qc)
+      (qvl,cvl) = paren_qvars_cvars ; "=" ; qc = qcirc -> (loc, qvl, cvl, qc)
+    | qv = qvar ; "=" ; qc = qcirc -> (loc, [qv], [], qc)
   ] ]
   ;
 

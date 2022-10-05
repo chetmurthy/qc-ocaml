@@ -15,7 +15,7 @@ type t = [
     REAL of RealNumeral.t
   | NNINT of int
   | PI
-  ][@@deriving (to_yojson, eq, ord);]
+  ][@@deriving (to_yojson, show, eq, ord);]
 ;
 value pp pps = fun [
     REAL s -> Fmt.(pf pps "%s" (RealNumeral.unmk s))
@@ -25,14 +25,16 @@ value pp pps = fun [
 ;
 end ;
 
-type paramvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, eq, ord);] ;
+type paramvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
+value unPV = fun [ PV _ x -> x ] ;
+
 value paramvar pps = fun [ (PV _ id) -> ident pps id ] ;
 
 module PE = struct
 
-type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, eq, ord);] ;
-type unop_t = [ UMINUS ][@@deriving (to_yojson, eq, ord);] ;
-type ufun_t = [ SIN | COS | TAN | EXP | LN | SQRT ][@@deriving (to_yojson, eq, ord);] ;
+type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, show, eq, ord);] ;
+type unop_t = [ UMINUS ][@@deriving (to_yojson, show, eq, ord);] ;
+type ufun_t = [ SIN | COS | TAN | EXP | LN | SQRT ][@@deriving (to_yojson, show, eq, ord);] ;
 
 value string_of_ufun = fun [
     SIN -> "sin"
@@ -49,7 +51,7 @@ type t = [
 | BINOP of loc and binop_t and t and t
 | UNOP of loc and unop_t and t
 | UFUN of loc and ufun_t and t
-  ][@@deriving (to_yojson, eq, ord);]
+  ][@@deriving (to_yojson, show, eq, ord);]
 ;
 value rec pp0 pps = fun [
   ID _ pv -> Fmt.(pf pps "%a" paramvar pv)
@@ -93,9 +95,12 @@ end
 module QC = struct
 open Fmt ;
 
-type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, eq, ord);] ;
-type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, eq, ord);] ;
-type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, eq, ord);] ;
+type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
+value unQV = fun [ QV _ x -> x ] ;
+type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
+value unCV = fun [ QV _ x -> x ] ;
+type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
+value unQG = fun [ QG _ x -> x ] ;
 
 value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
 value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
@@ -118,8 +123,8 @@ and t = [
 | QRESET of loc and list qvar_t
   ]
 and qbinding_t =
-  (list qvar_t * list cvar_t * t)
-[@@deriving (to_yojson, eq, ord);] ;
+  (loc * list qvar_t * list cvar_t * t)
+[@@deriving (to_yojson, show, eq, ord);] ;
 
 value and_sep pps () = Fmt.(pf pps "@ and ") ;
 
@@ -163,9 +168,9 @@ and qgate pps = fun [
 ]
 
 and binding pps = fun [
-    ([qv],  [], qc) ->
+    (_, [qv],  [], qc) ->
     Fmt.(pf pps "%a = %a" qvar qv qcirc qc)
-  | (qvl,  cvl, qc) ->
+  | (_, qvl,  cvl, qc) ->
     Fmt.(pf pps "%a = %a" paren_qvars_cvars (qvl,cvl) qcirc qc)
 ] ;
 end ;
@@ -177,7 +182,7 @@ type item = [
 | QINCLUDE of string and t
   ]
 and t = list item
-[@@deriving (to_yojson, eq, ord);] ;
+[@@deriving (to_yojson, show, eq, ord);] ;
 
 value item pps = fun [
     QGATEDEF gname ((pvl, qvl, cvl), qc) ->
@@ -202,7 +207,7 @@ value pp pps l =
 
 end ;
 
-type t = (QEnv.t * QC.t)[@@deriving (to_yojson, eq, ord);] ;
+type t = (QEnv.t * QC.t)[@@deriving (to_yojson, show, eq, ord);] ;
 
 value pp pps (env, qc) =
   Fmt.(pf pps "%a@.%a%!" QEnv.pp env QC.qcirc qc) ;

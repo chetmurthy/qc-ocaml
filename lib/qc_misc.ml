@@ -9,7 +9,7 @@ type t +=
 [@@deriving show, sexp, yojson, eq]
 
 module RealNumeral = struct
-  type t = string[@@deriving (yojson, eq,  ord)]
+  type t = string[@@deriving (yojson, show, eq,  ord)]
   let mk s =
     s
   let unmk s = s
@@ -52,7 +52,7 @@ module TokenAux = struct
 end
 
 module ID = struct
-  type t = string * int[@@deriving (yojson, eq, ord)]
+  type t = string * int[@@deriving (yojson, show, eq, ord)]
   let id_re = Pcre.regexp "^([A-Za-z](?:[A-Za-z_0-9_]*[A-Za-z])?)([0-9]*)$"
   let mk0 s n = (s,n)
   let mk s =
@@ -66,6 +66,8 @@ module ID = struct
       Printf.sprintf  "%s%d" s n
 
 end
+
+module IDMap = Map.Make(ID)
 
 let find_file_from ~path fname =
   try
