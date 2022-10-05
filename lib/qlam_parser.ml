@@ -1,3 +1,4 @@
+open Misc_functions ;
 open Pa_ppx_utils ;
 open Qc_misc ;
 open Qlam_syntax ;
@@ -13,6 +14,10 @@ value env = Grammar.Entry.create g "env";
 value env_item = Grammar.Entry.create g "env_item";
 value top = Grammar.Entry.create g "top";
 
+value tokens_fun strm =
+  list_of_stream_eof (fun [ ("EOI",_) -> True | _ -> False ]) strm ;
+
+value tokens = Grammar.Entry.of_parser g "tokens" tokens_fun ;
 
 value with_input_file fname f arg =
   let oinput_file = Pcaml.input_file.val in do {
@@ -25,11 +30,19 @@ value with_input_file fname f arg =
   }
 ;
 
-value read_include s =
+value parse_qelib ?{file="<string>"} s =
+  s |> with_input_file file (Grammar.Entry.parse env)
+;
+
+value qelib_from_string s =
+  s |> Stream.of_string |> parse_qelib
+;
+
+value qelib_from_file s =
   let s = find_file_from ~{path=include_path.val} s in
   s |> Fpath.v |> Bos.OS.File.read
   |> Rresult.R.get_ok |> Stream.of_string
-  |> with_input_file s (Grammar.Entry.parse env)
+  |> parse_qelib ~{file=s}
 ;
 
 EXTEND
@@ -44,7 +57,7 @@ EXTEND
       "gate" ; gname = qgatename ; gargs = gate_args ;
         "=" ; qc = qcirc ; ";" -> QEnv.QGATEDEF gname (gargs, qc)
     | "gate" ; gname = qgatename ; gargs = gate_args ; ";" -> QEnv.QGATEOPAQUE gname gargs
-    | "include" ; s = STRING ; ";" -> QEnv.QINCLUDE s (read_include s)
+    | "include" ; s = STRING ; ";" -> QEnv.QINCLUDE s (qelib_from_file s)
   ] ]
   ;
   gate_args: [ [
@@ -155,8 +168,16 @@ EXTEND
 
 END;
 
+value parse_qcircuit ?{file="<string>"} s =
+  s |> with_input_file file (Grammar.Entry.parse top)
+;
+
+value qcircuit_from_string s =
+  s |> Stream.of_string |> parse_qcircuit
+;
+
 value read_qcircuit s =
   s |> Fpath.v |> Bos.OS.File.read
   |> Rresult.R.get_ok |> Stream.of_string
-  |> with_input_file s (Grammar.Entry.parse top)
+  |> parse_qcircuit ~{file=s}
 ;

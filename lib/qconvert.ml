@@ -1,4 +1,4 @@
-
+open Misc_functions ;
 open Pa_ppx_utils ;
 open Std ;
 open Pa_ppx_base ;
@@ -43,40 +43,40 @@ value conv_qubit = fun [
     ]
 ;
 
-value wrap_uop conv_pv conv_qv ins rhs =
+value wrap_uop loc conv_pv conv_qv ins rhs =
   match ins with [
       U pel q ->
       let qv = conv_qv q in
       let pel = List.map (param conv_pv) pel in
       let gateapp = QC.QGATEAPP Ploc.dummy (QC.QGATE Ploc.dummy (QC.QG Ploc.dummy (ID.mk "U"))) pel [qv] [] in
-      QC.QLET Ploc.dummy [(Ploc.dummy,  [qv], [], gateapp)] rhs
+      QC.QLET loc [(Ploc.dummy,  [qv], [], gateapp)] rhs
     | CX q1 q2 ->
       let qv1 = conv_qv q1 in
       let qv2 = conv_qv q2 in
       let gateapp = QC.QGATEAPP Ploc.dummy (QC.QGATE Ploc.dummy (QC.QG Ploc.dummy (ID.mk "CX"))) [] [qv1;qv2] [] in
-      QC.QLET Ploc.dummy [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
+      QC.QLET loc [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
     | COMPOSITE_GATE gname pel ql ->
       let qvl = List.map conv_qv ql in
       let pel = List.map (param conv_pv) pel in
       let gateapp = QC.QGATEAPP Ploc.dummy (QC.QGATE Ploc.dummy (QC.QG Ploc.dummy (ID.mk gname))) pel qvl [] in
-      QC.QLET Ploc.dummy [(Ploc.dummy, qvl, [], gateapp)] rhs
+      QC.QLET loc [(Ploc.dummy, qvl, [], gateapp)] rhs
     ]
 ;
 
 value wrap_gate_op ins rhs =
   let to_qvar = fun [ (QUBIT s) -> QC.QV Ploc.dummy (ID.mk s) ] in
   match ins with [
-      GATE_BARRIER ql ->
+      (loc, GATE_BARRIER ql) ->
       let qvl = List.map to_qvar ql in
-      QC.QLET Ploc.dummy [(Ploc.dummy, qvl, [], QC.QBARRIER Ploc.dummy qvl)] rhs
-    | GATE_UOP uop ->
-       wrap_uop conv_cparamvar conv_qubit uop rhs
+      QC.QLET loc [(Ploc.dummy, qvl, [], QC.QBARRIER Ploc.dummy qvl)] rhs
+    | (loc, GATE_UOP uop) ->
+       wrap_uop loc conv_cparamvar conv_qubit uop rhs
     ]
 ;
 
 value gate_circuit qubits clbits instrs =
   let rhs = QC.QWIRES Ploc.dummy qubits clbits in
-  List.fold_right wrap_gate_op (List.map snd instrs) rhs
+  List.fold_right wrap_gate_op instrs rhs
 ;
 
 value wrap_stmt conv_pv ins rhs =
@@ -89,24 +89,24 @@ value wrap_stmt conv_pv ins rhs =
       | INDEXED (CREG s) n -> QC.CV Ploc.dummy (ID.mk0 s n)
       ] in
   match ins with [
-      STMT_BARRIER ql ->
+      (loc, STMT_BARRIER ql) ->
       let qvl = List.map to_qvar ql in
-      QC.QLET Ploc.dummy [(Ploc.dummy, qvl, [], QC.QBARRIER Ploc.dummy qvl)] rhs
-    | STMT_QOP(RESET q) ->
+      QC.QLET loc [(Ploc.dummy, qvl, [], QC.QBARRIER Ploc.dummy qvl)] rhs
+    | (loc, STMT_QOP(RESET q)) ->
       let qv = to_qvar q in
-      QC.QLET Ploc.dummy [(Ploc.dummy, [qv], [], QC.QRESET Ploc.dummy [qv])] rhs
-    | STMT_QOP(MEASURE q c) ->
+      QC.QLET loc [(Ploc.dummy, [qv], [], QC.QRESET Ploc.dummy [qv])] rhs
+    | (loc, STMT_QOP(MEASURE q c)) ->
       let qv = to_qvar q in
       let cv = to_cvar c in
-      QC.QLET Ploc.dummy [(Ploc.dummy, [qv], [cv], QC.QRESET Ploc.dummy [qv])] rhs
-    | STMT_QOP(UOP uop) ->
-       wrap_uop conv_pv conv_qreg_or_indexed uop rhs
+      QC.QLET loc [(Ploc.dummy, [qv], [cv], QC.QRESET Ploc.dummy [qv])] rhs
+    | (loc, STMT_QOP(UOP uop)) ->
+       wrap_uop loc conv_pv conv_qreg_or_indexed uop rhs
     ]
 ;
 
 value circuit qubits clbits instrs =
   let rhs = QC.QWIRES Ploc.dummy qubits clbits in
-  List.fold_right (wrap_stmt empty) (List.map snd instrs) rhs
+  List.fold_right (wrap_stmt empty) instrs rhs
 ;
 
 value env_item = fun [
@@ -189,6 +189,8 @@ value mk qbase clbase =
   ; emit = True
   } ;
 
+value qreg_size ce = BC.size ce.qubits ;
+value clreg_size ce = BC.size ce.clbits ;
 value next_qreg ce =
   let (s,n) = BC.next ce.qubits in
   INDEXED (QREG s) n
@@ -287,47 +289,52 @@ value conv_param conv_paramvar e =
   crec e
 ;
 
-value rec conv_circuit acc env = fun [
-  QC.QLET _ bl qc ->
-  let env = conv_bindings acc env bl in
-  conv_circuit acc env qc
+value rec conv_circuit loc0 acc env = fun [
+  QC.QLET loc bl qc ->
+  let loc = ploc_encl_with_comments loc0 loc in
+  let env = conv_bindings loc acc env bl in
+  conv_circuit Ploc.dummy acc env qc
 | QC.QWIRES _ qvl cvl ->
    (List.map (CE.lookup_qv env) qvl, List.map (CE.lookup_cv env) cvl)
 | QC.QBIT _ ->
    ([CE.next_qreg env], [])
 | QC.QDISCARD _ _ -> ([], [])
-| QC.QRESET _ qvl -> do {
+| QC.QRESET loc qvl -> do {
+    let loc = ploc_encl_with_comments loc0 loc in
     let qrl = List.map (CE.lookup_qv env) qvl in
     CE.if_emit env (fun () ->
         qrl |> List.iter (fun qr ->
-                   Std.push acc (STMT_QOP (RESET qr)))) ;
+                   Std.push acc (loc, STMT_QOP (RESET qr)))) ;
     (qrl, [])
   }
-| QC.QBARRIER _ qvl -> do {
+| QC.QBARRIER loc qvl -> do {
+    let loc = ploc_encl_with_comments loc0 loc in
     let qrl = List.map (CE.lookup_qv env) qvl in
-    CE.if_emit env (fun () -> Std.push acc (STMT_BARRIER qrl)) ;
+    CE.if_emit env (fun () -> Std.push acc (loc, STMT_BARRIER qrl)) ;
     (qrl, [])
   }
 | QC.QMEASURE loc qvl -> do {
-   let qrl = List.map (CE.lookup_qv env) qvl in
-   let crl = List.map (fun _ -> CE.next_creg env) qrl in
-   if List.length qrl <> List.length crl then
-     Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg/creg args to measure")
-   else () ;
-   (Std.combine qrl crl)
-   |> List.iter (fun (qr, cr) ->
-          CE.if_emit env (fun () -> Std.push acc (STMT_QOP (MEASURE qr cr)))
-        ) ;
-   (qrl, crl)
+    let loc = ploc_encl_with_comments loc0 loc in
+    let qrl = List.map (CE.lookup_qv env) qvl in
+    let crl = List.map (fun _ -> CE.next_creg env) qrl in
+    if List.length qrl <> List.length crl then
+      Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg/creg args to measure")
+    else () ;
+    (Std.combine qrl crl)
+    |> List.iter (fun (qr, cr) ->
+           CE.if_emit env (fun () -> Std.push acc (loc, STMT_QOP (MEASURE qr cr)))
+         ) ;
+    (qrl, crl)
   }
 | QC.QGATEAPP loc (QGATE _ gn) pel qvl cvl ->
+    let loc = ploc_encl_with_comments loc0 loc in
    if cvl <> [] then
      Fmt.(raise_failwithf loc "conv_circuit: gates cannot take classical bits in qasm2")
    else do {
     let qrl = List.map (CE.lookup_qv env) qvl in
     CE.if_emit env (fun () ->
         let pel = List.map (conv_param conv_empty) pel in
-        Std.push acc (STMT_QOP (UOP (make_uop loc gn pel qrl)))) ;
+        Std.push acc (loc, STMT_QOP (UOP (make_uop loc gn pel qrl)))) ;
     match CE.lookup_gate env gn with [
         Left ((_, qvl,  cvl), qc) ->
         let qvl = qvl |> List.map (fun  [ QC.QV _ id -> id ]) in
@@ -339,7 +346,7 @@ value rec conv_circuit acc env = fun [
           let env = CE.reset_vars env in
           let env = List.fold_left CE.upsert_qv env (Std.combine qvl qrl) in
           let env = CE.stop_emit env in
-          conv_circuit acc env qc
+          conv_circuit Ploc.dummy acc env qc
       | Right (_, qvl,  cvl) ->
          if List.length qrl <> List.length qvl then
            Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" QC.pp_qgatename_t gn)
@@ -351,14 +358,15 @@ value rec conv_circuit acc env = fun [
   }
 ]
 
-and conv_bindings acc env bl =
- List.fold_left (conv_binding acc) env bl
+and conv_bindings loc acc env bl =
+ List.fold_left (conv_binding loc acc) env bl
 
-and conv_binding acc env b =
+and conv_binding loc0 acc env b =
   let (loc, qvl, cvl, qc) = b in
+  let loc = ploc_encl_with_comments loc0 loc in
   let qvl = qvl |> List.map (fun  [ QC.QV _ id -> id ]) in
   let cvl = cvl |> List.map (fun  [ QC.CV _ id -> id ]) in
-  let (qrl, crl) = conv_circuit acc env qc in
+  let (qrl, crl) = conv_circuit loc acc env qc in
   if List.length qrl <> List.length qvl then
     Fmt.(raise_failwithf loc "conv_binding: length mismatch in qvars: %a" QC.pp_qbinding_t b)
   else if List.length crl <> List.length cvl then
@@ -373,8 +381,16 @@ value circuit (gates, qc) =
   let env = CE.mk "q" "c" in
   let env = List.fold_left CE.upsert_gate env gates in
   let acc = ref [] in do  {
-    conv_circuit acc env qc ;
-    List.rev acc.val
+    conv_circuit Ploc.dummy acc env qc ;
+    let qreg_size = CE.qreg_size env in
+    let clreg_size = CE.clreg_size env in
+    (if clreg_size <> 0 then
+       [(Ploc.dummy, STMT_QREG "c" clreg_size)]
+     else [])
+    @(if qreg_size <> 0 then
+        [(Ploc.dummy, STMT_QREG "q" qreg_size)]
+      else [])
+    @(List.rev acc.val)
   }
 ;
 
@@ -387,7 +403,9 @@ value rec extract_gates env =
     ])
 ;
 
-value env_item gates item = [] ;
+value env_item gates = fun [
+  QEnv.QINCLUDE 
+] ;
 
 value program (env, qc) =
   let gates = extract_gates env in

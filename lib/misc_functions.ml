@@ -8,6 +8,21 @@ let rec strec () =
     in if (eof_function tok) then [< >]
        else [< 'tok; strec() >]
 in [< strec () >]
+
+let list_of_stream_eof eofp strm =
+let rec listrec acc = parser
+  [< 't when  not (eofp t); strm >] -> listrec (t::acc) strm
+| [< >] -> List.rev acc
+in listrec [] strm
+
+let ploc_encl_with_comments loc1 loc2 =
+  let loc = Ploc.encl loc1 loc2 in
+  let com1 = Ploc.comment loc1 in
+  let com2 = Ploc.comment loc2 in
+  Ploc.with_comment loc (com1^com2)
+
+
+
 (*
 let stream_of_lexer_eof eoftok lexer lexbuf =
 let rec strec () =
@@ -57,8 +72,10 @@ let ne_plist_with_sep_function sep elem =
 let clean_left_re = Pcre.regexp ~flags:[`DOTALL] "^\\h*(\\H.*)?$"
 let clean_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*\\H)?\\h*$"
 let nl_re = Pcre.regexp "\r"
-let cleanws s =
+let lf_re = Pcre.regexp "\n"
+let cleanws ?(lf=false) s =
   let s = Pcre.substitute ~rex:nl_re ~subst:(fun s -> "") s in
+  let s = if lf then Pcre.substitute ~rex:lf_re ~subst:(fun s -> "") s else s in
   let rv1 = Pcre.extract ~rex:clean_left_re s in
   let s = rv1.(1) in
   let rv2 = Pcre.extract ~rex:clean_right_re s in

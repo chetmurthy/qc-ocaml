@@ -1,4 +1,5 @@
-
+open Misc_functions ;
+open Pa_ppx_utils ;
 open Pa_ppx_base.Pp_MLast ;
 open Qc_misc ;
 
@@ -142,9 +143,15 @@ value qvars_cvars pps = fun [
      Fmt.(pf pps "%a : %a" (list ~{sep=sp} qvar) qvl  (list ~{sep=const string " "} cvar) cvl)
 ] ;
 
+value comm_nl pps = fun [
+  "" -> Fmt.(pf pps "")
+| s -> Fmt.(pf pps "%s@." (cleanws ~{lf=True} s))
+] ;
+
 value rec qcirc pps = fun [
-    QLET _ bl qc ->
-     Fmt.(pf pps "@[<v>let @[%a@] in@ %a@]" (list ~{sep=and_sep} binding) bl qcirc qc)
+    QLET loc bl qc ->
+    let comm = Ploc.comment loc in
+     Fmt.(pf pps "@[<v>%alet @[%a@] in@ %a@]" comm_nl comm (list ~{sep=and_sep} binding) bl qcirc qc)
   | QWIRES _ qvl cvl -> paren_qvars_cvars pps (qvl, cvl)
   | QGATEAPP _ qg [] qvl cvl ->
      Fmt.(pf  pps "%a %a" qgate qg qvars_cvars (qvl, cvl))

@@ -129,11 +129,14 @@ add_include "testdata" ;;
 
 open Qasm2syntax.AST ;;
 
-let env0 = read_include "qelib0.qli" ;;
+let env0 = qelib_from_file "qelib0.qli" ;;
 
 let (env,instrs) = full_to_ast_from_file ~path:["testdata"] "testdata/bell2.qasm" ;;
+print_string (Misc_functions.pp (Qasmpp.ASTPP.program ~skip_qelib:true) instrs);;
 let (gates, qc) = instrs |>  Qconvert.ToLam.program  ;;
 (gates, qc) |> pp Fmt.stdout ;;
+let instrs' = Qconvert.ToQasm2.program (env0 @ gates, qc) ;;
+print_string (Misc_functions.pp (Qasmpp.ASTPP.program ~skip_qelib:true) instrs');;
 
 (* Local Variables: *)
 (* mode: tuareg *)
