@@ -109,25 +109,27 @@ value circuit qubits clbits instrs =
   List.fold_right (wrap_stmt empty) instrs rhs
 ;
 
-value env_item = fun [
-  STMT_GATEDECL (gname, pvl, qvl, instrs) ->
+value rec env_item = fun [
+  (_, STMT_GATEDECL (gname, pvl, qvl, instrs)) ->
    let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
    let qc = gate_circuit qvl [] instrs in
    QEnv.QGATEDEF (QC.QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc)
 
-
-| STMT_OPAQUEDECL gname pvl qvl ->
+| (_, STMT_OPAQUEDECL gname pvl qvl) ->
    let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
    QEnv.QGATEOPAQUE (QC.QG Ploc.dummy (ID.mk gname)) (pvl, qvl, [])
+
+| (_, STMT_INCLUDE fname l) ->
+   QEnv.QINCLUDE fname (List.map env_item l)
 ] ;
 
 value program stmts =
   let (gates, instrs) =
-    stmts |> filter_split (fun [ (_, (STMT_GATEDECL _ | STMT_OPAQUEDECL _ _ _)) -> True | _ -> False ]) in
+    stmts |> filter_split (fun [ (_, (STMT_INCLUDE _ _ | STMT_GATEDECL _ | STMT_OPAQUEDECL _ _ _)) -> True | _ -> False ]) in
 
-  let env = List.map env_item (List.map snd gates) in
+  let env = List.map env_item gates in
   let (regs, instrs) =
     instrs |>  filter_split (fun [ (_, (STMT_QREG _ _ | STMT_CREG _ _)) -> True | _ -> False ]) in
   let (qregs, cregs) =

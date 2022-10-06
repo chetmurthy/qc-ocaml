@@ -117,13 +117,13 @@ Session.available_backends session ;;
 Job.submit_job "ibmq_16_melbourne" qobj session ;;
 
  *)
-
+(*
 #load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
 open Qasm2_tests ;;
+ *)
 
 
-(*
 open Qlam_syntax ;;
 open Qlam_parser ;;
 add_include "." ;;
@@ -134,14 +134,14 @@ open Qasm2syntax.AST ;;
 
 let env0 = qelib_from_file "qelib0.qli" ;;
 
-let (env,instrs) = full_to_ast_from_file ~path:["testdata"] "testdata/bell2.qasm" ;;
-print_string (Misc_functions.pp (Qasmpp.ASTPP.program ~skip_qelib:true) instrs);;
+let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file "testdata/bell2.qasm" ;;
+print_string (Misc_functions.pp Qasmpp.ASTPP.program instrs);;
 let (gates, qc) = instrs |>  Qconvert.ToLam.program  ;;
 (gates, qc) |> pp Fmt.stdout ;;
 let instrs' = Qconvert.ToQasm2.program (env0 @ gates, qc) ;;
-print_string (Misc_functions.pp (Qasmpp.ASTPP.program ~skip_qelib:true) instrs');;
+print_string (Misc_functions.pp Qasmpp.ASTPP.program instrs');;
 
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)
- *)
+
