@@ -113,7 +113,7 @@ let unroll1 envs dag node =
     LM.ofList() target in
   let odag = DAG.reopen_dag ~frontier ~target dag in
   let odag =
-    List.fold_left (fun odag (_, stmt) -> (DAG.add_stmt envs) odag stmt) odag stmts in
+    List.fold_left (DAG.add_stmt envs) odag stmts in
   let remaining_edges = LM.dom odag.frontier in
   let odag =
     List.fold_left DAG.close_frontier_1 odag remaining_edges in

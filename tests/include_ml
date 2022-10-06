@@ -29,6 +29,7 @@ open Qrpc_api ;;
 open OUnit2 ;;
 
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
+Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
 let lexbuf_contents lb =
   let open Lexing in
@@ -116,16 +117,18 @@ Session.available_backends session ;;
 Job.submit_job "ibmq_16_melbourne" qobj session ;;
 
  *)
-(*
+
 #load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
 open Qasm2_tests ;;
- *)
 
+
+(*
 open Qlam_syntax ;;
 open Qlam_parser ;;
 add_include "." ;;
 add_include "testdata" ;;
+
 
 open Qasm2syntax.AST ;;
 
@@ -141,3 +144,4 @@ print_string (Misc_functions.pp (Qasmpp.ASTPP.program ~skip_qelib:true) instrs')
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)
+ *)

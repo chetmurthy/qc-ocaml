@@ -82,6 +82,7 @@ let pr_comma = (fun () -> [< '"," >])
     | _ -> [< 'commentstring ; raw_gate_op gop >]
 
   let raw_stmt = function
+    | CST.STMT_INCLUDE (fname, _) -> [< '"include " ; '(Printf.sprintf "\"%s\"" fname) ; '";\n" >]
     | CST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl) ->
        [< '"gate " ; 'gateid ; '" (" ; prlist_with_sep pr_comma pr_id formal_params ; '") " ;
         prlist_with_sep pr_comma pr_id formal_bits ; '" {\n" ;
@@ -100,25 +101,18 @@ let pr_comma = (fun () -> [< '"," >])
     | CST.STMT_CREG(id, n) ->
        [< '"creg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
 
-  let skippable ~skip_qelib = function
-    | CST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl) ->
-       skip_qelib && List.mem gateid Defaults._qelib_gates
-    | _ -> false
-
-  let stmt ~skip_qelib (aux, s) =
-    if skippable ~skip_qelib s then [< >] else
+  let stmt (aux, s) =
     let commentstring = Ploc.comment aux in
     match commentstring with
     | "" -> raw_stmt s
     | _ -> [< 'commentstring ; raw_stmt s >]
 
-  let program ~skip_qelib l =
-    prlist (stmt ~skip_qelib) l
+  let program l =
+    prlist stmt l
 
-  let main ~skip_qelib (vers, l) =
+  let main (vers, l) =
     [< '"OPENQASM " ; 'vers ; '";\n" ;
-     '(if skip_qelib then "include \"qelib1.inc\";\n" else "") ;
-     program ~skip_qelib l >]
+     program l >]
 
 end
 
@@ -207,6 +201,7 @@ module ASTPP = struct
   let pr_id id = [< 'id >]
 
   let raw_stmt = function
+    | AST.STMT_INCLUDE(fname, _) -> [< '"include " ; '(Printf.sprintf "\"%s\"" fname) ; '";\n" >]
     | AST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl) ->
        [< '"gate " ; 'gateid ; '" (" ; prlist_with_sep pr_comma pr_id formal_params ; '") " ;
         prlist_with_sep pr_comma pr_id formal_bits ; '" {\n" ;
@@ -225,25 +220,18 @@ module ASTPP = struct
     | AST.STMT_CREG(id, n) ->
        [< '"creg " ; 'id ; '"[" ; 'string_of_int n ; '"];\n" >]
 
-  let skippable ~skip_qelib = function
-    | AST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl) ->
-       skip_qelib && List.mem gateid Defaults._qelib_gates
-    | _ -> false
-
-  let stmt ~skip_qelib (aux, s) =
-    if skippable ~skip_qelib s then [< >] else
+  let stmt (aux, s) =
     let commentstring = Ploc.comment aux in
     match commentstring with
     | "" -> raw_stmt s
     | _ -> [< 'commentstring ; raw_stmt s >]
 
-  let program ~skip_qelib l =
-    prlist (stmt ~skip_qelib) l
+  let program l =
+    prlist stmt l
 
-  let main ~skip_qelib (vers, l) =
+  let main (vers, l) =
     [< '"OPENQASM " ; 'vers ; '";\n" ;
-     '(if skip_qelib then "include \"qelib1.inc\";\n" else "") ;
-     program ~skip_qelib l >]
+     program l >]
 
 end
                  

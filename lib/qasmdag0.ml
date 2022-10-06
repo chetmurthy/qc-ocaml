@@ -365,9 +365,12 @@ let generate_qubit_instances envs l =
            )
          ) qubit_instances
 
-  let rec add_stmt envs odag stmt =
-    match stmt with
+  let rec add_stmt envs odag (_, rst) =
+    match rst with
     | AST.STMT_GATEDECL _ | STMT_OPAQUEDECL _ -> odag
+
+    | STMT_INCLUDE(_, l) ->
+       List.fold_left (add_stmt envs) odag l
 
     (* already got added from envs; just check that envs is right *)
     | STMT_QREG(id, n) ->
@@ -398,7 +401,7 @@ let generate_qubit_instances envs l =
                     cbits @ bits)
                  ) l in
        List.fold_left (fun odag (stmt, bits) ->
-           add_node odag stmt bits
+           add_node odag rst bits
          ) odag l
 
     | STMT_BARRIER qargs ->
@@ -414,7 +417,7 @@ let generate_qubit_instances envs l =
              bits @ (gen_qubits qarg))
            [] qargs in
 
-       add_node odag stmt bits
+       add_node odag rst bits
 
   let close_frontier_1 odag edgelabel =
     let canon x = List.sort Stdlib.compare x in
@@ -441,7 +444,6 @@ let generate_qubit_instances envs l =
     }
 
   let make envs pl =
-    let pl = List.map snd pl in
     let odag = mk_open_dag() in
     let qubits =
       LM.fold (fun acc (id, dim) ->

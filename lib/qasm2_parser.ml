@@ -6,16 +6,20 @@ open Misc_functions
 open Qc_misc
 open Qasm2syntax
 
-let expand_include ~path strm =
-  let rec exprec =
-    parser
-  | [< '(_, T_INCLUDE fname) ; strm >] ->
-     let ic = open_in (find_file_from ~path fname) in
-     [< exprec (Qasm2_lexer.make_body_lexer_from_channel ~fname ic) ; exprec strm >]
-  | [< 'tok ; strm >] -> [< 'tok ; exprec strm >]
-  | [< >] -> [< >]
-  in
-  exprec strm
+let include_path = ref []
+let add_include (s : string) = Std.push include_path s
+
+let with_include_path ~path f arg =
+  let oinclude_path = !include_path in
+  include_path := path ;
+  try let rv = f arg in include_path := oinclude_path ; rv
+  with exc ->
+        include_path := oinclude_path ;
+        raise exc
+
+let read_include pfun fname =
+  let ic = open_in (find_file_from ~path:!include_path fname) in
+  pfun (Qasm2_lexer.make_body_lexer_from_channel ~fname ic)
 
 let catch_parse_error pfun tokstrm =
   try pfun tokstrm
@@ -26,26 +30,23 @@ let catch_parse_error pfun tokstrm =
            Ploc.raise loc (SyntaxError "parse error")
 
 
-let full_parse ~path pfun ?(fname="") buf =
+let full_parse pfun ?(fname="") buf =
   let tokstrm = Qasm2_lexer.make_lexer ~fname buf in
-  let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
-let full_parse_from_file ~path pfun fname =
+let full_parse_from_file pfun fname =
 let ic = open_in fname in
   let tokstrm = Qasm2_lexer.make_lexer_from_channel ~fname ic in
-  let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
-let body_parse ~path pfun ?(fname="") buf =
+let body_parse pfun ?(fname="") buf =
   let tokstrm = Qasm2_lexer.make_body_lexer ~fname buf in
-  let tokstrm = expand_include ~path tokstrm in
   catch_parse_error pfun tokstrm
 
-let body_parse_from_file ~path pfun fname =
+let body_parse_from_file pfun fname =
 let ic = open_in fname in
   let tokstrm = Qasm2_lexer.make_body_lexer_from_channel ~fname ic in
-  catch_parse_error pfun (expand_include ~path tokstrm)
+  catch_parse_error pfun tokstrm
 
 (*
          mainprogram: "OPENQASM" real ";" program
@@ -245,7 +246,13 @@ let reg_decl=parser
    else (List.fold_left ploc_encl_with_comments aux1 [aux2; aux3; aux4; aux5; aux6], CST.STMT_CREG(id, n))
 
 
-let statement = parser
+let rec include_decl = parser
+  [< '(aux1, T_INCLUDE fname) >] ->
+    let l = read_include statement_list fname in
+    (aux1, CST.STMT_INCLUDE(fname, l))
+
+and statement = parser
+| [< d=include_decl >] -> d
 | [< d=reg_decl >] -> d
 | [< d=gatedecl >] -> d
 | [< d=opaquedecl >] -> d
@@ -258,7 +265,8 @@ let statement = parser
    '(aux3, T_SEMICOLON) >] ->
    (List.fold_left ploc_encl_with_comments aux1 [aux2; aux3], CST.STMT_BARRIER l)
 
-let ne_statement_list strm = let (h, t) = ne_plist statement strm in h::t
+and ne_statement_list strm = let (h, t) = ne_plist statement strm in h::t
+and statement_list strm = plist statement strm
 
 let program strm = ne_statement_list strm
 

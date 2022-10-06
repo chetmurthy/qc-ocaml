@@ -403,9 +403,7 @@ value rec extract_gates env =
     ])
 ;
 
-value env_item gates = fun [
-  QEnv.QINCLUDE 
-] ;
+value env_item gates _ = [] ;
 
 value program (env, qc) =
   let gates = extract_gates env in

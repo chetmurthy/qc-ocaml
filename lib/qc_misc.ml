@@ -3,8 +3,7 @@ open Pa_ppx_utils
 open Std
 open Misc_functions
 
-type t = exn = .. [@@deriving show, sexp, yojson, eq]
-type t +=
+type Pa_ppx_runtime_fat.Exceptions.t +=
     SyntaxError of string[@name "SyntaxError"]
 [@@deriving show, sexp, yojson, eq]
 

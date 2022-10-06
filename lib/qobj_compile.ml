@@ -210,7 +210,7 @@ module JSON = struct
         memory_slots = LM.fold (fun acc (_, dim) -> acc + dim) 0 envs.TYCHK.Env.cregs ;
       } in
     let ast = DAG.to_ast envs dag in
-    let qasm = pp (ASTPP.main ~skip_qelib:true) ("2.0", ast) in
+    let qasm = pp ASTPP.main ("2.0", ast) in
     let header = {
         st.circuit_header with
         compiled_circuit_qasm = Some qasm ;

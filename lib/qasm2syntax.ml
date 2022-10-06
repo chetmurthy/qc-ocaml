@@ -118,6 +118,7 @@ module CST = struct
     'aux * raw_gate_op_t
 
   type 'aux raw_stmt_t =
+    | STMT_INCLUDE of string * 'aux stmt_t list
     | STMT_GATEDECL of string * string list * string list * 'aux gate_op_t list
     | STMT_OPAQUEDECL of string * string list * string list
     | STMT_QOP of raw_qop_t
@@ -126,7 +127,7 @@ module CST = struct
     | STMT_QREG of string * int
     | STMT_CREG of string * int
 
-  type 'aux stmt_t = 'aux * 'aux raw_stmt_t
+  and 'aux stmt_t = 'aux * 'aux raw_stmt_t
 
   type 'aux program_t = 'aux stmt_t list
 
@@ -140,7 +141,8 @@ module CST = struct
       let aux' = mappers.gop aux raw_gop in
       (aux', raw_gop)
 
-    let raw_stmt mappers = function
+    let rec raw_stmt mappers = function
+      | STMT_INCLUDE (fname, l) -> STMT_INCLUDE(fname, List.map (stmt mappers) l)
       | STMT_GATEDECL(gateid, formal_params, formal_qregs, gopl) ->
          STMT_GATEDECL(gateid, formal_params, formal_qregs,
                            List.map (gop mappers) gopl)
@@ -152,7 +154,7 @@ module CST = struct
       | STMT_QREG (a,b) -> STMT_QREG (a,b)
       | STMT_CREG (a, b) -> STMT_CREG (a, b)
 
-    let stmt mappers (aux, raw_stmt0) =
+    and stmt mappers (aux, raw_stmt0) =
       let aux' = mappers.stmt aux raw_stmt0 in
       let raw_stmt' = raw_stmt mappers raw_stmt0 in
       (aux', raw_stmt')
@@ -226,6 +228,7 @@ module AST = struct
   type 'aux gatedecl_t = string * string list * string list * 'aux gate_op_t list
 
   type 'aux raw_stmt_t =
+    | STMT_INCLUDE of string * 'aux stmt_t list
     | STMT_GATEDECL of 'aux gatedecl_t
     | STMT_OPAQUEDECL of string * string list * string list
     | STMT_QOP of raw_qop_t
@@ -234,7 +237,7 @@ module AST = struct
     | STMT_QREG of string * int
     | STMT_CREG of string * int
 
-  type 'aux stmt_t = 'aux * 'aux raw_stmt_t
+  and 'aux stmt_t = 'aux * 'aux raw_stmt_t
 
   type 'aux program_t = 'aux stmt_t list
 
@@ -248,7 +251,8 @@ module AST = struct
       let aux' = mappers.gop aux raw_gop in
       (aux', raw_gop)
 
-    let raw_stmt mappers = function
+    let rec raw_stmt mappers = function
+      | STMT_INCLUDE (fname, l) -> STMT_INCLUDE(fname, List.map (stmt mappers) l)
       | STMT_GATEDECL(gateid, formal_params, formal_qregs, gopl) ->
          STMT_GATEDECL(gateid, formal_params, formal_qregs,
                            List.map (gop mappers) gopl)
@@ -260,7 +264,7 @@ module AST = struct
       | STMT_QREG (a,b) -> STMT_QREG (a,b)
       | STMT_CREG (a, b) -> STMT_CREG (a, b)
 
-    let stmt mappers (aux, raw_stmt0) =
+    and stmt mappers (aux, raw_stmt0) =
       let aux' = mappers.stmt aux raw_stmt0 in
       let raw_stmt' = raw_stmt mappers raw_stmt0 in
       (aux', raw_stmt')
@@ -467,8 +471,10 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
     with TypeError (false, msg) ->
       Ploc.raise aux (TypeError (true, msg))
 
-  let raw_stmt envs (cst: 'aux CST.raw_stmt_t) =
+  let rec raw_stmt envs (cst: 'aux CST.raw_stmt_t) =
     match cst with
+    | CST.STMT_INCLUDE(fname, l) ->
+       assert false
     | CST.STMT_GATEDECL(gateid, param_formals, qubit_formals, gopl) ->
        Env.must_not_have_gate envs gateid ;
        let cparam id =
@@ -508,27 +514,33 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
        Env.must_not_have_creg envs id ;
        AST.STMT_CREG(id, n)
 
-  let stmt envs (aux, rst) =
+  and stmt0 envs (aux, rst) =
     try
       (aux,raw_stmt envs rst)
     with TypeError (false, msg) ->
       Ploc.raise aux (TypeError (true, msg))
 
+  let fold_left_map f acc l =
+    let (acc, revl) = List.fold_left (fun (acc, revl) x ->
+                          let (acc, x) = f acc x in
+                          (acc, x::revl))
+                    (acc, []) l in
+    (acc, List.rev revl)
+
+  let add1 envs stmt = match stmt with
+      | _, AST.STMT_QREG(id, n) -> Env.add_qreg envs (id, n)
+      | _, STMT_CREG(id, n) -> Env.add_creg envs (id, n)
+      | _, STMT_GATEDECL(gateid, param_formals, qubit_formals, gopl) ->
+         Env.add_gate envs (gateid, (gateid, param_formals, qubit_formals, gopl))
+      | _ -> envs
+
+  let rec stmt envs st = match st with
+      aux, CST.STMT_INCLUDE(fname, l) ->
+      let (envs, l) = fold_left_map stmt envs l in
+      (envs, (aux, AST.STMT_INCLUDE(fname, l)))
+    | x -> let st = stmt0 envs st in
+           (add1 envs st, st)
+
   let program l =
-    let stmt1 envs cst =
-      let (aux, rst as stmt) = stmt envs cst in
-      match rst with
-      | STMT_QREG(id, n) -> (Env.add_qreg envs (id, n), stmt)
-      | STMT_CREG(id, n) -> (Env.add_creg envs (id, n), stmt)
-      | STMT_GATEDECL(gateid, param_formals, qubit_formals, gopl) ->
-         (Env.add_gate envs (gateid, (gateid, param_formals, qubit_formals, gopl)),
-          stmt)
-      | _ -> (envs, stmt)
-    in
-    let (envs, l) =
-      List.fold_left (fun (envs,acc) stmt ->
-          let (envs, stmt) = stmt1 envs stmt in
-          (envs, stmt::acc))
-        (Env.mk(), []) l
-    in (envs, List.rev l)
+    fold_left_map stmt (Env.mk()) l
 end

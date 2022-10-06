@@ -397,6 +397,7 @@ module CancelJob = struct
 end
 
 module Unroll = struct
+  open Qasm2_parser
   type t = {
 
       debug : bool ;
@@ -415,10 +416,10 @@ module Unroll = struct
 
   let do_unroll p =
     let { debug ; qasmfile ; include_path ; only_gates } = p in
-    let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
+    let (envs, dag) = with_include_path ~path:include_path full_to_dag0_from_file qasmfile in
     let dag = Unroll.execute ~only:only_gates envs dag in
     let pl = DAG.to_ast envs dag in  
-    print_string (pp (ASTPP.program ~skip_qelib:true) pl)
+    print_string (pp ASTPP.program pl)
 
   let cmd =
     let term = Cmdliner.Term.(const do_unroll $ cmdliner_term ()) in
@@ -427,6 +428,7 @@ module Unroll = struct
 end
 
 module Parse = struct
+  open Qasm2_parser
   type t = {
 
       debug : bool ;
@@ -449,8 +451,7 @@ module Parse = struct
     let { debug ; qasmfile ; iterations ; only_parse ; include_path } = p in
 
     for i = 1 to iterations do
-      let open Qasm2_parser in
-      let vers,pl = full_parse_from_file ~path:include_path PA.mainprogram qasmfile in
+      let vers,pl = with_include_path ~path:include_path (full_parse_from_file PA.mainprogram) qasmfile in
       if only_parse then () else
         let (envs, p) = TYCHK.program pl in
         ()
@@ -463,6 +464,7 @@ module Parse = struct
 end
 
 module Ast = struct
+  open Qasm2_parser
   type t = {
 
       debug : bool ;
@@ -481,10 +483,10 @@ module Ast = struct
 
   let do_ast p =
     let { debug ; only_to_dag ;qasmfile ; include_path } = p in
-    let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
+    let (envs, dag) = with_include_path ~path:include_path full_to_dag0_from_file qasmfile in
     if only_to_dag then () else
     let pl = DAG.to_ast envs dag in  
-    print_string (pp (ASTPP.program ~skip_qelib:true) pl)
+    print_string (pp ASTPP.program pl)
 
   let cmd =
     let term = Cmdliner.Term.(const do_ast $ cmdliner_term ()) in
@@ -493,6 +495,7 @@ module Ast = struct
 end
 
 module Dot = struct
+  open Qasm2_parser
   type t = {
 
       debug : bool ;
@@ -508,7 +511,7 @@ module Dot = struct
 
   let do_dot p =
     let { debug ; qasmfile ; include_path } = p in
-    let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
+    let (envs, dag) = with_include_path ~path:include_path full_to_dag0_from_file qasmfile in
     Odot.print stdout (DAG.dot ~terse:true dag)
 
   let cmd =
@@ -518,6 +521,7 @@ module Dot = struct
 end
 
 module SubmitJob = struct
+  open Qasm2_parser
   type t = {
       rcfile : string option ; [@env "QISKITRC"]
       (** specify rcfile location *)
@@ -555,7 +559,7 @@ module SubmitJob = struct
           max_credits ; include_path ; user_key } = p in
     let session = Login.(login { rcfile ; key ; debug }) in
 
-    let (envs, dag) = full_to_dag0_from_file ~path:include_path qasmfile in
+    let (envs, dag) = with_include_path ~path:include_path full_to_dag0_from_file qasmfile in
     let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:backend
                                       ~shots ~max_credits
                                       ~memory:false [name, envs, dag] in

@@ -139,7 +139,7 @@ h q[// bargle
 
 let test_parse_expr (name, txt, expect) =
   name >:: (fun ctx ->
-    let (aux, e) = body_parse ~path:[] PA.expr txt in
+    let (aux, e) = with_include_path ~path:[] (body_parse PA.expr) txt in
       assert_equal expect (Ploc.comment aux, e)
   )
 
@@ -157,7 +157,7 @@ let expr_parser_tests = "expr parser tests" >:::
 
 let test_parse_qop (name, txt, expect) =
   name >:: (fun ctx ->
-    let (aux, e) = body_parse ~path:[] PA.qop txt in
+    let (aux, e) = with_include_path ~path:[] (body_parse PA.qop) txt in
       assert_equal expect (Ploc.comment aux, e)
   )
 
@@ -172,7 +172,7 @@ let aux2comment_mapper = {
 
 let test_parse_statement (name, txt, expect) =
   name >:: (fun ctx ->
-    let rv = CST.AuxMap.stmt aux2comment_mapper (body_parse ~path:[] PA.statement txt) in
+    let rv = CST.AuxMap.stmt aux2comment_mapper (with_include_path ~path:[] (body_parse PA.statement) txt) in
     assert_equal expect rv
   )
 
@@ -203,30 +203,30 @@ q, b;|},
       assert_raises_exn_pattern ~msg:"should raise SyntaxError(parsing)"
         "SyntaxError.*parse error"
         (fun () ->
-          body_parse ~path:[] PA.statement "gate g a, b { cx a, b; measure a->b ;}")
+          with_include_path ~path:[] (body_parse PA.statement) "gate g a, b { cx a, b; measure a->b ;}")
     ) ;
    ]
   )
 
 let test_roundtrip_main_buf (name, txt, expect) =
   name >:: (fun ctxt ->
-    let rv = full_parse ~path:["testdata"] PA.mainprogram txt in
-    let pretty = Misc_functions.pp (CSTPP.main ~skip_qelib:true) rv in
-    assert_equal expect pretty
+    let rv = with_include_path  ~path:["testdata"] (full_parse PA.mainprogram) txt in
+    let pretty = Misc_functions.pp CSTPP.main rv in
+    assert_equal ~printer:(fun x -> x) expect pretty
   )
 
 let test_roundtrip_main_file (name, fname, expect) =
   name >:: (fun ctxt ->
-    let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
-    let pretty = Misc_functions.pp (CSTPP.main ~skip_qelib:true) rv in
-    assert_equal expect pretty
+    let rv = with_include_path ~path:["testdata"] (full_parse_from_file PA.mainprogram) fname in
+    let pretty = Misc_functions.pp CSTPP.main rv in
+    assert_equal ~printer:(fun x -> x) expect pretty
   )
 
 let test_roundtrip_program_file (name, fname, expect) =
   name >:: (fun ctxt ->
-    let rv = body_parse_from_file ~path:["testdata"] PA.mainprogram fname in
-    let pretty = Misc_functions.pp (CSTPP.main ~skip_qelib:true) rv in
-    assert_equal expect pretty
+    let rv = with_include_path ~path:["testdata"] (body_parse_from_file PA.mainprogram) fname in
+    let pretty = Misc_functions.pp CSTPP.main rv in
+    assert_equal ~printer:(fun x -> x) expect pretty
   )
 
 let parser_tests = "parser tests" >:::
@@ -235,7 +235,6 @@ let parser_tests = "parser tests" >:::
 qreg q[1];
 |},
 {|OPENQASM 2.0;
-include "qelib1.inc";
 qreg q[1];
 |}) ;
     test_roundtrip_main_buf ("include 0", {|OPENQASM 2.0;
@@ -243,22 +242,21 @@ include "empty.inc";
 qreg q[1];
 |},
 {|OPENQASM 2.0;
-include "qelib1.inc";
+include "empty.inc";
 qreg q[1];
 |}) ;
     test_roundtrip_main_buf ("include 1", {|OPENQASM 2.0;
 include "oneline.inc";
 |},
 {|OPENQASM 2.0;
-include "qelib1.inc";
-qreg q[1];
+include "oneline.inc";
 |}) ;
     test_roundtrip_main_file ("example", "testdata/example.qasm", file_contents "testdata/example.qasm-result") ;
     "fail">:: (fun ctxt ->
       assert_raises ~msg:"should raise SyntaxError(lexing)"
         (SyntaxError "lexing: failed in file \"testdata/example_fail.qasm\" at char 9")
                (fun () ->
-                 full_parse_from_file ~path:[] PA.mainprogram "testdata/example_fail.qasm")
+                 with_include_path ~path:[] (full_parse_from_file PA.mainprogram) "testdata/example_fail.qasm")
     ) ;
   ]
 let aux2unit_mapper = {
@@ -272,7 +270,7 @@ let aux2unit_mapper = {
 
 let test_typecheck (name, txt, expect_env, expect_ast) =
   name >:: (fun ctxt ->
-    let pl = body_parse ~path:["testdata"] PA.program txt in
+    let pl = with_include_path ~path:["testdata"] (body_parse PA.program) txt in
     let (envs, p) = TYCHK.program pl in
     let p = AST.AuxMap.program aux2unit_mapper p in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
@@ -286,7 +284,7 @@ let test_typecheck (name, txt, expect_env, expect_ast) =
 
 let test_typecheck_file (name, fname, expect_env, expect_ast) =
   name >:: (fun ctxt ->
-    let _,pl = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
+    let _,pl = with_include_path ~path:["testdata"] (full_parse_from_file PA.mainprogram) fname in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
     let p = AST.AuxMap.program aux2unit_mapper p in
@@ -301,10 +299,10 @@ let test_typecheck_file (name, fname, expect_env, expect_ast) =
 
 let test_typecheck_roundtrip (name, txt, expect_env, expect) =
   name >:: (fun ctxt ->
-    let pl = body_parse ~path:["testdata"] PA.program txt in
+    let pl = with_include_path ~path:["testdata"] (body_parse PA.program) txt in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
-    let pretty_p = Misc_functions.pp (ASTPP.program ~skip_qelib:true) p in
+    let pretty_p = Misc_functions.pp ASTPP.program p in
 
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
@@ -317,10 +315,10 @@ let test_typecheck_roundtrip (name, txt, expect_env, expect) =
 
 let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
   name >:: (fun ctxt ->
-    let vers,pl = full_parse_from_file ~path:["testdata"] PA.mainprogram fname in
+    let vers,pl = with_include_path ~path:["testdata"] (full_parse_from_file PA.mainprogram) fname in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
-    let pretty_p = Misc_functions.pp (ASTPP.main ~skip_qelib:true) (vers, p) in
+    let pretty_p = Misc_functions.pp ASTPP.main (vers, p) in
 
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
@@ -333,7 +331,7 @@ let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
 
 let test_typecheck_fail (name, txt, msg, exnpattern) =
   name >:: (fun ctxt ->
-    let pl = body_parse ~path:["testdata"] PA.program txt in
+    let pl = with_include_path ~path:["testdata"] (body_parse PA.program) txt in
     assert_raises_exn_pattern ~msg exnpattern
       (fun () ->
         TYCHK.program pl)
@@ -412,7 +410,7 @@ let open AST in
 
 let test_dag0 (name, txt) =
   name >:: (fun ctxt ->
-    let _,dag = program_to_dag0 ~path:["testdata"] txt in
+    let _,dag = with_include_path ~path:["testdata"] program_to_dag0 txt in
     Misc_functions.pp DAG.pp_dag dag ;
     ()
   )
@@ -420,7 +418,7 @@ let test_dag0 (name, txt) =
 
 let test_dag0_file (name, fname) =
   name >:: (fun ctxt ->
-    let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] fname in
+    let (envs, dag) = with_include_path ~path:["testdata"] full_to_dag0_from_file fname in
     ()
   )
 
@@ -440,18 +438,20 @@ let dag0_tests = "dag0 tests" >:::
       "tsort" >:: (fun ctxt ->
         let atxt = {| qreg r[2] ; CX r[0], r[1] ; qreg q[2] ; CX q[0], q[1] ; |} in
         let btxt = {| qreg q[2] ; CX q[0], q[1] ; qreg r[2] ; CX r[0], r[1] ; |} in
-        assert_equal (parse_to_dag0_to_ast ~path:[] atxt) (parse_to_dag0_to_ast ~path:[] btxt)
+        assert_equal
+          (with_include_path ~path:[] parse_to_dag0_to_ast atxt)
+          (with_include_path ~path:[] parse_to_dag0_to_ast btxt)
       ) ;
     ]
   )
 
 let unroll ~only txt =
-  let pl = body_parse ~path:["testdata"] PA.program txt in
+  let pl = with_include_path ~path:["testdata"] (body_parse PA.program) txt in
   let (envs, p) = TYCHK.program pl in
   let dag = DAG.make envs p in
   let dag = Unroll.execute ~only envs dag in
   let pl = DAG.to_ast envs dag in  
-  Misc_functions.pp (ASTPP.program ~skip_qelib:true) pl
+  Misc_functions.pp ASTPP.program pl
 
 let test_unroll (name, only, txt, expect) =
   name >:: (fun ctxt ->
@@ -566,7 +566,7 @@ let (fuzzy_compare: Yojson_helpers.user_comparator_t) = fun ~cmp0 f1 f2 ->
 let compile_tests = "compile tests" >:::
   [
     "basis" >:: (fun ctxt ->
-      let (envs, dag) = program_to_dag0 ~path:["testdata"] {|
+      let (envs, dag) = with_include_path ~path:["testdata"] program_to_dag0 {|
                                  include "qelib1.inc";
                                  qreg q[14];
                                  creg c0[2];
@@ -584,7 +584,7 @@ let compile_tests = "compile tests" >:::
     ) ;
 
     "emit 0" >:: (fun ctxt ->
-        let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] "testdata/qobj/bell0.qasm" in
+        let (envs, dag) = with_include_path ~path:["testdata"] full_to_dag0_from_file "testdata/qobj/bell0.qasm" in
         let circuit = Compile.circuit_to_experiment  ~name:"circuit0" envs dag in
         let expected_circuit_txt = file_contents "testdata/qobj/bell0.exp" in
         let expected_circuit_json = Yojson.Safe.from_string expected_circuit_txt in
@@ -607,16 +607,16 @@ let compile_tests = "compile tests" >:::
 let do_trip_test_circuit_to_qasm name dir =
   let qasm1 = Printf.sprintf "testdata/extracted-unit-tests/%s/1-orig.qasm" dir in
   let qasm2 = Printf.sprintf "testdata/extracted-unit-tests/%s/2-from-circuit.qasm" dir in
-  let rv = full_parse_from_file ~path:["testdata"] PA.mainprogram qasm1 in
-  let pretty = Misc_functions.pp (CSTPP.main ~skip_qelib:true) rv in
+  let rv = with_include_path ~path:["testdata"] (full_parse_from_file PA.mainprogram) qasm1 in
+  let pretty = Misc_functions.pp CSTPP.main rv in
   if pretty <> (file_contents qasm2) then begin
       Printf.printf "\n================================ %s ================================\n" name ;
       Printf.printf "%s\n" pretty ;
       Printf.printf "================================ %s ================================\n" name ;
       Printf.printf "%s\n" (file_contents qasm2) ;
       Printf.printf "================================ %s ================================\n" name ;
-      try DAG.WeaklyIsomorphic.iso (snd (full_to_dag0 ~path:["testdata"] pretty))
-            (snd (full_to_dag0 ~path:["testdata"] (file_contents qasm2))) ;
+      try DAG.WeaklyIsomorphic.iso (snd (with_include_path  ~path:["testdata"] full_to_dag0 pretty))
+            (snd (with_include_path ~path:["testdata"] full_to_dag0 (file_contents qasm2))) ;
           Printf.printf "But DAGs were isomorphic!!\n" ;
           Printf.printf "================================ %s ================================\n" name
       with Failure _ ->
@@ -649,7 +649,7 @@ let do_trip_test_circuit_to_qobj name dir backend =
   let qasm1 = Printf.sprintf "testdata/extracted-unit-tests/%s/3-optimized-%s.qasm" dir backend in
   let qobj2 = Printf.sprintf "testdata/extracted-unit-tests/%s/4-compiled-%s.qobj" dir backend in
 
-  let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] qasm1 in
+  let (envs, dag) = with_include_path ~path:["testdata"] full_to_dag0_from_file qasm1 in
 
   let expected_qobj_txt = file_contents qobj2 in
   let expected_qobj_json = Yojson.Safe.from_string expected_qobj_txt in
