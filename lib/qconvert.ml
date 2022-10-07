@@ -114,12 +114,12 @@ value rec env_item = fun [
    let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
    let qc = gate_circuit qvl [] instrs in
-   QEnv.QGATEDEF loc (QC.QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc)
+   QEnv.QGATE loc (DEF (QC.QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc))
 
 | (loc, STMT_OPAQUEDECL gname pvl qvl) ->
    let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
-   QEnv.QGATEOPAQUE loc (QC.QG Ploc.dummy (ID.mk gname)) (pvl, qvl, [])
+   QEnv.QGATE loc (OPAQUE (QC.QG Ploc.dummy (ID.mk gname)) (pvl, qvl, []))
 
 | (loc, STMT_INCLUDE ty fname (Some l)) ->
    QEnv.QINCLUDE loc ty fname (List.map env_item l)
@@ -487,8 +487,8 @@ value circuit (gates, qc) =
 value rec extract_gates env =
   env |>
     List.concat_map (fun [
-      QEnv.QGATEDEF _ (QC.QG _ gn) glam -> [(gn, Left glam)]
-    | QEnv.QGATEOPAQUE _ (QC.QG _ gn) gargs -> [(gn, Right gargs)]
+      QEnv.QGATE _ (DEF (QC.QG _ gn) glam) -> [(gn, Left glam)]
+    | QEnv.QGATE _ (OPAQUE (QC.QG _ gn) gargs) -> [(gn, Right gargs)]
     | QEnv.QINCLUDE _ QASM2 _ l -> extract_gates l
     ])
 ;
@@ -499,8 +499,8 @@ value env_item gates it = match it with [
   QEnv.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
 | QEnv.QINCLUDE loc _ _ _ ->
    Fmt.(raise_failwithf loc "cannot convert QLAM include into QASM")
-| QEnv.QGATEOPAQUE _ (QG _ gn) _ when ID.unmk gn = "U" -> [] 
-| QEnv.QGATEOPAQUE _ (QG _ gn) _ when ID.unmk gn = "CX" -> []
+| QEnv.QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "U" -> [] 
+| QEnv.QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "CX" -> []
 | _ -> Fmt.(failwithf "Qconvert.env_item: unexpected declaration %a" QEnv.pp_item it)
 ] ;
 

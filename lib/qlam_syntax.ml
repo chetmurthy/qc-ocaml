@@ -184,22 +184,27 @@ and binding pps = fun [
 end ;
 
 module QEnv = struct
+
+type gate_item = [
+  DEF of QC.qgatename_t and QC.qgatelam_t
+| OPAQUE of QC.qgatename_t and QC.qgateargs_t
+  ][@@deriving (to_yojson, show, eq, ord);] ;
+
 type item = [
-  QGATEDEF of loc and QC.qgatename_t and QC.qgatelam_t
-| QGATEOPAQUE of loc and QC.qgatename_t and QC.qgateargs_t
+  QGATE of loc and gate_item
 | QINCLUDE of loc and file_type_t and string and t
-  ]
+]
 and t = list item
 [@@deriving (to_yojson, show, eq, ord);] ;
 
 value item pps = fun [
-    QGATEDEF _ gname ((pvl, qvl, cvl), qc) ->
+    QGATE _ (DEF gname ((pvl, qvl, cvl), qc)) ->
     Fmt.(pf pps "@[<v 2>gate %a (%a) %a =@ %a@]@,;"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
            QC.qvars_cvars (qvl, cvl)
            QC.qcirc qc)
-  | QGATEOPAQUE _ gname (pvl, qvl, cvl) ->
+  | QGATE _ (OPAQUE gname (pvl, qvl, cvl)) ->
     Fmt.(pf pps "@[gate %a (%a) %a ;@]"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
@@ -220,3 +225,17 @@ type t = (QEnv.t * QC.t)[@@deriving (to_yojson, show, eq, ord);] ;
 value pp pps (env, qc) =
   Fmt.(pf pps "%a@.%a%!" QEnv.pp env QC.qcirc qc) ;
 end ;
+(*
+module TYCHK = struct
+
+module Env = struct
+  type t = {
+      gates : IDMap.t 
+    } ;
+end ;
+
+let program (env, qc) =
+
+
+end ;
+ *)
