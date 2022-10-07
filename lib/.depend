@@ -150,18 +150,24 @@ yojson_helpers.cmx :
 qconvert.cmo : \
     qlam_syntax.cmo \
     qc_misc.cmo \
-    qasm2syntax.cmo
+    qasm2syntax.cmo \
+    misc_functions.cmo
 qconvert.cmx : \
     qlam_syntax.cmx \
     qc_misc.cmx \
-    qasm2syntax.cmx
+    qasm2syntax.cmx \
+    misc_functions.cmx
 qlam_parser.cmo : \
     qlam_syntax.cmo \
-    qc_misc.cmo
+    qc_misc.cmo \
+    misc_functions.cmo
 qlam_parser.cmx : \
     qlam_syntax.cmx \
-    qc_misc.cmx
+    qc_misc.cmx \
+    misc_functions.cmx
 qlam_syntax.cmo : \
-    qc_misc.cmo
+    qc_misc.cmo \
+    misc_functions.cmo
 qlam_syntax.cmx : \
-    qc_misc.cmx
+    qc_misc.cmx \
+    misc_functions.cmx

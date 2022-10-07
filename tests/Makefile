@@ -16,7 +16,7 @@ PACKAGES := $(PACKAGES),oUnit,pa_ppx.testutils,pa_ppx.runtime_fat,qc_ocaml
 SYNTAX := camlp5o
 
 TESTS= \
-	qasm2_tests.byte qasm0_tests.byte \
+	qlam_tests.byte qasm2_tests.byte qasm0_tests.byte \
 
 LARGE_TESTS= \
 	large_tests.byte \
@@ -24,7 +24,7 @@ LARGE_TESTS= \
 ALL_TESTS = $(TESTS) $(LARGE_TESTS)
 
 ML=\
-	qasm2_tests.ml qasm0_tests.ml large_tests.ml
+	qlam_tests.ml qasm2_tests.ml qasm0_tests.ml large_tests.ml
 
 
 CMO := $(ML:.ml=.cmo)
@@ -39,7 +39,7 @@ large-tests: $(LARGE_TESTS) $(LARGE_TESTS:.byte=.opt) $(LARGE_TESTS:.byte=.test)
 %.test : %.opt
 	mkdir -p _build && ./$<
 
-.PRECIOUS: large_tests.cmo qasm2_tests.cmo qasm0_tests.cmo large_tests.cmx qasm2_tests.cmx qasm0_tests.cmx
+.PRECIOUS: $(CMO) $(CMX)
 %_tests.byte: %_tests.cmo
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) -package $(PACKAGES) \
 	-linkpkg -linkall -syntax camlp5o $^ -o $@
