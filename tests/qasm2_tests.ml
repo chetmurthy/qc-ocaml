@@ -403,7 +403,7 @@ let open AST in
   )
   @
   (List.map test_typecheck_roundtrip_file [
-       ("example", "testdata/example.qasm", None, None) ;
+       ("roundtrip example", "testdata/example.qasm", None, None) ;
      ]
   )
 )

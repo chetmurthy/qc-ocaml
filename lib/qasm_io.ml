@@ -41,6 +41,13 @@ let parse_to_dag0_to_ast txt =
   let pl = DAG.to_ast envs dag in  
   pp ASTPP.program pl
 
+let full_to_dag0_to_ast_from_file fname =
+  let vers,pl = full_parse_from_file PA.mainprogram fname in
+  let (envs, p) = TYCHK.program pl in
+  let dag = DAG.make envs p in
+  let pl = DAG.to_ast envs dag in  
+  pp ASTPP.program pl
+
 let full_to_ast_from_file fname =
   let vers,pl = full_parse_from_file PA.mainprogram fname in
   let (envs, p) = TYCHK.program pl in

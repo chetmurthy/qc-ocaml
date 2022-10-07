@@ -2,6 +2,7 @@ open Pa_ppx_utils
 open Coll
 open Std
 open Misc_functions
+open Qc_misc
 open Qc_environment
 open Qrpc_types
 open Qobj_types

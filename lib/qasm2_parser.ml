@@ -8,17 +8,6 @@ open Misc_functions
 open Qc_misc
 open Qasm2syntax
 
-let include_path = ref []
-let add_include (s : string) = Std.push include_path s
-
-let with_include_path ~path f arg =
-  let oinclude_path = !include_path in
-  include_path := path ;
-  try let rv = f arg in include_path := oinclude_path ; rv
-  with exc ->
-        include_path := oinclude_path ;
-        raise exc
-
 let read_include pfun fname =
   let ic = open_in (find_file_from ~path:!include_path fname) in
   pfun (Qasm2_lexer.make_body_lexer_from_channel ~fname ic)

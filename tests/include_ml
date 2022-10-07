@@ -13,6 +13,7 @@ open Pa_ppx_utils ;;
 open Coll ;;
 open Std ;;
 open Misc_functions ;;
+open Qc_misc ;;
 open Qasm2syntax ;;
 open Qasm2_lexer ;;
 open Qasm2_parser ;;
@@ -117,22 +118,19 @@ Session.available_backends session ;;
 Job.submit_job "ibmq_16_melbourne" qobj session ;;
 
  *)
-(*
+
 #load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
 open Qasm2_tests ;;
- *)
 
 
+(*
 open Qlam_syntax ;;
 open Qlam_parser ;;
-add_include "." ;;
-add_include "testdata" ;;
-
 
 open Qasm2syntax.AST ;;
 
-let env0 = qelib_from_file "qelib0.qli" ;;
+let env0 = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "qelib0.qli") ;;
 
 let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file "testdata/bell2.qasm" ;;
 print_string (Misc_functions.pp Qasmpp.ASTPP.program instrs);;
@@ -141,6 +139,14 @@ let (gates, qc) = instrs |>  Qconvert.ToLam.program  ;;
 let instrs' = Qconvert.ToQasm2.program (env0 @ gates, qc) ;;
 print_string (Misc_functions.pp Qasmpp.ASTPP.program instrs');;
 
+let roundtrip s =
+  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s in
+  let (gates, qc) = instrs |>  Qconvert.ToLam.program  in
+  let instrs' = Qconvert.ToQasm2.program (env0 @ gates, qc) in
+  let rv = Misc_functions.pp Qasmpp.ASTPP.main ("2.0",instrs') in
+  (rv,s)
+;;
+ *)
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)

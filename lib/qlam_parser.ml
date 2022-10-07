@@ -5,9 +5,6 @@ open Ppxutil ;
 open Qc_misc ;
 open Qlam_syntax ;
 
-value include_path = ref [] ;
-value add_include (s : string) = Std.push include_path s ;
-
 value g = Grammar.gcreate (Plexer.gmake ());
 value qcirc = Grammar.Entry.create g "qcirc";
 value qgate = Grammar.Entry.create g "qgate";

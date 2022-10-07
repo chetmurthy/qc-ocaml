@@ -80,3 +80,14 @@ let find_file_from ~path fname =
            (String.concat "; " path))
 
 type file_type_t = QASM2 | QLAM [@@deriving (to_yojson, show, eq, ord)]
+
+let include_path = ref []
+let add_include (s : string) = Std.push include_path s
+
+let with_include_path ~path f arg =
+  let oinclude_path = !include_path in
+  include_path := path ;
+  try let rv = f arg in include_path := oinclude_path ; rv
+  with exc ->
+        include_path := oinclude_path ;
+        raise exc
