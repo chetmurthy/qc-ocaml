@@ -10,6 +10,7 @@ value loc_to_yojson (_ : loc) = `String "<loc>" ;
 value equal_loc _ _ = True ;
 value compare_loc _ _ = 0 ;
 
+module SYN = struct
 module PC = struct
 
 type t = [
@@ -218,3 +219,4 @@ type t = (QEnv.t * QC.t)[@@deriving (to_yojson, show, eq, ord);] ;
 
 value pp pps (env, qc) =
   Fmt.(pf pps "%a@.%a%!" QEnv.pp env QC.qcirc qc) ;
+end ;

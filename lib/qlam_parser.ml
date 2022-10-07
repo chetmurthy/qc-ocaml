@@ -3,7 +3,7 @@ open Pa_ppx_utils ;
 open Pa_ppx_base ;
 open Ppxutil ;
 open Qc_misc ;
-open Qlam_syntax ;
+open Qlam_syntax.SYN ;
 
 value g = Grammar.gcreate (Plexer.gmake ());
 value qcirc = Grammar.Entry.create g "qcirc";

@@ -5,7 +5,7 @@ open Pa_ppx_base ;
 open Ppxutil ;
 
 open Qc_misc ;
-open Qlam_syntax ;
+open Qlam_syntax.SYN ;
 
 module ToLam = struct
 open Qasm2syntax.AST ;
