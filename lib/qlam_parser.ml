@@ -57,11 +57,11 @@ EXTEND
 
   env_item: [ [
       "gate" ; gname = qgatename ; gargs = gate_args ;
-        "=" ; qc = qcirc ; ";" -> QEnv.QGATEDEF gname (gargs, qc)
-    | "gate" ; gname = qgatename ; gargs = gate_args ; ";" -> QEnv.QGATEOPAQUE gname gargs
+        "=" ; qc = qcirc ; ";" -> QEnv.QGATEDEF loc gname (gargs, qc)
+    | "gate" ; gname = qgatename ; gargs = gate_args ; ";" -> QEnv.QGATEOPAQUE loc gname gargs
     | "include" ; s = STRING ; ";" ->
        if Std.ends_with ~{pat=".qli"} s then
-         QEnv.QINCLUDE QLAM s (qelib_from_file s)
+         QEnv.QINCLUDE loc QLAM s (qelib_from_file s)
        else
          Fmt.(raise_failwithf loc "QLAM parser only accepts QLAM (.qli) includes")
   ] ]

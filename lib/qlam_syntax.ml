@@ -184,26 +184,26 @@ end ;
 
 module QEnv = struct
 type item = [
-  QGATEDEF of QC.qgatename_t and QC.qgatelam_t
-| QGATEOPAQUE of QC.qgatename_t and QC.qgateargs_t
-| QINCLUDE of file_type_t and string and t
+  QGATEDEF of loc and QC.qgatename_t and QC.qgatelam_t
+| QGATEOPAQUE of loc and QC.qgatename_t and QC.qgateargs_t
+| QINCLUDE of loc and file_type_t and string and t
   ]
 and t = list item
 [@@deriving (to_yojson, show, eq, ord);] ;
 
 value item pps = fun [
-    QGATEDEF gname ((pvl, qvl, cvl), qc) ->
+    QGATEDEF _ gname ((pvl, qvl, cvl), qc) ->
     Fmt.(pf pps "@[<v 2>gate %a (%a) %a =@ %a@]@,;"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
            QC.qvars_cvars (qvl, cvl)
            QC.qcirc qc)
-  | QGATEOPAQUE gname (pvl, qvl, cvl) ->
+  | QGATEOPAQUE _ gname (pvl, qvl, cvl) ->
     Fmt.(pf pps "@[gate %a (%a) %a ;@]"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
            QC.qvars_cvars (qvl, cvl))
-  | QINCLUDE _ s _ ->
+  | QINCLUDE _ _ s _ ->
      Fmt.(pf pps "include %a ;" (quote string) s)
 ] ;
 

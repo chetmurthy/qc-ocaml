@@ -110,19 +110,19 @@ value circuit qubits clbits instrs =
 ;
 
 value rec env_item = fun [
-  (_, STMT_GATEDECL (gname, pvl, qvl, instrs)) ->
+  (loc, STMT_GATEDECL (gname, pvl, qvl, instrs)) ->
    let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
    let qc = gate_circuit qvl [] instrs in
-   QEnv.QGATEDEF (QC.QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc)
+   QEnv.QGATEDEF loc (QC.QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc)
 
-| (_, STMT_OPAQUEDECL gname pvl qvl) ->
+| (loc, STMT_OPAQUEDECL gname pvl qvl) ->
    let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
-   QEnv.QGATEOPAQUE (QC.QG Ploc.dummy (ID.mk gname)) (pvl, qvl, [])
+   QEnv.QGATEOPAQUE loc (QC.QG Ploc.dummy (ID.mk gname)) (pvl, qvl, [])
 
-| (_, STMT_INCLUDE ty fname (Some l)) ->
-   QEnv.QINCLUDE ty fname (List.map env_item l)
+| (loc, STMT_INCLUDE ty fname (Some l)) ->
+   QEnv.QINCLUDE loc ty fname (List.map env_item l)
 
 | (loc, STMT_INCLUDE ty fname None) ->
    Fmt.(raise_failwithf loc "Qconvert.env_item: can only round-trip once with an include statement")
@@ -214,7 +214,7 @@ value lookup_gate ce = fun [
   (QC.QG loc x) ->
   match IDMap.find x ce.genv with [
       exception Not_found ->
-                Fmt.(raise_failwithf loc "lookup_gate: cannot find it %s" (ID.unmk x))
+                Fmt.(raise_failwithf loc "lookup_gate: cannot find %s" (ID.unmk x))
     | x -> x
     ]
 ] ;
@@ -223,7 +223,7 @@ value lookup_qv ce = fun [
   (QC.QV loc x) ->
   match IDMap.find x ce.qenv with [
       exception Not_found ->
-                Fmt.(raise_failwithf loc "lookup_qv: cannot find it %s" (ID.unmk x))
+                Fmt.(raise_failwithf loc "lookup_qv: cannot find %s" (ID.unmk x))
     | x -> x
     ]
 ] ;
@@ -232,7 +232,7 @@ value lookup_cv ce = fun [
   (QC.CV loc x) ->
   match IDMap.find x ce.clenv with [
       exception Not_found ->
-                Fmt.(raise_failwithf loc "lookup_cv: cannot find it %s" (ID.unmk x))
+                Fmt.(raise_failwithf loc "lookup_cv: cannot find %s" (ID.unmk x))
     | x -> x
     ]
 ] ;
@@ -402,18 +402,23 @@ value circuit (gates, qc) =
 value rec extract_gates env =
   env |>
     List.concat_map (fun [
-      QEnv.QGATEDEF (QC.QG _ gn) glam -> [(gn, Left glam)]
-    | QEnv.QGATEOPAQUE (QC.QG _ gn) gargs -> [(gn, Right gargs)]
-    | QEnv.QINCLUDE _ _ l -> extract_gates l
+      QEnv.QGATEDEF _ (QC.QG _ gn) glam -> [(gn, Left glam)]
+    | QEnv.QGATEOPAQUE _ (QC.QG _ gn) gargs -> [(gn, Right gargs)]
+    | QEnv.QINCLUDE _ QASM2 _ l -> extract_gates l
     ])
 ;
-
-value env_item gates it = [] ;
 (*
-value env_item gates it = match it with [
-  QEnv.QINCLUDE QASM2 
-] ;
+value env_item gates it = [] ;
  *)
+value env_item gates it = match it with [
+  QEnv.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
+| QEnv.QINCLUDE loc _ _ _ ->
+   Fmt.(raise_failwithf loc "cannot convert QLAM include into QASM")
+| QEnv.QGATEOPAQUE _ (QG _ gn) _ when ID.unmk gn = "U" -> [] 
+| QEnv.QGATEOPAQUE _ (QG _ gn) _ when ID.unmk gn = "CX" -> []
+| _ -> Fmt.(failwithf "Qconvert.env_item: unexpected declaration %a" QEnv.pp_item it)
+] ;
+
 value program (env, qc) =
   let gates = extract_gates env in
   let gate_instrs = List.concat_map (env_item gates) env in
