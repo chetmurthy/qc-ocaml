@@ -128,11 +128,11 @@ value rec env_item = fun [
    Fmt.(raise_failwithf loc "Qconvert.env_item: can only round-trip once with an include statement")
 ] ;
 
-value program stmts =
+value program (qasm2env, stmts) =
   let (gates, instrs) =
     stmts |> filter_split (fun [ (_, (STMT_INCLUDE _ _ _ | STMT_GATEDECL _ | STMT_OPAQUEDECL _ _ _)) -> True | _ -> False ]) in
 
-  let env = List.map env_item gates in
+  let qlam_env = List.map env_item gates in
   let (regs, instrs) =
     instrs |>  filter_split (fun [ (_, (STMT_QREG _ _ | STMT_CREG _ _)) -> True | _ -> False ]) in
   let (qregs, cregs) =
@@ -153,7 +153,7 @@ value program stmts =
   let qc = List.fold_right (fun qv rhs ->
                QC.QLET Ploc.dummy [(Ploc.dummy, [qv], [], QC.QBIT Ploc.dummy)] rhs)
              qubits qc in
-  (env, qc)
+  (qlam_env, qc)
 ;
 
 end ;
