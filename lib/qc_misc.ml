@@ -78,3 +78,5 @@ let find_file_from ~path fname =
     Exc.die (Printf.sprintf "Qc_misc.open_file_from: cannot open file %s for read on path [%s]"
                fname
            (String.concat "; " path))
+
+type file_type_t = QASM2 | QLAM [@@deriving (to_yojson, show, eq, ord)]

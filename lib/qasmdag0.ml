@@ -1,6 +1,8 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open Pa_ppx_utils
+open Pa_ppx_base
+open Ppxutil
 open Std
 open Coll
 open Misc_functions
@@ -365,12 +367,15 @@ let generate_qubit_instances envs l =
            )
          ) qubit_instances
 
-  let rec add_stmt envs odag (_, rst) =
+  let rec add_stmt envs odag (loc, rst) =
     match rst with
     | AST.STMT_GATEDECL _ | STMT_OPAQUEDECL _ -> odag
 
-    | STMT_INCLUDE(_, l) ->
+    | STMT_INCLUDE(_, _, Some l) ->
        List.fold_left (add_stmt envs) odag l
+
+    | STMT_INCLUDE(_, _, None) ->
+       Fmt.(raise_failwithf loc "Qasmdag0.add_stmt: cannot further-process already-roundtripped include")
 
     (* already got added from envs; just check that envs is right *)
     | STMT_QREG(id, n) ->

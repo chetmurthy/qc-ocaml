@@ -121,13 +121,16 @@ value rec env_item = fun [
    let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
    QEnv.QGATEOPAQUE (QC.QG Ploc.dummy (ID.mk gname)) (pvl, qvl, [])
 
-| (_, STMT_INCLUDE fname l) ->
-   QEnv.QINCLUDE fname (List.map env_item l)
+| (_, STMT_INCLUDE ty fname (Some l)) ->
+   QEnv.QINCLUDE ty fname (List.map env_item l)
+
+| (loc, STMT_INCLUDE ty fname None) ->
+   Fmt.(raise_failwithf loc "Qconvert.env_item: can only round-trip once with an include statement")
 ] ;
 
 value program stmts =
   let (gates, instrs) =
-    stmts |> filter_split (fun [ (_, (STMT_INCLUDE _ _ | STMT_GATEDECL _ | STMT_OPAQUEDECL _ _ _)) -> True | _ -> False ]) in
+    stmts |> filter_split (fun [ (_, (STMT_INCLUDE _ _ _ | STMT_GATEDECL _ | STMT_OPAQUEDECL _ _ _)) -> True | _ -> False ]) in
 
   let env = List.map env_item gates in
   let (regs, instrs) =
@@ -401,12 +404,16 @@ value rec extract_gates env =
     List.concat_map (fun [
       QEnv.QGATEDEF (QC.QG _ gn) glam -> [(gn, Left glam)]
     | QEnv.QGATEOPAQUE (QC.QG _ gn) gargs -> [(gn, Right gargs)]
-    | QEnv.QINCLUDE _ l -> extract_gates l
+    | QEnv.QINCLUDE _ _ l -> extract_gates l
     ])
 ;
 
-value env_item gates _ = [] ;
-
+value env_item gates it = [] ;
+(*
+value env_item gates it = match it with [
+  QEnv.QINCLUDE QASM2 
+] ;
+ *)
 value program (env, qc) =
   let gates = extract_gates env in
   let gate_instrs = List.concat_map (env_item gates) env in

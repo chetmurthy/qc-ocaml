@@ -1,5 +1,7 @@
 open Misc_functions ;
 open Pa_ppx_utils ;
+open Pa_ppx_base ;
+open Ppxutil ;
 open Qc_misc ;
 open Qlam_syntax ;
 
@@ -57,7 +59,11 @@ EXTEND
       "gate" ; gname = qgatename ; gargs = gate_args ;
         "=" ; qc = qcirc ; ";" -> QEnv.QGATEDEF gname (gargs, qc)
     | "gate" ; gname = qgatename ; gargs = gate_args ; ";" -> QEnv.QGATEOPAQUE gname gargs
-    | "include" ; s = STRING ; ";" -> QEnv.QINCLUDE s (qelib_from_file s)
+    | "include" ; s = STRING ; ";" ->
+       if Std.ends_with ~{pat=".qli"} s then
+         QEnv.QINCLUDE QLAM s (qelib_from_file s)
+       else
+         Fmt.(raise_failwithf loc "QLAM parser only accepts QLAM (.qli) includes")
   ] ]
   ;
   gate_args: [ [

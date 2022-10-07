@@ -118,7 +118,7 @@ module CST = struct
     'aux * raw_gate_op_t
 
   type 'aux raw_stmt_t =
-    | STMT_INCLUDE of string * 'aux stmt_t list
+    | STMT_INCLUDE of file_type_t * string * 'aux stmt_t list
     | STMT_GATEDECL of string * string list * string list * 'aux gate_op_t list
     | STMT_OPAQUEDECL of string * string list * string list
     | STMT_QOP of raw_qop_t
@@ -142,7 +142,7 @@ module CST = struct
       (aux', raw_gop)
 
     let rec raw_stmt mappers = function
-      | STMT_INCLUDE (fname, l) -> STMT_INCLUDE(fname, List.map (stmt mappers) l)
+      | STMT_INCLUDE (ty, fname, l) -> STMT_INCLUDE(ty, fname, List.map (stmt mappers) l)
       | STMT_GATEDECL(gateid, formal_params, formal_qregs, gopl) ->
          STMT_GATEDECL(gateid, formal_params, formal_qregs,
                            List.map (gop mappers) gopl)
@@ -228,7 +228,7 @@ module AST = struct
   type 'aux gatedecl_t = string * string list * string list * 'aux gate_op_t list
 
   type 'aux raw_stmt_t =
-    | STMT_INCLUDE of string * 'aux stmt_t list
+    | STMT_INCLUDE of file_type_t * string * 'aux stmt_t list option
     | STMT_GATEDECL of 'aux gatedecl_t
     | STMT_OPAQUEDECL of string * string list * string list
     | STMT_QOP of raw_qop_t
@@ -252,7 +252,7 @@ module AST = struct
       (aux', raw_gop)
 
     let rec raw_stmt mappers = function
-      | STMT_INCLUDE (fname, l) -> STMT_INCLUDE(fname, List.map (stmt mappers) l)
+      | STMT_INCLUDE (ty, fname, l) -> STMT_INCLUDE(ty, fname, Option.map (List.map (stmt mappers)) l)
       | STMT_GATEDECL(gateid, formal_params, formal_qregs, gopl) ->
          STMT_GATEDECL(gateid, formal_params, formal_qregs,
                            List.map (gop mappers) gopl)
@@ -473,7 +473,7 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
 
   let rec raw_stmt envs (cst: 'aux CST.raw_stmt_t) =
     match cst with
-    | CST.STMT_INCLUDE(fname, l) ->
+    | CST.STMT_INCLUDE(_, _, _) ->
        assert false
     | CST.STMT_GATEDECL(gateid, param_formals, qubit_formals, gopl) ->
        Env.must_not_have_gate envs gateid ;
@@ -535,9 +535,9 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
       | _ -> envs
 
   let rec stmt envs st = match st with
-      aux, CST.STMT_INCLUDE(fname, l) ->
+      aux, CST.STMT_INCLUDE(ty, fname, l) ->
       let (envs, l) = fold_left_map stmt envs l in
-      (envs, (aux, AST.STMT_INCLUDE(fname, l)))
+      (envs, (aux, AST.STMT_INCLUDE(ty, fname, Some l)))
     | x -> let st = stmt0 envs st in
            (add1 envs st, st)
 

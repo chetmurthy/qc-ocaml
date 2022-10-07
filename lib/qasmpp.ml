@@ -82,7 +82,7 @@ let pr_comma = (fun () -> [< '"," >])
     | _ -> [< 'commentstring ; raw_gate_op gop >]
 
   let raw_stmt = function
-    | CST.STMT_INCLUDE (fname, _) -> [< '"include " ; '(Printf.sprintf "\"%s\"" fname) ; '";\n" >]
+    | CST.STMT_INCLUDE (_, fname, _) -> [< '"include " ; '(Printf.sprintf "\"%s\"" fname) ; '";\n" >]
     | CST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl) ->
        [< '"gate " ; 'gateid ; '" (" ; prlist_with_sep pr_comma pr_id formal_params ; '") " ;
         prlist_with_sep pr_comma pr_id formal_bits ; '" {\n" ;
@@ -201,7 +201,7 @@ module ASTPP = struct
   let pr_id id = [< 'id >]
 
   let raw_stmt = function
-    | AST.STMT_INCLUDE(fname, _) -> [< '"include " ; '(Printf.sprintf "\"%s\"" fname) ; '";\n" >]
+    | AST.STMT_INCLUDE(_, fname, _) -> [< '"include " ; '(Printf.sprintf "\"%s\"" fname) ; '";\n" >]
     | AST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl) ->
        [< '"gate " ; 'gateid ; '" (" ; prlist_with_sep pr_comma pr_id formal_params ; '") " ;
         prlist_with_sep pr_comma pr_id formal_bits ; '" {\n" ;

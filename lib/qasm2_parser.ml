@@ -1,6 +1,8 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open Pa_ppx_utils
+open Pa_ppx_base
+open Ppxutil
 open Std
 open Misc_functions
 open Qc_misc
@@ -248,8 +250,11 @@ let reg_decl=parser
 
 let rec include_decl = parser
   [< '(aux1, T_INCLUDE fname) >] ->
-    let l = read_include statement_list fname in
-    (aux1, CST.STMT_INCLUDE(fname, l))
+    if Std.ends_with ~pat:".inc" fname then
+      let l = read_include statement_list fname in
+      (aux1, CST.STMT_INCLUDE(QASM2, fname, l))
+    else
+      Fmt.(raise_failwithf aux1 "QASM2 parser only accepts QASM2 (.qasm) includes")
 
 and statement = parser
 | [< d=include_decl >] -> d
