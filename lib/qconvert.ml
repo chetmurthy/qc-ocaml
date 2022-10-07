@@ -98,7 +98,7 @@ value wrap_stmt conv_pv ins rhs =
     | (loc, STMT_QOP(MEASURE q c)) ->
       let qv = to_qvar q in
       let cv = to_cvar c in
-      QC.QLET loc [(Ploc.dummy, [qv], [cv], QC.QRESET Ploc.dummy [qv])] rhs
+      QC.QLET loc [(Ploc.dummy, [qv], [cv], QC.QMEASURE Ploc.dummy [qv])] rhs
     | (loc, STMT_QOP(UOP uop)) ->
        wrap_uop loc conv_pv conv_qreg_or_indexed uop rhs
     ]
@@ -128,6 +128,90 @@ value rec env_item = fun [
    Fmt.(raise_failwithf loc "Qconvert.env_item: can only round-trip once with an include statement")
 ] ;
 
+value expand_qregs loc qasm2env ql =
+  let open Qasm2syntax.TYCHK in
+  let lengths =
+    ql |> List.filter_map (fun [
+      INDEXED _ _ -> None
+    | IT (QREG s) ->
+       if not(Env.has_qreg qasm2env s) then
+         Fmt.(raise_failwithf loc "qreg %s not declared in QASM2" s)
+       else let n = Env.lookup_qreg qasm2env s in
+            Some n
+    ]) in
+  let uniq_lengths = Std.uniquize lengths in
+  if uniq_lengths = [] then
+    [ql]
+  else if List.length uniq_lengths > 1 then
+    Fmt.(raise_failwithf loc "more than one length of qreg is forbidden")
+  else
+    let len = List.hd uniq_lengths in
+    (Std.interval 0 (len-1))
+    |> List.map (fun i ->
+           ql |> List.map (fun [ IT (QREG s) -> INDEXED (QREG s) i | x -> x ])
+         )
+;
+
+value expand_cregs loc qasm2env cl =
+  let open Qasm2syntax.TYCHK in
+  let lengths =
+    cl |> List.filter_map (fun [
+      INDEXED _ _ -> None
+    | IT (CREG s) ->
+       if not(Env.has_creg qasm2env s) then
+         Fmt.(raise_failwithf loc "creg %s not declared in QASM2" s)
+       else let n = Env.lookup_creg qasm2env s in
+            Some n
+    ]) in
+  let uniq_lengths = Std.uniquize lengths in
+  if uniq_lengths = [] then
+    [cl]
+  else if List.length uniq_lengths > 1 then
+    Fmt.(raise_failwithf loc "more than one length of creg is forbidden")
+  else
+    let len = List.hd uniq_lengths in
+    (Std.interval 0 (len-1))
+    |> List.map (fun i ->
+           cl |> List.map (fun [ IT (CREG s) -> INDEXED (CREG s) i | x -> x ])
+         )
+;
+
+value expand_stmt qasm2env stmt = match stmt with [
+  (loc,STMT_BARRIER ql) ->
+  let qll = expand_qregs loc qasm2env ql in
+  let ql = List.concat qll in
+  [(loc, STMT_BARRIER ql)]
+
+| (loc,STMT_QOP (MEASURE q c)) ->
+   let qll = expand_qregs loc qasm2env [q] in
+   let cll = expand_cregs loc qasm2env [c] in
+   if List.length qll <> List.length cll then
+     Fmt.(raise_failwithf loc "expand_stmt: qreg and creg arguments to measure of incompatible lengths")
+   else
+     let ll = Std.combine List.(map hd qll) List.(map hd cll) in
+     ll |> List.map (fun (q,c) -> (loc, STMT_QOP (MEASURE q c)))
+
+| (loc,STMT_QOP (RESET q)) ->
+   let qll = expand_qregs loc qasm2env [q] in
+   let l = List.(map hd qll) in
+   l |> List.map (fun q -> (loc, STMT_QOP (RESET q)))
+
+| (loc,STMT_QOP (UOP (U pel q))) ->
+   let qll = expand_qregs loc qasm2env [q] in
+   let l = List.(map hd qll) in
+   l |> List.map (fun q -> (loc, STMT_QOP (UOP (U pel q))))
+
+| (loc,STMT_QOP (UOP (CX q r))) ->
+   let qll = expand_qregs loc qasm2env [q;r] in
+   qll |> List.map (fun [ [q;r] -> (loc, STMT_QOP (UOP (CX q r))) ])
+
+| (loc,STMT_QOP (UOP (COMPOSITE_GATE gn pel ql))) ->
+   let qll = expand_qregs loc qasm2env ql in
+   qll |> List.map (fun ql -> (loc, STMT_QOP (UOP (COMPOSITE_GATE gn pel ql))))
+
+| x -> [x]
+] ;
+
 value program (qasm2env, stmts) =
   let (gates, instrs) =
     stmts |> filter_split (fun [ (_, (STMT_INCLUDE _ _ _ | STMT_GATEDECL _ | STMT_OPAQUEDECL _ _ _)) -> True | _ -> False ]) in
@@ -149,6 +233,7 @@ value program (qasm2env, stmts) =
       (_,STMT_CREG s count) ->
       (interval 0 (count-1))
       |> List.map (fun n -> QC.CV Ploc.dummy (ID.mk0 s n)) ]) in
+  let instrs = List.concat_map (expand_stmt qasm2env) instrs in
   let qc = circuit qubits clbits instrs in
   let qc = List.fold_right (fun qv rhs ->
                QC.QLET Ploc.dummy [(Ploc.dummy, [qv], [], QC.QBIT Ploc.dummy)] rhs)
@@ -390,7 +475,7 @@ value circuit (gates, qc) =
     let qreg_size = CE.qreg_size env in
     let clreg_size = CE.clreg_size env in
     (if clreg_size <> 0 then
-       [(Ploc.dummy, STMT_QREG "c" clreg_size)]
+       [(Ploc.dummy, STMT_CREG "c" clreg_size)]
      else [])
     @(if qreg_size <> 0 then
         [(Ploc.dummy, STMT_QREG "q" qreg_size)]

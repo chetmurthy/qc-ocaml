@@ -303,6 +303,7 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
     let add_creg envs (id, v) = { envs with cregs = LM.add envs.cregs (id,v) }
 
     let has_gate envs id = LM.in_dom envs.gates id
+    let find_gate envs id = LM.map envs.gates id
 
     let must_have_gate envs id =
       if not (has_gate envs id) then
