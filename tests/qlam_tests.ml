@@ -89,7 +89,10 @@ let open AST in
   (List.map testit [
        ("example", roundtrip_file, "testdata/example.qasm",
         None,
-        None) ;
+        None)
+     ; ("bell2", roundtrip_file, "testdata/bell2.qasm",
+        None,
+        None)
      ]
   )
 )
