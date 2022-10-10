@@ -377,7 +377,7 @@ value rec circuit env qc = match qc with [
              let (qlen, clen) = circuit env qc in
              if qlen <> List.length qvl then
                Fmt.(raise_failwithf loc "circuit: binding qvar length differs from circuit")
-             else if qlen <> List.length cvl then
+             else if clen <> List.length cvl then
                Fmt.(raise_failwithf loc "circuit: binding cvar length differs from circuit")
              else
                b) in
@@ -413,7 +413,7 @@ value gate_item loc env gitem = match gitem with [
     Env.add_gate loc env (gn, (glam, ty))
 
 | OPAQUE gn ((pvl, qvl, cvl) as glam) ->
-   let ty = (List.length pvl, List.length cvl) in
+   let ty = (List.length qvl, List.length cvl) in
    Env.add_gate loc env (gn,  (glam, ty))
 ] ;
 
@@ -427,7 +427,8 @@ value rec env_item env ei = match ei with [
 value program (env_items, qc) =
   let env = Env.mk () in
   let env = List.fold_left env_item env env_items in
-  env
+  let ty = circuit env qc in
+  (env, ty)
 ;
 
 end ;

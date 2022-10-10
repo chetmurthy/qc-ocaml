@@ -29,8 +29,8 @@ open Qrpc_types ;;
 open Qrpc_api ;;
 open OUnit2 ;;
 
-Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
-Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
+Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := false ;;
+Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := false ;;
 
 let lexbuf_contents lb =
   let open Lexing in
@@ -132,12 +132,17 @@ open Qlam_parser ;;
 
 open Qasm2syntax.AST ;;
 
+let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" SYN.QC.qcirc qc) ;;
+#install_printer qcircuit_pp ;;
 
+let read_file_tolam s0 =
+  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
+  (env, instrs) |>  Qconvert.ToLam.program
+;;
 
-"testdata/bell2.qasm" |> roundtrip_file |> printit ;;
-
-"testdata/example.qasm" |> tolam_file |> printit ;;
-"testdata/example.qasm" |> roundtrip_file |> printit ;;
+let (env,qc) = "testdata/example.qasm" |> read_file_tolam in
+TYCHK.program (env0@env, qc)
+;;
 
 (* Local Variables: *)
 (* mode: tuareg *)
