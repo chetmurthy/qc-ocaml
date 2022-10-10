@@ -135,6 +135,12 @@ open Qasm2syntax.AST ;;
 let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" SYN.QC.qcirc qc) ;;
 #install_printer qcircuit_pp ;;
 
+let gate_item_pp gi = Fmt.(pf stdout "<:gate_item< %a >>" SYN.QEnv.gate_item gi) ;;
+#install_printer gate_item_pp ;;
+
+let item_pp gi = Fmt.(pf stdout "<:item< %a >>" SYN.QEnv.item gi) ;;
+#install_printer item_pp ;;
+
 let read_file_tolam s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
   (env, instrs) |>  Qconvert.ToLam.program

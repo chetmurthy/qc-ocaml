@@ -205,18 +205,22 @@ type item = [
 and t = list item
 [@@deriving (to_yojson, show, eq, ord);] ;
 
-value item pps = fun [
-    QGATE _ (DEF gname ((pvl, qvl, cvl), qc)) ->
+value gate_item pps = fun [
+    DEF gname ((pvl, qvl, cvl), qc) ->
     Fmt.(pf pps "@[<v 2>gate %a (%a) %a =@ %a@]@,;"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
            QC.qvars_cvars (qvl, cvl)
            QC.qcirc qc)
-  | QGATE _ (OPAQUE gname (pvl, qvl, cvl)) ->
+  | OPAQUE gname (pvl, qvl, cvl) ->
     Fmt.(pf pps "@[gate %a (%a) %a ;@]"
            QC.qgatename gname
            (list ~{sep=(const string ", ")} paramvar) pvl
            QC.qvars_cvars (qvl, cvl))
+] ;
+
+value item pps = fun [
+    QGATE _ gitem -> gate_item pps gitem
   | QINCLUDE _ _ s _ ->
      Fmt.(pf pps "include %a ;" (quote string) s)
 ] ;
@@ -399,6 +403,8 @@ value rec circuit env qc = match qc with [
   }
 ] ;
 
+value top_circuit env qc = circuit env qc ;
+
 value gate_item loc env gitem = match gitem with [
   SYN.QEnv.DEF gn (((pvl, qvl, cvl) as glam), qc) ->
   let env' = Env.mk_for_gate env in
@@ -406,7 +412,7 @@ value gate_item loc env gitem = match gitem with [
   let env' = List.fold_left (Env.add_qvar loc) env' qvbl in
   let env' = List.fold_left (fun env cv -> Env.add_cvar loc env (cv, None)) env' cvl in
   let env' = List.fold_left (fun env pv -> Env.add_pvar loc env (pv, ())) env' pvl in
-  let ty = circuit env' qc in
+  let ty = top_circuit env' qc in
   if not (qvbl |> List.for_all (fun (_, qvb) -> qvb.Env.used)) then
     Fmt.(raise_failwithf loc "gate_item: not all qvars were used (failure of linearity)")
   else
@@ -427,7 +433,7 @@ value rec env_item env ei = match ei with [
 value program (env_items, qc) =
   let env = Env.mk () in
   let env = List.fold_left env_item env env_items in
-  let ty = circuit env qc in
+  let ty = top_circuit env qc in
   (env, ty)
 ;
 
