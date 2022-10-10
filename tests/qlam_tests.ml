@@ -97,11 +97,50 @@ let open AST in
   )
 )
 
+let parse_tolam s0 =
+  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
+  (env, instrs) |>  Qconvert.ToLam.program
+
+let read_tolam s0 =
+  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
+  (env, instrs) |>  Qconvert.ToLam.program
+;;
+
+let tychk (name, txt, expect) = 
+  name >:: (fun ctxt ->
+    let (env, qc) = parse_tolam txt in
+    let (_, ty) = TYCHK.program (env0@env, qc) in
+    let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
+    assert_equal ~printer expect ty
+  )
+
+let tychk_file (name, f, expect) = 
+  name >:: (fun ctxt ->
+    let (env, qc) = read_tolam f in
+    let (_, ty) = TYCHK.program (env0@env, qc) in
+    let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
+    assert_equal ~printer expect ty
+  )
+let tychk_tests = "tychk tests" >:::
+let open TYCHK.Env in
+let open TYCHK in
+let open AST in
+(
+  (List.map tychk_file [
+       ("bell2", "testdata/bell2.qasm",
+       (2,0))
+     ; ("bell2", "testdata/example.qasm",
+       (6,6))
+     ]
+  )
+)
+
 
 (* Run the tests in test suite *)
 let _ =
 if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
         roundtrip_tests
+      ; tychk_tests
     ])
 ;;
