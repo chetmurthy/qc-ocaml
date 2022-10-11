@@ -69,17 +69,30 @@ let ne_plist_with_sep_function sep elem =
   [< e = elem; rv = (parser [< f = sep; l = do_rec >] -> f e l | [< >] -> e) >] -> rv
  in do_rec
 
-let clean_left_re = Pcre.regexp ~flags:[`DOTALL] "^\\h*(\\H.*)?$"
-let clean_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*\\H)?\\h*$"
+let clean_hws_left_re = Pcre.regexp ~flags:[`DOTALL] "^\\h*(\\H.*)?$"
+let clean_hws_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*\\H)?\\h*$"
 let nl_re = Pcre.regexp "\r"
 let lf_re = Pcre.regexp "\n"
 let cleanws ?(lf=false) s =
   let s = Pcre.substitute ~rex:nl_re ~subst:(fun s -> "") s in
   let s = if lf then Pcre.substitute ~rex:lf_re ~subst:(fun s -> "") s else s in
-  let rv1 = Pcre.extract ~rex:clean_left_re s in
+  let rv1 = Pcre.extract ~rex:clean_hws_left_re s in
   let s = rv1.(1) in
-  let rv2 = Pcre.extract ~rex:clean_right_re s in
+  let rv2 = Pcre.extract ~rex:clean_hws_right_re s in
   rv2.(1)
+
+let lfs_re = Pcre.regexp "\n+"
+let ws_re = Pcre.regexp " +"
+let clean_all_left_re = Pcre.regexp ~flags:[`DOTALL] "^[\\h\\v]*([^\\h\\v].*)?$"
+let clean_all_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*[^\\h\\v])?[\\h\\v]*$"
+let collapse_ws s =
+  let s = Pcre.substitute ~rex:lfs_re ~subst:(fun s -> "\n") s in
+  let s = Pcre.substitute ~rex:ws_re ~subst:(fun s -> " ") s in
+  let rv1 = Pcre.extract ~rex:clean_all_left_re s in
+  let s = rv1.(1) in
+  let rv2 = Pcre.extract ~rex:clean_all_right_re s in
+  rv2.(1)
+
 (*
 let fst (a, _) = a
 let snd (_, b) = b

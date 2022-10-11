@@ -12,8 +12,13 @@ value loc_to_yojson (_ : loc) = `String "<loc>" ;
 value equal_loc _ _ = True ;
 value compare_loc _ _ = 0 ;
 
+module type VARSIG = sig
+  type t = 'a[@@deriving (eq, ord, show);];
+  value toID : t -> ID.t ;
+  value ofID : ID.t -> t ;
+end ;
 module type FVSIG = sig
-  module M : sig type t = 'a[@@deriving (eq, ord, show);]; end ;
+  module M : VARSIG ;
   type t = 'a [@@deriving (show);] ;
   value mt : t ;
   value add : t -> M.t -> t ;
@@ -22,9 +27,10 @@ module type FVSIG = sig
   value ofList : list M.t -> t ;
   value toList : t -> list M.t ;
   value union : t -> t -> t ;
+  value fresh : t -> M.t -> M.t ;
 end ;
 
-module FreeVarSet(M : sig type t = 'a[@@deriving (eq, ord, show);]; end) : (FVSIG with module M = M) = struct
+module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
   module M = M ;
   type t = list M.t[@@deriving (show);] ;
   value mt = [] ;
@@ -35,6 +41,15 @@ module FreeVarSet(M : sig type t = 'a[@@deriving (eq, ord, show);]; end) : (FVSI
   value ofList l = l ;
   value toList l = l ;
   value union l1 l2 = l1@l2 ;
+  value fresh l x =
+    let (s,_) = M.toID x in
+    let n = List.fold_left (fun acc v ->
+      let (s', m) = M.toID v in
+      if s <> s' then acc else max acc m)
+          Int.min_int l in
+    if n = Int.min_int then
+      M.ofID (s,-1)
+    else M.ofID (s, n+1) ;
 end ;
 
 module SYN = struct
@@ -57,7 +72,11 @@ end ;
 type paramvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unPV = fun [ PV _ x -> x ] ;
 module PVMap = Map.Make(struct type t= paramvar_t [@@deriving (eq, ord);]; end) ;
-module PVFVS = FreeVarSet(struct type t = paramvar_t[@@deriving (eq, ord, show);]; end) ;
+module PVFVS = FreeVarSet(struct
+                   type t = paramvar_t[@@deriving (eq, ord, show);];
+                   value toID = unPV ;
+                   value ofID x = PV Ploc.dummy x ;
+                 end) ;
 
 value paramvar pps = fun [ (PV _ id) -> ident pps id ] ;
 
@@ -129,12 +148,20 @@ open Fmt ;
 type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unQV = fun [ QV _ x -> x ] ;
 module QVMap = Map.Make(struct type t= qvar_t [@@deriving (eq, ord);]; end) ;
-module QVFVS = FreeVarSet(struct type t = qvar_t[@@deriving (eq, ord, show);]; end) ;
+module QVFVS = FreeVarSet(struct
+                   type t = qvar_t[@@deriving (eq, ord, show);];
+                   value toID = unQV ;
+                   value ofID x = QV Ploc.dummy x ;
+                 end) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unCV = fun [ CV _ x -> x ] ;
 module CVMap = Map.Make(struct type t= cvar_t [@@deriving (eq, ord);]; end) ;
-module CVFVS = FreeVarSet(struct type t = cvar_t[@@deriving (eq, ord, show);]; end) ;
+module CVFVS = FreeVarSet(struct
+                   type t = cvar_t[@@deriving (eq, ord, show);];
+                   value toID = unCV ;
+                   value ofID x = CV Ploc.dummy x ;
+                 end) ;
 
 type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unQG = fun [ QG _ x -> x ] ;
@@ -302,6 +329,82 @@ value circuit_freevars qc =
       | QRESET _ qvl -> (SYN.PVFVS.mt, SYN.QC.QVFVS.ofList qvl, SYN.QC.CVFVS.mt)
   ] in
   fvrec qc
+;
+
+(** [lower_circuit qc] will return an alpha-equal (in the sense of lambda-calculus,
+    to be sure) circuit where ids of the form (s, n) have been renamed to the least
+    value of "n" that is greater than all other ids of the form (s, m) for that same
+    string "s".
+
+    Hence,  it "lowers" bound-variables.
+
+    To choose a new name for a bound-variable:
+
+    (1) pick a fresh name that is lowest-numbered and does not conflict with any known free-variables
+    (2) add that name to the known free-variables
+    (3) if the fresh name is different from original name, add (orig,fresh) to renaming-map.
+
+ *)
+
+value lower_circuit qc =
+  let open SYN.QC in
+  let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
+  let rec lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc =
+    let rename_qv qv =
+      match QVMap.find qv ren_qv with [
+          exception Not_found -> qv
+        | x -> x
+        ] in
+    let rename_cv cv =
+      match CVMap.find cv ren_cv with [
+          exception Not_found -> cv
+        | x -> x
+        ] in
+    match qc with [
+      QLET loc bl qc ->
+      let bl = bl |> List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc)) in
+      
+      let rebind_qv (rev_qvs, (fv_qvs, ren_qv)) qv =
+        let fresh_qv = QVFVS.fresh fv_qvs qv in
+        let fv_qvs = QVFVS.add fv_qvs fresh_qv in
+        let ren_qv = 
+          if equal_qvar_t qv fresh_qv then ren_qv
+          else QVMap.add qv fresh_qv ren_qv in
+        ([fresh_qv :: rev_qvs], (fv_qvs, ren_qv)) in
+      
+      let rebind_cv (rev_cvs, (fv_cvs, ren_cv)) cv =
+        let fresh_cv = CVFVS.fresh fv_cvs cv in
+        let fv_cvs = CVFVS.add fv_cvs fresh_cv in
+        let ren_cv = 
+          if equal_cvar_t cv fresh_cv then ren_cv
+          else CVMap.add cv fresh_cv ren_cv in
+        ([fresh_cv :: rev_cvs], (fv_cvs, ren_cv)) in
+      
+      let (rev_bl,(fv_qvs, fv_cvs, ren_qv, ren_cv)) =
+        List.fold_left (fun (rev_bl, (fv_qvs, fv_cvs, ren_qv, ren_cv)) (loc, qvl, cvl, qc) ->
+            let (rev_qvl, (fv_qvs, ren_qv)) =
+              List.fold_left rebind_qv ([], (fv_qvs, ren_qv)) qvl in
+            let (rev_cvl, (fv_cvs, ren_cv)) =
+              List.fold_left rebind_cv ([], (fv_cvs, ren_cv)) cvl in
+            let qvl = List.rev rev_qvl in
+            let cvl = List.rev rev_cvl in
+            ([ (loc, qvl, cvl, qc) :: rev_bl ], (fv_qvs, fv_cvs, ren_qv, ren_cv)))
+          ([], (fv_qvs, fv_cvs, ren_qv, ren_cv)) bl in
+      let bl = List.rev rev_bl in
+      let qc = lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc in
+      QLET loc bl qc
+
+    | QWIRES loc qvl cvl ->
+       QWIRES loc (List.map rename_qv qvl) (List.map rename_cv cvl)
+
+    | QGATEAPP loc g pel qvl cvl -> QGATEAPP loc g pel (List.map rename_qv qvl) (List.map rename_cv cvl)
+    | QBARRIER loc qvl -> QBARRIER loc (List.map rename_qv qvl)
+    | QBIT loc -> QBIT loc
+    | QDISCARD loc qvl -> QDISCARD loc (List.map rename_qv qvl)
+    | QMEASURE loc qvl -> QMEASURE loc (List.map rename_qv qvl)
+    | QRESET loc qvl -> QRESET loc (List.map rename_qv qvl)
+    ] in
+  lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
 ;
 
 end ;

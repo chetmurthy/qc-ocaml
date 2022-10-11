@@ -119,11 +119,11 @@ Session.available_backends session ;;
 Job.submit_job "ibmq_16_melbourne" qobj session ;;
 
  *)
-(*
+
 #load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
 open Qasm2_tests ;;
- *)
+
 
 #load "qlam_tests.cmo";;
 open Qlam_tests ;;
@@ -148,27 +148,26 @@ let read_file_tolam s0 =
   (env, instrs) |>  Qconvert.ToLam.program
 ;;
 
-let (env,qc) = "testdata/example.qasm" |> read_file_tolam in
-TYCHK.program (env0@env, qc)
-;;
-
-#trace TYCHK.gate_item ;;
-#trace Ops.circuit_freevars ;;
-
-let tychk_qelib (name, txt, expect) = 
-    let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
-    let env = txt |> Stream.of_string |> parse_qelib in
+let lower_qlam (name, txt, expect) = 
+    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
     match expect with
-      Left () ->
-       ignore (TYCHK.env (env0@env1@env))
-
+      Left expect ->
+       let qc' = Ops.lower_circuit qc in
+       let txt = Fmt.(str "%a" SYN.QC.qcirc qc') in
+      assert_equal ~printer:(fun x -> x) expect txt
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> TYCHK.env (env0@env1@env))
- ;;
-tychk_qelib("bad gate 1", {|gate pass () q = (p) ;|},
-       Right {|pass.*free qvars.*p.*-1|});;
+         (fun () -> Ops.lower_circuit qc)
+;;
+
+lower_qlam ("simple", {|
+let q0 = qubit() in
+let q1 = h q0 in
+()
+|},
+        Left ".*Exc.*q1 not used") ;;
+
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)

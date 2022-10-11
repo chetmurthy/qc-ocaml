@@ -126,9 +126,35 @@ let tychk_qlam (name, txt, expect) =
          (fun () -> TYCHK.program (env0@env1@env, qc))
   )
 
+let lower_qlam (name, txt, expect) = 
+  name >:: (fun ctxt ->
+    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    match expect with
+      Left expect ->
+       let qc' = Ops.lower_circuit qc in
+       let txt = Fmt.(str "%a" SYN.QC.qcirc qc') in
+       let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
+       let printer = (fun x -> "<<"^x^">>") in
+       assert_equal ~cmp ~printer expect txt
+    | Right exnpat ->
+       assert_raises_exn_pattern ~msg:("should match "^exnpat)
+         exnpat
+         (fun () -> Ops.lower_circuit qc)
+  )
+;;
+
+let pp_qlam (name, txt) = 
+  name >:: (fun ctxt ->
+    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    let got = Fmt.(str "%a" SYN.QC.qcirc qc) in
+    let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
+    let printer = (fun x -> "<<"^x^">>") in
+    assert_equal ~cmp ~printer txt got
+  )
+;;
+
 let tychk_qelib (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
     let env = txt |> Stream.of_string |> parse_qelib in
     match expect with
       Left () ->
@@ -139,7 +165,7 @@ let tychk_qelib (name, txt, expect) =
          exnpat
          (fun () -> TYCHK.env (env0@env1@env))
   )
-
+;;
 let tychk_qasm2_file (name, f, expect) = 
   name >:: (fun ctxt ->
     let (env, qc) = read_tolam f in
@@ -147,6 +173,7 @@ let tychk_qasm2_file (name, f, expect) =
     let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
     assert_equal ~printer expect ty
   )
+;;
 let tychk_tests = "tychk tests" >:::
 let open TYCHK.Env in
 let open TYCHK in
@@ -193,6 +220,32 @@ let q2 = h q0 and  q2 = h q1 in
        Left ())
      ; ("bad gate 2", {|gate pass () q = (q : c) ;|},
        Right {|pass.*free cvars.*c.*-1|})
+     ]
+  )@
+    (List.map lower_qlam [
+       ("simple", {|
+let q0 = qubit() in
+let q1 = h q0 in
+()
+|},
+        Left {|
+let q = qubit() in
+let q0 = h q in
+()
+|})
+     ]
+  )@
+    (List.map pp_qlam [
+       ("pp simple 0", {|
+let q1 = h q0 in
+()
+|})
+       ; ("pp simple 1", {|
+let p = qubit() in
+let q0 = qubit() in
+let q1 = h q0 in
+()
+|})
      ]
   )
 )
