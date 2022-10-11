@@ -146,6 +146,12 @@ let q1 = h q0 in
 ()
 |},
         Right ".*Exc.*q1 not used")
+     ; ("two", {|
+let q0 = qubit() in
+let q1 = h q0 in
+(q0)
+|},
+        Right ".*Exc.*q0 used more than once")
      ]
   )@
   (List.map tychk_qasm2_file [
