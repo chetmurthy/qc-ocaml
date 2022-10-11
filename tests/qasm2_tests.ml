@@ -16,9 +16,8 @@ open Qasmdag0
 open Qasm_passes
 
 let matches ~pattern text =
-  match Str.search_forward (Str.regexp pattern) text 0 with
-    _ -> true
-  | exception Not_found -> false
+  let rex = Pcre.regexp ~flags:[`DOTALL] pattern in
+  Pcre.pmatch ~rex text
 
 let assert_raises_exn_pattern ~msg pattern f =
   Testutil.assert_raises_exn_pred ~exnmsg:msg
@@ -711,6 +710,10 @@ let trip_tests = "trip tests" >::: [
       trip_test_circuit_to_qasm "shor/circuit" "shor" ;
       trip_test_circuit_to_qasm "simon-3/circuit" "simon" ;
   ]
+;;
+
+Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
+Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
 (* Run the tests in test suite *)
 let _ =

@@ -9,6 +9,7 @@
 #require "oUnit";;
 #print_length 1048576 ;;
 
+open Asttools ;;
 open Pa_ppx_utils ;;
 open Coll ;;
 open Std ;;

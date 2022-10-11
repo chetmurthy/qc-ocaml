@@ -270,7 +270,7 @@ value mk_for_gate env = { (mk()) with gates = env.gates } ;
 
 value add_gate loc env (gid, glam) =
   if SYN.QC.QGMap.mem gid env.gates then
-    Fmt.(raise_failwithf loc "add_gate: gate %a already in env" SYN.QC.pp_qgatename_t gid)
+    Fmt.(raise_failwithf loc "add_gate: gate %a already in env" SYN.QC.qgatename gid)
   else
     { (env) with gates = SYN.QC.QGMap.add gid glam env.gates }
 ;
@@ -295,25 +295,25 @@ value has_pvar loc env id = SYN.PVMap.mem id env.pvars ;
 value find_gate loc env gid = match SYN.QC.QGMap.find gid env.gates with [
   x -> x
 | exception Not_found ->
-   Fmt.(raise_failwithf loc "find_gate: gate %a not found" SYN.QC.pp_qgatename_t gid)
+   Fmt.(raise_failwithf loc "find_gate: gate %a not found" SYN.QC.qgatename gid)
 ] ;
 
 value find_qvar loc env qid = match SYN.QC.QVMap.find qid env.qvars with [
   x -> x
 | exception Not_found ->
-   Fmt.(raise_failwithf loc "find_qvar: qvar %a not found" SYN.QC.pp_qvar_t qid)
+   Fmt.(raise_failwithf loc "find_qvar: qvar %a not found" SYN.QC.qvar qid)
 ] ;
 
 value find_cvar loc env cid = match SYN.QC.CVMap.find cid env.cvars with [
   x -> x
 | exception Not_found ->
-   Fmt.(raise_failwithf loc "find_cvar: cvar %a not found" SYN.QC.pp_cvar_t cid)
+   Fmt.(raise_failwithf loc "find_cvar: cvar %a not found" SYN.QC.cvar cid)
 ] ;
 
 value find_pvar loc env pid = match SYN.PVMap.find pid env.pvars with [
   x -> x
 | exception Not_found ->
-   Fmt.(raise_failwithf loc "find_pvar: pvar %a not found" SYN.pp_paramvar_t pid)
+   Fmt.(raise_failwithf loc "find_pvar: pvar %a not found" SYN.paramvar pid)
 ] ;
 
 end ;
@@ -321,15 +321,15 @@ end ;
 value qvar_find_mark_used loc env qv =
   match Env.find_qvar loc env qv with [
       exception Not_found ->
-                Fmt.(raise_failwithf loc "circuit: undeclared qvar %a" SYN.QC.pp_qvar_t qv)
+                Fmt.(raise_failwithf loc "circuit: undeclared qvar %a" SYN.QC.qvar qv)
     | x -> if x.used then
-             Fmt.(raise_failwithf loc "circuit: qvar %a used more than once" SYN.QC.pp_qvar_t qv)
+             Fmt.(raise_failwithf loc "circuit: qvar %a used more than once" SYN.QC.qvar qv)
            else x.used := True ]
 ;
 
 value cvar_find loc env cv = 
   if not (Env.has_cvar loc env cv) then
-    Fmt.(raise_failwithf loc "circuit: undeclared cvar %a" SYN.QC.pp_cvar_t cv)
+    Fmt.(raise_failwithf loc "circuit: undeclared cvar %a" SYN.QC.cvar cv)
   else ()
 ;
 
@@ -361,15 +361,15 @@ value rec circuit env qc = match qc with [
    let ((pfl, qfl, cfl), ty) =
      match Env.find_gate loc env gn with [
          exception Not_found ->
-           Fmt.(raise_failwithf loc "gate-application: gate %a not found" SYN.QC.pp_qgatename_t gn)
+           Fmt.(raise_failwithf loc "gate-application: gate %a not found" SYN.QC.qgatename gn)
        | x -> x
        ] in
    if List.length pal <> List.length pfl then
-     Fmt.(raise_failwithf loc "circuit: gate-application %a with param-var length mismatch" SYN.QC.pp_qgatename_t gn)
+     Fmt.(raise_failwithf loc "circuit: gate-application %a with param-var length mismatch" SYN.QC.qgatename gn)
    else if List.length qal <> List.length qal then
-     Fmt.(raise_failwithf loc "circuit: gate-application %a with qvar length mismatch" SYN.QC.pp_qgatename_t gn)
+     Fmt.(raise_failwithf loc "circuit: gate-application %a with qvar length mismatch" SYN.QC.qgatename gn)
    else if List.length cal <> List.length cal then
-     Fmt.(raise_failwithf loc "circuit: gate-application %a with cvar length mismatch" SYN.QC.pp_qgatename_t gn)
+     Fmt.(raise_failwithf loc "circuit: gate-application %a with cvar length mismatch" SYN.QC.qgatename gn)
    else do {
     qal |> List.iter (qvar_find_mark_used loc env) ;
     ty
@@ -397,7 +397,7 @@ value rec circuit env qc = match qc with [
     qv_bindings
     |> List.iter (fun (qv, qvb) ->
            if not qvb.Env.used then
-             Fmt.(raise_failwithf qvb.Env.loc "TYCHK.circuit: qvar %a not used" SYN.QC.pp_qvar_t qv)
+             Fmt.(raise_failwithf qvb.Env.loc "TYCHK.circuit: qvar %a not used" SYN.QC.qvar qv)
            else ()) ;
     ty
   }

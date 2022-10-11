@@ -1,6 +1,7 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open OUnit2
+open Asttools
 open Pa_ppx_utils
 open Pa_ppx_testutils
 open Coll
@@ -16,9 +17,8 @@ open Qasmdag0
 open Qasm_passes
 
 let matches ~pattern text =
-  match Str.search_forward (Str.regexp pattern) text 0 with
-    _ -> true
-  | exception Not_found -> false
+  let rex = Pcre.regexp ~flags:[`DOTALL] pattern in
+  Pcre.pmatch ~rex text
 
 let assert_raises_exn_pattern ~msg pattern f =
   Testutil.assert_raises_exn_pred ~exnmsg:msg
@@ -97,6 +97,12 @@ let open AST in
   )
 )
 
+let env1 =
+  let stmts = with_include_path ~path:["testdata"] PA.include_file "qelib1.inc" in
+  let (_, stmts) = Qasm2syntax.TYCHK.program stmts in
+  Qconvert.ToLam.env stmts
+;;
+
 let parse_tolam s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
   (env, instrs) |>  Qconvert.ToLam.program
@@ -106,15 +112,21 @@ let read_tolam s0 =
   (env, instrs) |>  Qconvert.ToLam.program
 ;;
 
-let tychk (name, txt, expect) = 
+let tychk_qlam (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let (env, qc) = parse_tolam txt in
-    let (_, ty) = TYCHK.program (env0@env, qc) in
     let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
-    assert_equal ~printer expect ty
+    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    match expect with
+      Left expect ->
+       let (_, ty) = TYCHK.program (env0@env1@env, qc) in
+      assert_equal ~printer expect ty
+    | Right exnpat ->
+       assert_raises_exn_pattern ~msg:"should be argle bargle"
+         exnpat
+         (fun () -> TYCHK.program (env0@env1@env, qc))
   )
 
-let tychk_file (name, f, expect) = 
+let tychk_qasm2_file (name, f, expect) = 
   name >:: (fun ctxt ->
     let (env, qc) = read_tolam f in
     let (_, ty) = TYCHK.program (env0@env, qc) in
@@ -126,7 +138,17 @@ let open TYCHK.Env in
 let open TYCHK in
 let open AST in
 (
-  (List.map tychk_file [
+
+  (List.map tychk_qlam [
+       ("discard", {|
+let q0 = qubit() in
+let q1 = h q0 in
+()
+|},
+        Right ".*Exc.*q1 not used")
+     ]
+  )@
+  (List.map tychk_qasm2_file [
        ("bell2", "testdata/bell2.qasm",
        (2,0))
      ; ("bell2", "testdata/example.qasm",
@@ -134,7 +156,9 @@ let open AST in
      ]
   )
 )
-
+;;
+Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
+Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
 (* Run the tests in test suite *)
 let _ =

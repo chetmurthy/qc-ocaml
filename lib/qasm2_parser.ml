@@ -262,6 +262,7 @@ and statement = parser
 and ne_statement_list strm = let (h, t) = ne_plist statement strm in h::t
 and statement_list strm = plist statement strm
 
+let include_file fname = read_include statement_list fname
 let program strm = ne_statement_list strm
 
 let mainprogram = parser

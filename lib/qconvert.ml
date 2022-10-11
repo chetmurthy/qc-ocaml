@@ -212,6 +212,11 @@ value expand_stmt qasm2env stmt = match stmt with [
 | x -> [x]
 ] ;
 
+value env stmts =
+  let qlam_env = List.map env_item stmts in
+  qlam_env
+;
+
 value program (qasm2env, stmts) =
   let (gates, instrs) =
     stmts |> filter_split (fun [ (_, (STMT_INCLUDE _ _ _ | STMT_GATEDECL _ | STMT_OPAQUEDECL _ _ _)) -> True | _ -> False ]) in
@@ -503,6 +508,10 @@ value env_item gates it = match it with [
 | QEnv.QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "CX" -> []
 | _ -> Fmt.(failwithf "Qconvert.env_item: unexpected declaration %a" QEnv.pp_item it)
 ] ;
+
+value env gates =
+  let gate_instrs = List.concat_map (env_item gates) gates in
+  gate_instrs ;
 
 value program (env, qc) =
   let gates = extract_gates env in
