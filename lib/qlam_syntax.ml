@@ -174,14 +174,10 @@ value qgatename pps = fun [ (QG _ id) -> ident pps id ] ;
 type qgatelam_t = (qgateargs_t * t)
 and qgateargs_t = (list paramvar_t * list qvar_t * list cvar_t)
 
-and qgate_t = [
-  QGATELAM of loc and qgatelam_t
-| QGATE of loc and qgatename_t
-  ]
 and t = [
   QLET of loc and list qbinding_t and t
 | QWIRES of loc and list qvar_t and list cvar_t
-| QGATEAPP of loc and qgate_t and list PE.t and list qvar_t and list cvar_t
+| QGATEAPP of loc and qgatename_t and list PE.t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
 | QBIT of loc | QDISCARD of loc and list qvar_t
 | QMEASURE of loc and list qvar_t
@@ -218,24 +214,14 @@ value rec qcirc pps = fun [
      Fmt.(pf pps "@[<v>%alet @[%a@] in@ %a@]" comm_nl comm (list ~{sep=and_sep} binding) bl qcirc qc)
   | QWIRES _ qvl cvl -> paren_qvars_cvars pps (qvl, cvl)
   | QGATEAPP _ qg [] qvl cvl ->
-     Fmt.(pf  pps "%a %a" qgate qg qvars_cvars (qvl, cvl))
+     Fmt.(pf  pps "%a %a" qgatename qg qvars_cvars (qvl, cvl))
   | QGATEAPP _ qg pel qvl cvl ->
-     Fmt.(pf  pps "%a (%a) %a" qgate qg (list ~{sep=(const string ", ")} PE.pp) pel qvars_cvars (qvl, cvl))
+     Fmt.(pf  pps "%a (%a) %a" qgatename qg (list ~{sep=(const string ", ")} PE.pp) pel qvars_cvars (qvl, cvl))
   | QBARRIER _ qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
   | QBIT _ -> Fmt.(pf pps "qubit()")
   | QDISCARD _ qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))
   | QMEASURE _ qvl -> Fmt.(pf pps "measure %a" qvars_cvars (qvl, []))
   | QRESET _ qvl -> Fmt.(pf pps "reset %a" qvars_cvars (qvl, []))
-]
-
-and qgate pps = fun [
-  QGATELAM _ ((pvl, qvl,  cvl), qc) ->
-    Fmt.(pf pps "gatefun [@[@ (%a)@ %a@ %a@]]"
-           (list ~{sep=(const string ", ")} paramvar) pvl
-           qvars_cvars (qvl, cvl)
-           qcirc qc)
-
-  | QGATE _ qg ->  Fmt.(pf pps "%a" qgatename qg)
 ]
 
 and binding pps = fun [
@@ -528,7 +514,7 @@ value rec circuit env qc = match qc with [
     qvl |> List.iter (qvar_find_mark_used loc env) ;
     (List.length qvl,List.length qvl)
   }
-| QGATEAPP loc (QGATE _ gn) pal qal cal ->
+| QGATEAPP loc gn pal qal cal ->
    let ((pfl, qfl, cfl), ty) =
      match Env.find_gate loc env gn with [
          exception Not_found ->

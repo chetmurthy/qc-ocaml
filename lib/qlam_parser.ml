@@ -7,7 +7,6 @@ open Qlam_syntax.SYN ;
 
 value g = Grammar.gcreate (Plexer.gmake ());
 value qcirc = Grammar.Entry.create g "qcirc";
-value qgate = Grammar.Entry.create g "qgate";
 value qbinding = Grammar.Entry.create g "qbinding";
 value env = Grammar.Entry.create g "env";
 value env_item = Grammar.Entry.create g "env_item";
@@ -45,7 +44,7 @@ value qelib_from_file s =
 ;
 
 EXTEND
-  GLOBAL: qcirc qgate qbinding env env_item top ;
+  GLOBAL: qcirc qbinding env env_item top ;
 
   env: [ [
     l = LIST0 env_item -> l
@@ -73,13 +72,6 @@ EXTEND
     ] ]
   ;
 
-  qgate: [ [
-      gname = qgatename -> QC.QGATE loc gname
-    | "gatefun" ; "[" ; gargs = gate_args ;
-      qc = qcirc ; "]" -> QC.QGATELAM loc (gargs, qc)
-  ] ]
-  ;
-
   qcirc: [ [
       "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QC.QLET loc l qc
     | (qvl,cvl) = paren_qvars_cvars -> QC.QWIRES loc qvl cvl
@@ -88,8 +80,8 @@ EXTEND
     | "barrier" ; qvl = ne_qvars -> QC.QBARRIER loc qvl
     | "measure" ; qvl = ne_qvars -> QC.QMEASURE loc qvl
     | "reset" ; qvl = ne_qvars -> QC.QRESET loc qvl
-    | g = qgate ; pl = params ; (qvl,cvl) = qvars_cvars ->
-       QC.QGATEAPP loc g pl qvl cvl
+    | gn = qgatename ; pl = params ; (qvl,cvl) = qvars_cvars ->
+       QC.QGATEAPP loc gn pl qvl cvl
   ] ]
   ;
 

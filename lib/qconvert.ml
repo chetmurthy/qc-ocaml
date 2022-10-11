@@ -48,17 +48,17 @@ value wrap_uop loc conv_pv conv_qv ins rhs =
       U pel q ->
       let qv = conv_qv q in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QGATE Ploc.dummy (QC.QG Ploc.dummy (ID.mk "U"))) pel [qv] [] in
+      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QG Ploc.dummy (ID.mk "U")) pel [qv] [] in
       QC.QLET loc [(Ploc.dummy,  [qv], [], gateapp)] rhs
     | CX q1 q2 ->
       let qv1 = conv_qv q1 in
       let qv2 = conv_qv q2 in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QGATE Ploc.dummy (QC.QG Ploc.dummy (ID.mk "CX"))) [] [qv1;qv2] [] in
+      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QG Ploc.dummy (ID.mk "CX")) [] [qv1;qv2] [] in
       QC.QLET loc [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
     | COMPOSITE_GATE gname pel ql ->
       let qvl = List.map conv_qv ql in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QGATE Ploc.dummy (QC.QG Ploc.dummy (ID.mk gname))) pel qvl [] in
+      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QG Ploc.dummy (ID.mk gname)) pel qvl [] in
       QC.QLET loc [(Ploc.dummy, qvl, [], gateapp)] rhs
     ]
 ;
@@ -421,7 +421,7 @@ value rec conv_circuit loc0 acc env = fun [
          ) ;
     (qrl, crl)
   }
-| QC.QGATEAPP loc (QGATE _ gn) pel qvl cvl ->
+| QC.QGATEAPP loc gn pel qvl cvl ->
     let loc = ploc_encl_with_comments loc0 loc in
    if cvl <> [] then
      Fmt.(raise_failwithf loc "conv_circuit: gates cannot take classical bits in qasm2")
