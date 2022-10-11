@@ -152,6 +152,13 @@ let q1 = h q0 in
 (q0)
 |},
         Right ".*Exc.*q0 used more than once")
+     ; ("not distinct in let", {|
+let q0 = qubit() in
+let q1 = qubit() in
+let q2 = h q0 and  q2 = h q1 in
+(q2)
+|},
+        Right ".*Exc.*vars in binding MUST be distinct")
      ]
   )@
   (List.map tychk_qasm2_file [

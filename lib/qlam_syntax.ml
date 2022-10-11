@@ -105,7 +105,7 @@ value unQV = fun [ QV _ x -> x ] ;
 module QVMap = Map.Make(struct type t= qvar_t [@@deriving (eq, ord);]; end) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
-value unCV = fun [ QV _ x -> x ] ;
+value unCV = fun [ CV _ x -> x ] ;
 module CVMap = Map.Make(struct type t= cvar_t [@@deriving (eq, ord);]; end) ;
 
 type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
@@ -374,26 +374,31 @@ value rec circuit env qc = match qc with [
     qal |> List.iter (qvar_find_mark_used loc env) ;
     ty
   }
-| QLET loc bl qc ->
-   let bl =
-     bl
-     |>  List.map (fun ((loc, qvl,cvl,qc) as b) ->
-             let (qlen, clen) = circuit env qc in
-             if qlen <> List.length qvl then
-               Fmt.(raise_failwithf loc "circuit: binding qvar length differs from circuit")
-             else if clen <> List.length cvl then
-               Fmt.(raise_failwithf loc "circuit: binding cvar length differs from circuit")
-             else
-               b) in
-   let cv_bindings =
-     bl |> List.concat_map (fun ((loc, qvl, cvl, qc) as b) ->
-               cvl |> List.map (fun cv -> (cv, Some b))) in
-   let qv_bindings =
-     bl |> List.concat_map (fun ((loc, qvl, cvl, qc) as b) ->
-               qvl |> List.map (fun qv -> (qv, { Env.used = False ; loc = loc ; it = Some b }))) in
-   let env = List.fold_left (Env.add_cvar loc) env cv_bindings in
-   let env = List.fold_left (Env.add_qvar loc) env qv_bindings in
-   let ty = circuit env qc in do {
+| QLET loc bl qc -> do {
+    let vars = bl |>  List.concat_map (fun (_, qvl, cvl, _) ->
+      (List.map SYN.QC.unQV qvl)@(List.map SYN.QC.unCV  cvl)) in
+    if not (Std.distinct vars) then
+      Fmt.(raise_failwithf loc "TYCHK.circuit: vars in binding MUST be distinct")
+    else () ;
+    let bl =
+      bl
+      |>  List.map (fun ((loc, qvl,cvl,qc) as b) ->
+              let (qlen, clen) = circuit env qc in
+              if qlen <> List.length qvl then
+                Fmt.(raise_failwithf loc "circuit: binding qvar length differs from circuit")
+              else if clen <> List.length cvl then
+                Fmt.(raise_failwithf loc "circuit: binding cvar length differs from circuit")
+              else
+                b) in
+    let cv_bindings =
+      bl |> List.concat_map (fun ((loc, qvl, cvl, qc) as b) ->
+                cvl |> List.map (fun cv -> (cv, Some b))) in
+    let qv_bindings =
+      bl |> List.concat_map (fun ((loc, qvl, cvl, qc) as b) ->
+                qvl |> List.map (fun qv -> (qv, { Env.used = False ; loc = loc ; it = Some b }))) in
+    let env = List.fold_left (Env.add_cvar loc) env cv_bindings in
+    let env = List.fold_left (Env.add_qvar loc) env qv_bindings in
+    let ty = circuit env qc in
     qv_bindings
     |> List.iter (fun (qv, qvb) ->
            if not qvb.Env.used then
