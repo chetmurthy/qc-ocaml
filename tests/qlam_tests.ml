@@ -121,9 +121,23 @@ let tychk_qlam (name, txt, expect) =
        let (_, ty) = TYCHK.program (env0@env1@env, qc) in
       assert_equal ~printer expect ty
     | Right exnpat ->
-       assert_raises_exn_pattern ~msg:"should be argle bargle"
+       assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
          (fun () -> TYCHK.program (env0@env1@env, qc))
+  )
+
+let tychk_qelib (name, txt, expect) = 
+  name >:: (fun ctxt ->
+    let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
+    let env = txt |> Stream.of_string |> parse_qelib in
+    match expect with
+      Left () ->
+       ignore (TYCHK.env (env0@env1@env))
+
+    | Right exnpat ->
+       assert_raises_exn_pattern ~msg:("should match "^exnpat)
+         exnpat
+         (fun () -> TYCHK.env (env0@env1@env))
   )
 
 let tychk_qasm2_file (name, f, expect) = 
@@ -166,6 +180,19 @@ let q2 = h q0 and  q2 = h q1 in
        (2,0))
      ; ("bell2", "testdata/example.qasm",
        (6,6))
+     ]
+  )@
+  (List.map tychk_qelib [
+       ("ok gate 0", {|gate pass () q = (q) ;|},
+       Left())
+     ; ("bad gate 1", {|gate pass () q = (p) ;|},
+       Right {|pass.*free qvars.*p.*-1|})
+     ; ("ok gate 1", {|gate pass () q : c = (q : c) ;|},
+       Left ())
+     ; ("ok gate 2", {|gate pass () q : c = (q) ;|},
+       Left ())
+     ; ("bad gate 2", {|gate pass () q = (q : c) ;|},
+       Right {|pass.*free cvars.*c.*-1|})
      ]
   )
 )

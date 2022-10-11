@@ -104,7 +104,7 @@ EXTEND
   ] ]
   ;
   paren_qvars_cvars: [ [
-      "(" ; qvl = LIST0 qvar SEP "," ; "/" ; cvl = LIST1 cvar SEP "," ; ")" -> (qvl, cvl)
+      "(" ; qvl = LIST0 qvar SEP "," ; ":" ; cvl = LIST1 cvar SEP "," ; ")" -> (qvl, cvl)
     | "(" ; qvl = LIST0 qvar SEP "," ; ")" -> (qvl, [])
   ] ]
   ;

@@ -137,8 +137,9 @@ let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" SYN.QC.qcirc qc) ;;
 #install_printer qcircuit_pp ;;
 
 let gate_item_pp gi = Fmt.(pf stdout "<:gate_item< %a >>" SYN.QEnv.gate_item gi) ;;
+(*
 #install_printer gate_item_pp ;;
-
+ *)
 let item_pp gi = Fmt.(pf stdout "<:item< %a >>" SYN.QEnv.item gi) ;;
 #install_printer item_pp ;;
 
@@ -151,6 +152,23 @@ let (env,qc) = "testdata/example.qasm" |> read_file_tolam in
 TYCHK.program (env0@env, qc)
 ;;
 
+#trace TYCHK.gate_item ;;
+#trace Ops.circuit_freevars ;;
+
+let tychk_qelib (name, txt, expect) = 
+    let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
+    let env = txt |> Stream.of_string |> parse_qelib in
+    match expect with
+      Left () ->
+       ignore (TYCHK.env (env0@env1@env))
+
+    | Right exnpat ->
+       assert_raises_exn_pattern ~msg:("should match "^exnpat)
+         exnpat
+         (fun () -> TYCHK.env (env0@env1@env))
+ ;;
+tychk_qelib("bad gate 1", {|gate pass () q = (p) ;|},
+       Right {|pass.*free qvars.*p.*-1|});;
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)
