@@ -187,6 +187,17 @@ and qbinding_t =
   (loc * list qvar_t * list cvar_t * t)
 [@@deriving (to_yojson, show, eq, ord);] ;
 
+value loc_of_qcirc = fun [
+  QLET loc _ _ -> loc
+| QWIRES loc _ _ -> loc
+| QGATEAPP loc _ _ _ _ -> loc
+| QBARRIER loc _ -> loc
+| QBIT loc -> loc
+| QDISCARD loc _ -> loc
+| QMEASURE loc _ -> loc
+| QRESET loc _ -> loc
+] ;
+
 value and_sep pps () = Fmt.(pf pps "@ and ") ;
 
 value paren_qvars_cvars pps = fun [
@@ -280,6 +291,7 @@ value pp pps (env, qc) =
 end ;
 
 module Ops = struct
+open SYN.QC ;
 
 value pe_freevars pe =
   let rec fvrec = fun [
@@ -333,7 +345,6 @@ value circuit_freevars qc =
  *)
 
 value lower_circuit qc =
-  let open SYN.QC in
   let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
   let rec lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc =
     let rename_qv qv =
@@ -393,6 +404,95 @@ value lower_circuit qc =
   lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
 ;
 
+(** TODO
+
+(1) alpha-equality
+
+(2) raise_fresh
+
+(3) beta-reduce
+
+(4) unroll
+
+(5) A-normalize
+
+
+ *)
+
+
+value add_qvs m l1 l2 =
+  List.fold_left2 (fun m v1 v2 -> QVMap.add v1 v2 m) m l1 l2
+;
+value add_cvs m l1 l2 =
+  List.fold_left2 (fun m v1 v2 -> CVMap.add v1 v2 m) m l1 l2
+;
+value check_qv_corr loc lr rl v1 v2 =
+  try
+    QVMap.find v1 lr = v2 && QVMap.find v2 rl = v1
+  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal: internal error (qvar)")
+;
+value check_cv_corr loc lr rl v1 v2 =
+  try
+    CVMap.find v1 lr = v2 && CVMap.find v2 rl = v1
+  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal: internal error (cvar)")
+;
+
+
+value alpha_equal qc1 qc2 =
+  let loc = loc_of_qcirc qc1 in
+  let rec alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
+    (QLET _ bl1 qc1, QLET _ bl2 qc2) ->
+    (List.length bl1 = List.length bl2)
+    && (List.for_all2 (fun (_, qvl1, cvl1, qc1) (_, qvl2, cvl2, qc2) ->
+            (List.length qvl1 = List.length qvl2)
+            && (List.length cvl1 = List.length cvl2)
+            && alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
+          bl1 bl2)
+    && (let (qv_lr, qv_rl, cv_lr, cv_rl) =
+          List.fold_left2 (fun (qv_lr, qv_rl, cv_lr, cv_rl)
+                               (_, qvl1, cvl1, _) (_, qvl2, cvl2, _) ->
+              let qv_lr = add_qvs qv_lr qvl1 qvl2 in
+              let qv_rl = add_qvs qv_rl qvl2 qvl1 in
+              let cv_lr = add_cvs cv_lr cvl1 cvl2 in
+              let cv_rl = add_cvs cv_rl cvl2 cvl1 in
+              (qv_lr, qv_rl, cv_lr, cv_rl))
+            (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 in
+        alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
+
+  | (QWIRES loc qvl1 cvl1, QWIRES _ qvl2 cvl2) ->
+     (List.length qvl1 = List.length qvl2)
+    && (List.length cvl1 = List.length cvl2)
+    && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+    && (List.for_all2 (fun cv1 cv2 -> check_cv_corr loc cv_lr cv_rl cv1 cv2) cvl1 cvl2)
+
+  | (QGATEAPP loc _ _ qvl1 cvl1, QGATEAPP _ _ _ qvl2 cvl2) ->
+     (List.length qvl1 = List.length qvl2)
+     && (List.length cvl1 = List.length cvl2)
+    && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+    && (List.for_all2 (fun cv1 cv2 -> check_cv_corr loc cv_lr cv_rl cv1 cv2) cvl1 cvl2)
+
+  | (QBARRIER loc qvl1, QBARRIER _ qvl2) ->
+     (List.length qvl1 = List.length qvl2)
+    && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+    
+  | (QBIT _, QBIT _) -> True
+                      
+  | (QDISCARD loc qvl1, QDISCARD _ qvl2) ->
+     (List.length qvl1 = List.length qvl2)
+     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+    
+  | (QMEASURE loc qvl1, QMEASURE _ qvl2) ->
+     (List.length qvl1 = List.length qvl2)
+     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+    
+  | (QRESET loc qvl1, QRESET _ qvl2) ->
+     (List.length qvl1 = List.length qvl2)
+     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+    
+  | _ -> False
+  ] in
+  alpharec (QVMap.empty, QVMap.empty, CVMap.empty, CVMap.empty) (qc1, qc2)
+;
 end ;
 
 module TYCHK = struct
