@@ -33,6 +33,21 @@ module type FVSIG = sig
   value pp_hum : Fmt.t t ;
 end ;
 
+module type MAPSIG = sig
+  module M : VARSIG ;
+  include Map.S with type key = M.t ;
+  value pp_hum : Fmt.t 'a -> Fmt.t (t 'a) ;
+end ;
+
+module VarMap(M : VARSIG) : (MAPSIG with module M = M) = struct
+  module M = M ;
+  module IT = Map.Make(M) ;
+  include IT ;
+  value pp_hum ppval pps l =
+    Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} M.pp_hum ppval))) (bindings l))
+  ;
+end ;
+
 module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
   module M = M ;
   type t = list M.t[@@deriving (show);] ;
@@ -80,15 +95,18 @@ end ;
 
 type paramvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unPV = fun [ PV _ x -> x ] ;
+value loc_of_paramvar = fun [ PV loc _ -> loc ] ;
 value paramvar pps = fun [ (PV _ id) -> ident pps id ] ;
 
-module PVMap = Map.Make(struct type t= paramvar_t [@@deriving (eq, ord);]; end) ;
-module PVFVS = FreeVarSet(struct
-                   type t = paramvar_t[@@deriving (eq, ord, show);];
-                   value toID = unPV ;
-                   value ofID x = PV Ploc.dummy x ;
-                   value pp_hum pps x = Fmt.(pf pps "%a" paramvar x) ;
-                 end) ;
+module PV = struct
+  type t = paramvar_t [@@deriving (eq, ord, show);];
+  value toID = unPV ;
+  value ofID x = PV Ploc.dummy x ;
+  value pp_hum pps x = Fmt.(pf pps "%a" paramvar x) ;
+end ;
+
+module PVMap = VarMap(PV) ;
+module PVFVS = FreeVarSet(PV) ;
 
 module PE = struct
 
@@ -157,30 +175,42 @@ open Fmt ;
 
 type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unQV = fun [ QV _ x -> x ] ;
+value loc_of_qvar = fun [ QV loc _ -> loc ] ;
 value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
-module QVMap = Map.Make(struct type t= qvar_t [@@deriving (eq, ord);]; end) ;
-module QVFVS = FreeVarSet(struct
-                   type t = qvar_t[@@deriving (eq, ord, show);];
-                   value toID = unQV ;
-                   value ofID x = QV Ploc.dummy x ;
-                   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
-                 end) ;
+module QV = struct
+  type t = qvar_t [@@deriving (eq, ord, show);];
+  value toID = unQV ;
+  value ofID x = QV Ploc.dummy x ;
+  value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
+end ;
+module QVMap = VarMap(QV) ;
+module QVFVS = FreeVarSet(QV) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unCV = fun [ CV _ x -> x ] ;
+value loc_of_cvar = fun [ CV loc _ -> loc ] ;
 value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
-module CVMap = Map.Make(struct type t= cvar_t [@@deriving (eq, ord);]; end) ;
-module CVFVS = FreeVarSet(struct
-                   type t = cvar_t[@@deriving (eq, ord, show);];
-                   value toID = unCV ;
-                   value ofID x = CV Ploc.dummy x ;
-                   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
-                 end) ;
+module CV = struct
+  type t = cvar_t [@@deriving (eq, ord, show);];
+  value toID = unCV ;
+  value ofID x = CV Ploc.dummy x ;
+  value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
+end ;
+module CVMap = VarMap(CV) ;
+module CVFVS = FreeVarSet(CV) ;
 
 type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unQG = fun [ QG _ x -> x ] ;
+value loc_of_qgatename = fun [ QG loc _ -> loc ] ;
 value qgatename pps = fun [ (QG _ id) -> ident pps id ] ;
-module QGMap = Map.Make(struct type t= qgatename_t [@@deriving (eq, ord);]; end) ;
+module QG = struct
+  type t = qgatename_t[@@deriving (eq, ord, show);];
+  value toID = unQG ;
+  value ofID x = QG Ploc.dummy x ;
+  value pp_hum pps x = Fmt.(pf pps "%a" qgatename x) ;
+end ;
+module QGMap = VarMap(QG) ;
+module QGFVS = FreeVarSet(QG) ;
 
 type qgatelam_t = (qgateargs_t * t)
 and qgateargs_t = (list paramvar_t * list qvar_t * list cvar_t)
@@ -415,21 +445,6 @@ value lower_circuit qc =
   lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
 ;
 
-(** TODO
-
-(1) alpha-equality
-
-(2) raise_fresh
-
-(3) beta-reduce
-
-(4) unroll
-
-(5) A-normalize
-
-
- *)
-
 module AlphaEq = struct
 value add_qvs m l1 l2 =
   List.fold_left2 (fun m v1 v2 -> QVMap.add v1 v2 m) m l1 l2
@@ -512,24 +527,142 @@ end ;
 
 module Fresh = struct
 
-value fresh_counter = ref 0 ;
+type t = {
+    it : ref int
+  } ;
+value mk ?{base=0} () = { it = ref base } ;
+value next { it=it } = do {
+  let n = it.val in
+  it.val := n+1 ;
+  n
+} ;
 
-value test_with_fresh_counter ~{counter} f arg = do {
-  let ocounter = fresh_counter.val in
-  fresh_counter.val := counter ;
-  try let rv = f arg in do { fresh_counter.val := ocounter ; rv }
-  with exc -> do {
-    fresh_counter.val := ocounter ;
-    raise exc
-  }
-  }
+value qcircuit ~{counter} ~{qvmap} ~{cvmap} qc =
+  let fresh_qvar = fun [ (QV loc (s,_)) -> QV loc (s, next counter) ] in
+  let fresh_cvar = fun [ (CV loc (s,_)) -> CV loc (s, next counter) ] in
+  let rec freshrec (qvmap, cvmap) qc =
+    let map_qvar qv =
+      match QVMap.find qv qvmap with [
+          exception Not_found -> qv
+        | x -> x
+        ] in
+    let map_cvar cv =
+      match CVMap.find cv cvmap with [
+          exception Not_found -> cv
+        | x -> x
+        ] in
+    match qc with [
+        QLET loc bl qc ->
+        let bl =
+          bl
+          |> List.map (fun (loc, qvl, cvl, qc) ->
+                 (loc, qvl, cvl, freshrec (qvmap, cvmap) qc)) in
+        let (bl, (qvmap, cvmap)) =
+          List.fold_right (fun (loc, qvl, cvl, qc) (bl, (qvmap, cvmap)) ->
+              let (qvl, qvmap) =
+                List.fold_right (fun qv (qvl, qvmap) ->
+                    let qv' = fresh_qvar qv in
+                    ([qv'::qvl], QVMap.add qv qv' qvmap)) qvl ([], qvmap) in
+              let (cvl, cvmap) =
+                List.fold_right (fun cv (cvl, cvmap) ->
+                    let cv' = fresh_cvar cv in
+                    ([cv'::cvl], CVMap.add cv cv' cvmap)) cvl ([], cvmap) in
+              ([(loc, qvl, cvl, qc) :: bl], (qvmap, cvmap))
+            ) bl ([], (qvmap, cvmap)) in
+        let qc = freshrec (qvmap, cvmap) qc in
+        QLET loc bl qc
+
+    | QWIRES loc qvl cvl -> QWIRES loc (List.map map_qvar qvl) (List.map map_cvar cvl)
+
+    | QGATEAPP loc gn pel qvl cvl -> QGATEAPP loc gn pel (List.map map_qvar qvl) (List.map map_cvar cvl)
+
+    | QBARRIER loc qvl -> QBARRIER loc (List.map map_qvar qvl)
+    | (QBIT _) as qc -> qc
+    | QDISCARD loc qvl -> QDISCARD loc (List.map map_qvar qvl)
+    | QMEASURE loc qvl -> QMEASURE loc (List.map map_qvar qvl)
+    | QRESET loc qvl -> QRESET loc (List.map map_qvar qvl)
+    ] in
+  freshrec (qvmap, cvmap) qc
 ;
-(*
-value qcircuit qc =
-  let (qvfvs, cvfvs) = circuit_freevars qc in
- *)  
+
+value qgatelam ~{counter} ((pvl, qvl, cvl), qc) =
+  let fresh_qvar = fun [ (QV loc (s,_)) -> QV loc (s, next counter) ] in
+  let fresh_cvar = fun [ (CV loc (s,_)) -> CV loc (s, next counter) ] in
+  let qvmap = QVMap.empty in
+  let cvmap = CVMap.empty in
+  let (qvl, qvmap) =
+    List.fold_right (fun qv (qvl, qvmap) ->
+        let qv' = fresh_qvar qv in
+        ([qv'::qvl], QVMap.add qv qv' qvmap)) qvl ([], qvmap) in
+  let (cvl, cvmap) =
+    List.fold_right (fun cv (cvl, cvmap) ->
+        let cv' = fresh_cvar cv in
+        ([cv'::cvl], CVMap.add cv cv' cvmap)) cvl ([], cvmap) in
+  ((pvl, qvl, cvl), qcircuit ~{qvmap=qvmap} ~{cvmap=cvmap} ~{counter=counter} qc)
+;
 
 end ;
+
+module BetaReduce = struct
+(*
+value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
+  let rec substrec = fun [
+    QLET loc bl qc ->
+    bl |> List.iter (fun (loc, qvl, cvl, _) ->
+              if qvl |> List.exists (QVFVS.mem qvfvs) then
+                Fmt.(raise_failwithf loc "BetaReduce.subst: internal error: binding qvars %a clash with"
+                       (list ~{sep=const string " "} qvar) qvl)
+
+of loc and list qbinding_t and t
+| QWIRES of loc and list qvar_t and list cvar_t
+| QGATEAPP of loc and qgatename_t and list PE.t and list qvar_t and list cvar_t
+| QBARRIER of loc and list qvar_t
+| QBIT of loc | QDISCARD of loc and list qvar_t
+| QMEASURE of loc and list qvar_t
+| QRESET of loc and list qvar_t
+
+      ] in
+  substrec qc
+;
+
+value qcircuit genv = fun [
+  QGATEAPP loc gn pel qel cel ->
+  let ((pvl,qvl, cvl), qc) = 
+    match GNMAP.find gn genv with [
+      exception Not_found -> Fmt.(raise_failwithf loc "BetaReduce.qcircuit: gate %a not found" qgatename gn)
+    | x -> x ] in
+  if List.length pel <> List.length pvl then
+    Fmt.(raise_failwithf loc "BetaReduce.qcircuit: param-vars/actuals differ in length")
+  else if List.length qel <> List.length qvl then
+    Fmt.(raise_failwithf loc "BetaReduce.qcircuit: q-vars/actuals differ in length")
+  else if List.length cel <> List.length cvl then
+    Fmt.(raise_failwithf loc "BetaReduce.qcircuit: c-vars/actuals differ in length")
+  else 
+  let pvmap = List.fold_left2 (fun pvmap pv pe -> PVMap.add pv pe pvmap) PVMap.empty pvl pel in
+  let qvmap = List.fold_left2 (fun qvmap qv qe -> PVMap.add qv qe qvmap) QVMap.empty qvl qel in
+  let cvmap = List.fold_left2 (fun cvmap cv ce -> CVMap.add cv ce cvmap) CVMap.empty cvl cel in
+  subst (pvmap, qvmap, cvmap, QVFVS.ofList qel, CVFVS.ofList cel) qc
+
+| x -> Fmt.(raise_failwithf (loc_of_qcirc x) "BetaReduce: can only be applied to gate-application, not %a" qcirc x)
+] ;
+ *)
+end ;
+
+(** TODO
+
+(1) alpha-equality
+
+(2) raise_fresh
+
+(3) beta-reduce
+
+(4) unroll
+
+(5) A-normalize
+
+
+ *)
+
 
 end ;
 
