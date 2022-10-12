@@ -16,6 +16,7 @@ module type VARSIG = sig
   type t = 'a[@@deriving (eq, ord, show);];
   value toID : t -> ID.t ;
   value ofID : ID.t -> t ;
+  value pp_hum : Fmt.t t ;
 end ;
 module type FVSIG = sig
   module M : VARSIG ;
@@ -28,19 +29,21 @@ module type FVSIG = sig
   value toList : t -> list M.t ;
   value union : t -> t -> t ;
   value fresh : t -> M.t -> M.t ;
+  value equal : t -> t -> bool ;
+  value pp_hum : Fmt.t t ;
 end ;
 
 module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
   module M = M ;
   type t = list M.t[@@deriving (show);] ;
   value mt = [] ;
-  value add s x = [x::s] ;
   value mem s x = s |> List.exists (fun y -> M.equal x y) ;
+  value add s x = if mem s x then s else [x::s] ;
   value subtract l1 l2 =
     l1 |> List.filter (fun x -> not (mem l2 x)) ;
   value ofList l = l ;
   value toList l = l ;
-  value union l1 l2 = l1@l2 ;
+  value union l1 l2 = List.fold_left add l1 l2 ;
   value fresh l x =
     let (s,_) = M.toID x in
     let n = List.fold_left (fun acc v ->
@@ -50,6 +53,12 @@ module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
     if n = Int.min_int then
       M.ofID (s,-1)
     else M.ofID (s, n+1) ;
+
+  value equal l1 l2 =
+    l1 |> List.for_all (mem l2)
+    && l2 |> List.for_all (mem l1)  ;
+
+  value pp_hum pps l = Fmt.(pf pps "%a" (brackets (list ~{sep=const string "; "} M.pp_hum)) l) ;
 end ;
 
 module SYN = struct
@@ -71,14 +80,15 @@ end ;
 
 type paramvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unPV = fun [ PV _ x -> x ] ;
+value paramvar pps = fun [ (PV _ id) -> ident pps id ] ;
+
 module PVMap = Map.Make(struct type t= paramvar_t [@@deriving (eq, ord);]; end) ;
 module PVFVS = FreeVarSet(struct
                    type t = paramvar_t[@@deriving (eq, ord, show);];
                    value toID = unPV ;
                    value ofID x = PV Ploc.dummy x ;
+                   value pp_hum pps x = Fmt.(pf pps "%a" paramvar x) ;
                  end) ;
-
-value paramvar pps = fun [ (PV _ id) -> ident pps id ] ;
 
 module PE = struct
 
@@ -147,29 +157,30 @@ open Fmt ;
 
 type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unQV = fun [ QV _ x -> x ] ;
+value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
 module QVMap = Map.Make(struct type t= qvar_t [@@deriving (eq, ord);]; end) ;
 module QVFVS = FreeVarSet(struct
                    type t = qvar_t[@@deriving (eq, ord, show);];
                    value toID = unQV ;
                    value ofID x = QV Ploc.dummy x ;
+                   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
                  end) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unCV = fun [ CV _ x -> x ] ;
+value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
 module CVMap = Map.Make(struct type t= cvar_t [@@deriving (eq, ord);]; end) ;
 module CVFVS = FreeVarSet(struct
                    type t = cvar_t[@@deriving (eq, ord, show);];
                    value toID = unCV ;
                    value ofID x = CV Ploc.dummy x ;
+                   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
                  end) ;
 
 type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 value unQG = fun [ QG _ x -> x ] ;
-module QGMap = Map.Make(struct type t= qgatename_t [@@deriving (eq, ord);]; end) ;
-
-value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
-value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
 value qgatename pps = fun [ (QG _ id) -> ident pps id ] ;
+module QGMap = Map.Make(struct type t= qgatename_t [@@deriving (eq, ord);]; end) ;
 
 type qgatelam_t = (qgateargs_t * t)
 and qgateargs_t = (list paramvar_t * list qvar_t * list cvar_t)
@@ -428,15 +439,14 @@ value add_cvs m l1 l2 =
 ;
 value check_qv_corr loc lr rl v1 v2 =
   try
-    QVMap.find v1 lr = v2 && QVMap.find v2 rl = v1
-  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal: internal error (qvar)")
+    equal_qvar_t (QVMap.find v1 lr) v2 && equal_qvar_t (QVMap.find v2 rl) v1
+  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_qv_corr %a %a): internal error" qvar v1 qvar v2)
 ;
 value check_cv_corr loc lr rl v1 v2 =
   try
-    CVMap.find v1 lr = v2 && CVMap.find v2 rl = v1
-  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal: internal error (cvar)")
+    equal_cvar_t (CVMap.find v1 lr) v2 && equal_cvar_t (CVMap.find v2 rl) v1
+  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" cvar v1 cvar v2)
 ;
-
 
 value alpha_equal qc1 qc2 =
   let loc = loc_of_qcirc qc1 in
@@ -491,7 +501,13 @@ value alpha_equal qc1 qc2 =
     
   | _ -> False
   ] in
-  alpharec (QVMap.empty, QVMap.empty, CVMap.empty, CVMap.empty) (qc1, qc2)
+  let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
+  let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
+  QVFVS.equal qvfvs1 qvfvs2
+  && CVFVS.equal cvfvs1 cvfvs2
+  && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVFVS.toList qvfvs1) in
+      let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVFVS.toList cvfvs1) in
+      alpharec (qvmap, qvmap, cvmap, cvmap) (qc1, qc2))
 ;
 end ;
 

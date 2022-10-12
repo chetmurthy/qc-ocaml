@@ -193,6 +193,34 @@ let q1 = h q0 in
 )
 ;;
 
+
+let alpha_equality (name, txt1, txt2, expect) = 
+  name >:: (fun ctxt ->
+    let (env, qc1) = txt1 |> Stream.of_string |> parse_qcircuit in
+    let (env, qc2) = txt2 |> Stream.of_string |> parse_qcircuit in
+    let cmp qc1 qc2 = Ops.alpha_equal qc1 qc2 in
+    let printer qc = Fmt.(str "%a" SYN.QC.qcirc qc) in
+    if expect then
+      assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2
+    else
+      assert_bool "should not be alpha-equal" (not (cmp qc1 qc2))
+  )
+;;
+
+
+let alpha_equality_tests = "alpha equality tests" >:::
+(
+    (List.map alpha_equality [
+         ("0", {|()|}, {|()|}, true)
+       ; ("1", {|(x)|}, {|()|}, false)
+       ; ("1'", {|(x)|}, {|(y)|}, false)
+       ; ("1''", {|(x)|}, {|(x)|}, true)
+       ; ("2", {|let q = qubit () in (q)|},{|let p = qubit () in (p)|}, true)
+     ]
+  )
+)
+;;
+
 let tychk_tests = "tychk tests" >:::
 let open TYCHK.Env in
 let open TYCHK in
@@ -266,6 +294,7 @@ if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
         roundtrip_tests
       ; pp_tests
+      ; alpha_equality_tests
       ; tychk_tests
     ])
 ;;

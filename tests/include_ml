@@ -148,25 +148,34 @@ let read_file_tolam s0 =
   (env, instrs) |>  Qconvert.ToLam.program
 ;;
 
-let lower_qlam (name, txt, expect) = 
-    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
-    match expect with
-      Left expect ->
-       let qc' = Ops.lower_circuit qc in
-       let txt = Fmt.(str "%a" SYN.QC.qcirc qc') in
-      assert_equal ~printer:(fun x -> x) expect txt
-    | Right exnpat ->
-       assert_raises_exn_pattern ~msg:("should match "^exnpat)
-         exnpat
-         (fun () -> Ops.lower_circuit qc)
+let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QC.QVFVS.pp_hum x) ;;
+let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.QC.CVFVS.pp_hum x) ;;
+
+let pp_qv_corr l = Fmt.(pf stdout "<:qvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QC.qvar SYN.QC.qvar))) (SYN.QC.QVMap.bindings l)) ;;
+let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QC.cvar SYN.QC.cvar))) (SYN.QC.CVMap.bindings l)) ;;
+
+#install_printer pp_qvfvs ;;
+#install_printer pp_cvfvs ;;
+#install_printer pp_qv_corr ;;
+#install_printer pp_cv_corr ;;
+
+#trace Ops.add_qvs ;;
+#trace Ops.add_cvs ;;
+#trace Ops.check_qv_corr ;;
+#trace Ops.check_cv_corr ;;
+
+let alpha_equality (name, txt1, txt2, expect) = 
+    let (env, qc1) = txt1 |> Stream.of_string |> parse_qcircuit in
+    let (env, qc2) = txt2 |> Stream.of_string |> parse_qcircuit in
+    let cmp qc1 qc2 = Ops.alpha_equal qc1 qc2 in
+    let printer qc = Fmt.(str "%a" SYN.QC.qcirc qc) in
+    if expect then
+      assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2
+    else
+      assert_bool "should not be alpha-equal" (not (cmp qc1 qc2))
 ;;
 
-lower_qlam ("simple", {|
-let q0 = qubit() in
-let q1 = h q0 in
-()
-|},
-        Left ".*Exc.*q1 not used") ;;
+alpha_equality("2", {|let q = qubit () in (q)|},{|let p = qubit () in (p)|}, true) ;;
 
 (* Local Variables: *)
 (* mode: tuareg *)
