@@ -93,20 +93,56 @@ value pp pps = fun [
 ;
 end ;
 
-type paramvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
-value unPV = fun [ PV _ x -> x ] ;
-value loc_of_paramvar = fun [ PV loc _ -> loc ] ;
-value paramvar pps = fun [ (PV _ id) -> ident pps id ] ;
-
+type pvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module PV = struct
-  type t = paramvar_t [@@deriving (eq, ord, show);];
-  value toID = unPV ;
+  type t = pvar_t[@@deriving (to_yojson, show, eq, ord);];
+  value toID = fun [ PV _ x -> x ] ;
   value ofID x = PV Ploc.dummy x ;
-  value pp_hum pps x = Fmt.(pf pps "%a" paramvar x) ;
+  value to_loc = fun [ PV loc _ -> loc ] ;
+
+  value pvar pps = fun [ (PV _ id) -> ident pps id ] ;
+  value pp_hum pps x = Fmt.(pf pps "%a" pvar x) ;
 end ;
 
 module PVMap = VarMap(PV) ;
 module PVFVS = FreeVarSet(PV) ;
+
+
+type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
+module QV = struct
+  type t = qvar_t[@@deriving (to_yojson, show, eq, ord);];
+  value toID = fun [ QV _ x -> x ] ;
+  value ofID x = QV Ploc.dummy x ;
+  value to_loc = fun [ QV loc _ -> loc ] ;
+  value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
+  value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
+end ;
+module QVMap = VarMap(QV) ;
+module QVFVS = FreeVarSet(QV) ;
+
+type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
+module CV = struct
+  type t = cvar_t[@@deriving (to_yojson, show, eq, ord);];
+  value toID = fun [ CV _ x -> x ] ;
+  value ofID x = CV Ploc.dummy x ;
+  value to_loc = fun [ CV loc _ -> loc ] ;
+  value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
+  value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
+end ;
+module CVMap = VarMap(CV) ;
+module CVFVS = FreeVarSet(CV) ;
+
+type qgn_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
+module QG = struct
+  type t = qgn_t[@@deriving (to_yojson, show, eq, ord);];
+  value toID = fun [ QG _ x -> x ] ;
+  value ofID x = QG Ploc.dummy x ;
+  value to_loc = fun [ QG loc _ -> loc ] ;
+  value qgn pps = fun [ (QG _ id) -> ident pps id ] ;
+  value pp_hum pps x = Fmt.(pf pps "%a" qgn x) ;
+end ;
+module QGMap = VarMap(QG) ;
+module QGFVS = FreeVarSet(QG) ;
 
 module PE = struct
 
@@ -124,7 +160,7 @@ value string_of_ufun = fun [
 ] ;
 
 type t = [
-  ID of loc and paramvar_t
+  ID of loc and pvar_t
 | CONST of loc and PC.t
 | BINOP of loc and binop_t and t and t
 | UNOP of loc and unop_t and t
@@ -132,7 +168,7 @@ type t = [
   ][@@deriving (to_yojson, show, eq, ord);]
 ;
 value rec pp0 pps = fun [
-  ID _ pv -> Fmt.(pf pps "%a" paramvar pv)
+  ID _ pv -> Fmt.(pf pps "%a" PV.pp_hum pv)
 | CONST _ pc ->  PC.pp pps pc
 | UFUN _ fsym pe ->
    Fmt.(pf pps "%s(%a)" (string_of_ufun fsym) pp pe)
@@ -170,55 +206,17 @@ and pp pps x = pp4 pps x
 ;
 end
 ;
+
 module QC = struct
 open Fmt ;
 
-type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
-value unQV = fun [ QV _ x -> x ] ;
-value loc_of_qvar = fun [ QV loc _ -> loc ] ;
-value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
-module QV = struct
-  type t = qvar_t [@@deriving (eq, ord, show);];
-  value toID = unQV ;
-  value ofID x = QV Ploc.dummy x ;
-  value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
-end ;
-module QVMap = VarMap(QV) ;
-module QVFVS = FreeVarSet(QV) ;
-
-type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
-value unCV = fun [ CV _ x -> x ] ;
-value loc_of_cvar = fun [ CV loc _ -> loc ] ;
-value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
-module CV = struct
-  type t = cvar_t [@@deriving (eq, ord, show);];
-  value toID = unCV ;
-  value ofID x = CV Ploc.dummy x ;
-  value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
-end ;
-module CVMap = VarMap(CV) ;
-module CVFVS = FreeVarSet(CV) ;
-
-type qgatename_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
-value unQG = fun [ QG _ x -> x ] ;
-value loc_of_qgatename = fun [ QG loc _ -> loc ] ;
-value qgatename pps = fun [ (QG _ id) -> ident pps id ] ;
-module QG = struct
-  type t = qgatename_t[@@deriving (eq, ord, show);];
-  value toID = unQG ;
-  value ofID x = QG Ploc.dummy x ;
-  value pp_hum pps x = Fmt.(pf pps "%a" qgatename x) ;
-end ;
-module QGMap = VarMap(QG) ;
-module QGFVS = FreeVarSet(QG) ;
-
 type qgatelam_t = (qgateargs_t * t)
-and qgateargs_t = (list paramvar_t * list qvar_t * list cvar_t)
+and qgateargs_t = (list pvar_t * list qvar_t * list cvar_t)
 
 and t = [
   QLET of loc and list qbinding_t and t
 | QWIRES of loc and list qvar_t and list cvar_t
-| QGATEAPP of loc and qgatename_t and list PE.t and list qvar_t and list cvar_t
+| QGATEAPP of loc and qgn_t and list PE.t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
 | QBIT of loc | QDISCARD of loc and list qvar_t
 | QMEASURE of loc and list qvar_t
@@ -243,16 +241,16 @@ value and_sep pps () = Fmt.(pf pps "@ and ") ;
 
 value paren_qvars_cvars pps = fun [
     (qvl, []) ->
-     Fmt.(pf pps "(%a)" (list ~{sep=(const string ", ")} qvar) qvl)
+     Fmt.(pf pps "(%a)" (list ~{sep=(const string ", ")} QV.pp_hum) qvl)
   | (qvl, cvl) ->
-     Fmt.(pf pps "(%a : %a)" (list ~{sep=(const string ", ")} qvar) qvl  (list ~{sep=(const string ", ")} cvar) cvl)
+     Fmt.(pf pps "(%a : %a)" (list ~{sep=(const string ", ")} QV.pp_hum) qvl  (list ~{sep=(const string ", ")} CV.pp_hum) cvl)
 ] ;
 
 value qvars_cvars pps = fun [
     (qvl, []) ->
-     Fmt.(pf pps "%a" (list ~{sep=const string " "} qvar) qvl)
+     Fmt.(pf pps "%a" (list ~{sep=const string " "} QV.pp_hum) qvl)
   | (qvl, cvl) ->
-     Fmt.(pf pps "%a : %a" (list ~{sep=sp} qvar) qvl  (list ~{sep=const string " "} cvar) cvl)
+     Fmt.(pf pps "%a : %a" (list ~{sep=sp} QV.pp_hum) qvl  (list ~{sep=const string " "} CV.pp_hum) cvl)
 ] ;
 
 value comm_nl pps = fun [
@@ -266,9 +264,9 @@ value rec qcirc pps = fun [
      Fmt.(pf pps "@[<v>%alet @[%a@] in@ %a@]" comm_nl comm (list ~{sep=and_sep} binding) bl qcirc qc)
   | QWIRES _ qvl cvl -> paren_qvars_cvars pps (qvl, cvl)
   | QGATEAPP _ qg [] qvl cvl ->
-     Fmt.(pf  pps "%a %a" qgatename qg qvars_cvars (qvl, cvl))
+     Fmt.(pf  pps "%a %a" QG.pp_hum qg qvars_cvars (qvl, cvl))
   | QGATEAPP _ qg pel qvl cvl ->
-     Fmt.(pf  pps "%a (%a) %a" qgatename qg (list ~{sep=(const string ", ")} PE.pp) pel qvars_cvars (qvl, cvl))
+     Fmt.(pf  pps "%a (%a) %a" QG.pp_hum qg (list ~{sep=(const string ", ")} PE.pp) pel qvars_cvars (qvl, cvl))
   | QBARRIER _ qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
   | QBIT _ -> Fmt.(pf pps "qubit()")
   | QDISCARD _ qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))
@@ -278,7 +276,7 @@ value rec qcirc pps = fun [
 
 and binding pps = fun [
     (_, [qv],  [], qc) ->
-    Fmt.(pf pps "%a = %a" qvar qv qcirc qc)
+    Fmt.(pf pps "%a = %a" QV.pp_hum qv qcirc qc)
   | (_, qvl,  cvl, qc) ->
     Fmt.(pf pps "%a = %a" paren_qvars_cvars (qvl,cvl) qcirc qc)
 ] ;
@@ -287,8 +285,8 @@ end ;
 module QEnv = struct
 
 type gate_item = [
-  DEF of QC.qgatename_t and QC.qgatelam_t
-| OPAQUE of QC.qgatename_t and QC.qgateargs_t
+  DEF of QG.t and QC.qgatelam_t
+| OPAQUE of QG.t and QC.qgateargs_t
   ][@@deriving (to_yojson, show, eq, ord);] ;
 
 type item = [
@@ -301,14 +299,14 @@ and t = list item
 value gate_item pps = fun [
     DEF gname ((pvl, qvl, cvl), qc) ->
     Fmt.(pf pps "@[<v 2>gate %a (%a) %a =@ %a@]@,;"
-           QC.qgatename gname
-           (list ~{sep=(const string ", ")} paramvar) pvl
+           QG.pp_hum gname
+           (list ~{sep=(const string ", ")} PV.pp_hum) pvl
            QC.qvars_cvars (qvl, cvl)
            QC.qcirc qc)
   | OPAQUE gname (pvl, qvl, cvl) ->
     Fmt.(pf pps "@[gate %a (%a) %a ;@]"
-           QC.qgatename gname
-           (list ~{sep=(const string ", ")} paramvar) pvl
+           QG.pp_hum gname
+           (list ~{sep=(const string ", ")} PV.pp_hum) pvl
            QC.qvars_cvars (qvl, cvl))
 ] ;
 
@@ -332,6 +330,7 @@ value pp pps (env, qc) =
 end ;
 
 module Ops = struct
+open SYN ;
 open SYN.QC ;
 
 value pe_freevars pe =
@@ -349,23 +348,23 @@ value circuit_freevars qc =
   let rec fvrec = fun [
         SYN.QC.QLET loc bl qc ->
         let (pvs, qvs, cvs) = fvrec qc in
-        let qvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> qvl) |> SYN.QC.QVFVS.ofList in
-        let cvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> cvl) |> SYN.QC.CVFVS.ofList in
-        let qvs = SYN.QC.QVFVS.subtract qvs qvars in
-        let cvs = SYN.QC.CVFVS.subtract cvs cvars in
+        let qvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> qvl) |> SYN.QVFVS.ofList in
+        let cvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> cvl) |> SYN.CVFVS.ofList in
+        let qvs = SYN.QVFVS.subtract qvs qvars in
+        let cvs = SYN.CVFVS.subtract cvs cvars in
         List.fold_left (fun (pvs, qvs,  cvs) (_, _, _, qc) ->
             let (pvs', qvs', cvs') = fvrec qc in
-            (SYN.PVFVS.union pvs pvs', SYN.QC.QVFVS.union qvs qvs', SYN.QC.CVFVS.union cvs cvs'))
+            (SYN.PVFVS.union pvs pvs', SYN.QVFVS.union qvs qvs', SYN.CVFVS.union cvs cvs'))
           (SYN.PVFVS.mt,  qvs, cvs) bl
-      | QWIRES _ qvl cvl -> (SYN.PVFVS.mt,  SYN.QC.QVFVS.ofList qvl, SYN.QC.CVFVS.ofList cvl)
+      | QWIRES _ qvl cvl -> (SYN.PVFVS.mt,  SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl)
       | QGATEAPP _ _ pel qvl  cvl ->
          let pvl = List.fold_left (fun pvl pe -> SYN.PVFVS.union pvl (pe_freevars pe)) SYN.PVFVS.mt pel in
-         (pvl, SYN.QC.QVFVS.ofList qvl, SYN.QC.CVFVS.ofList cvl)
-      | QBARRIER _ qvl  -> (SYN.PVFVS.mt,  SYN.QC.QVFVS.ofList qvl, SYN.QC.CVFVS.mt)
-      | QBIT _ -> (SYN.PVFVS.mt, SYN.QC.QVFVS.mt, SYN.QC.CVFVS.mt)
-      | QDISCARD _ qvl -> (SYN.PVFVS.mt,  SYN.QC.QVFVS.ofList qvl,  SYN.QC.CVFVS.mt)
-      | QMEASURE _ qvl -> (SYN.PVFVS.mt, SYN.QC.QVFVS.ofList qvl, SYN.QC.CVFVS.mt)
-      | QRESET _ qvl -> (SYN.PVFVS.mt, SYN.QC.QVFVS.ofList qvl, SYN.QC.CVFVS.mt)
+         (pvl, SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl)
+      | QBARRIER _ qvl  -> (SYN.PVFVS.mt,  SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
+      | QBIT _ -> (SYN.PVFVS.mt, SYN.QVFVS.mt, SYN.CVFVS.mt)
+      | QDISCARD _ qvl -> (SYN.PVFVS.mt,  SYN.QVFVS.ofList qvl,  SYN.CVFVS.mt)
+      | QMEASURE _ qvl -> (SYN.PVFVS.mt, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
+      | QRESET _ qvl -> (SYN.PVFVS.mt, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
   ] in
   fvrec qc
 ;
@@ -455,12 +454,12 @@ value add_cvs m l1 l2 =
 value check_qv_corr loc lr rl v1 v2 =
   try
     equal_qvar_t (QVMap.find v1 lr) v2 && equal_qvar_t (QVMap.find v2 rl) v1
-  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_qv_corr %a %a): internal error" qvar v1 qvar v2)
+  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_qv_corr %a %a): internal error" QV.pp_hum v1 QV.pp_hum v2)
 ;
 value check_cv_corr loc lr rl v1 v2 =
   try
     equal_cvar_t (CVMap.find v1 lr) v2 && equal_cvar_t (CVMap.find v2 rl) v1
-  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" cvar v1 cvar v2)
+  with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" CV.pp_hum v1 CV.pp_hum v2)
 ;
 
 value circuit qc1 qc2 =
@@ -615,7 +614,7 @@ value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
 
 of loc and list qbinding_t and t
 | QWIRES of loc and list qvar_t and list cvar_t
-| QGATEAPP of loc and qgatename_t and list PE.t and list qvar_t and list cvar_t
+| QGATEAPP of loc and qgn_t and list PE.t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
 | QBIT of loc | QDISCARD of loc and list qvar_t
 | QMEASURE of loc and list qvar_t
@@ -680,68 +679,68 @@ type cvar_binding_t = option SYN.QC.qbinding_t ;
 type pvar_binding_t = unit ;
 
 type t = {
-    gates : SYN.QC.QGMap.t (SYN.QC.qgateargs_t * (int * int))
-  ; qvars : SYN.QC.QVMap.t qvar_binding_t
-  ; cvars : SYN.QC.CVMap.t cvar_binding_t
+    gates : SYN.QGMap.t (SYN.QC.qgateargs_t * (int * int))
+  ; qvars : SYN.QVMap.t qvar_binding_t
+  ; cvars : SYN.CVMap.t cvar_binding_t
   ; pvars : SYN.PVMap.t pvar_binding_t
   }
 ;
 
 value mk () = {
-  gates = SYN.QC.QGMap.empty
-; qvars = SYN.QC.QVMap.empty
-; cvars = SYN.QC.CVMap.empty
+  gates = SYN.QGMap.empty
+; qvars = SYN.QVMap.empty
+; cvars = SYN.CVMap.empty
 ; pvars = SYN.PVMap.empty
 } ;
 
 value mk_for_gate env = { (mk()) with gates = env.gates } ;
 
 value add_gate loc env (gid, glam) =
-  if SYN.QC.QGMap.mem gid env.gates then
-    Fmt.(raise_failwithf loc "add_gate: gate %a already in env" SYN.QC.qgatename gid)
+  if SYN.QGMap.mem gid env.gates then
+    Fmt.(raise_failwithf loc "add_gate: gate %a already in env" SYN.QG.pp_hum gid)
   else
-    { (env) with gates = SYN.QC.QGMap.add gid glam env.gates }
+    { (env) with gates = SYN.QGMap.add gid glam env.gates }
 ;
 
 value add_qvar loc env (id, qvb) =
-  { (env) with qvars = SYN.QC.QVMap.add id qvb env.qvars }
+  { (env) with qvars = SYN.QVMap.add id qvb env.qvars }
 ;
 
 value add_cvar loc env (id, cv) =
-  { (env) with cvars = SYN.QC.CVMap.add id cv env.cvars }
+  { (env) with cvars = SYN.CVMap.add id cv env.cvars }
 ;
 
 value add_pvar loc env (id, pv) =
   { (env) with pvars = SYN.PVMap.add id pv env.pvars }
 ;
 
-value has_gate loc env id = SYN.QC.QGMap.mem id env.gates ;
-value has_qvar loc env id = SYN.QC.QVMap.mem id env.qvars ;
-value has_cvar loc env id = SYN.QC.CVMap.mem id env.cvars ;
+value has_gate loc env id = SYN.QGMap.mem id env.gates ;
+value has_qvar loc env id = SYN.QVMap.mem id env.qvars ;
+value has_cvar loc env id = SYN.CVMap.mem id env.cvars ;
 value has_pvar loc env id = SYN.PVMap.mem id env.pvars ;
 
-value find_gate loc env gid = match SYN.QC.QGMap.find gid env.gates with [
+value find_gate loc env gid = match SYN.QGMap.find gid env.gates with [
   x -> x
 | exception Not_found ->
-   Fmt.(raise_failwithf loc "find_gate: gate %a not found" SYN.QC.qgatename gid)
+   Fmt.(raise_failwithf loc "find_gate: gate %a not found" SYN.QG.pp_hum gid)
 ] ;
 
-value find_qvar loc env qid = match SYN.QC.QVMap.find qid env.qvars with [
+value find_qvar loc env qid = match SYN.QVMap.find qid env.qvars with [
   x -> x
 | exception Not_found ->
-   Fmt.(raise_failwithf loc "find_qvar: qvar %a not found" SYN.QC.qvar qid)
+   Fmt.(raise_failwithf loc "find_qvar: qvar %a not found" SYN.QV.pp_hum qid)
 ] ;
 
-value find_cvar loc env cid = match SYN.QC.CVMap.find cid env.cvars with [
+value find_cvar loc env cid = match SYN.CVMap.find cid env.cvars with [
   x -> x
 | exception Not_found ->
-   Fmt.(raise_failwithf loc "find_cvar: cvar %a not found" SYN.QC.cvar cid)
+   Fmt.(raise_failwithf loc "find_cvar: cvar %a not found" SYN.CV.pp_hum cid)
 ] ;
 
 value find_pvar loc env pid = match SYN.PVMap.find pid env.pvars with [
   x -> x
 | exception Not_found ->
-   Fmt.(raise_failwithf loc "find_pvar: pvar %a not found" SYN.paramvar pid)
+   Fmt.(raise_failwithf loc "find_pvar: pvar %a not found" SYN.PV.pp_hum pid)
 ] ;
 
 end ;
@@ -749,15 +748,15 @@ end ;
 value qvar_find_mark_used loc env qv =
   match Env.find_qvar loc env qv with [
       exception Not_found ->
-                Fmt.(raise_failwithf loc "circuit: undeclared qvar %a" SYN.QC.qvar qv)
+                Fmt.(raise_failwithf loc "circuit: undeclared qvar %a" SYN.QV.pp_hum qv)
     | x -> if x.used then
-             Fmt.(raise_failwithf loc "circuit: qvar %a used more than once" SYN.QC.qvar qv)
+             Fmt.(raise_failwithf loc "circuit: qvar %a used more than once" SYN.QV.pp_hum qv)
            else x.used := True ]
 ;
 
 value cvar_find loc env cv = 
   if not (Env.has_cvar loc env cv) then
-    Fmt.(raise_failwithf loc "circuit: undeclared cvar %a" SYN.QC.cvar cv)
+    Fmt.(raise_failwithf loc "circuit: undeclared cvar %a" SYN.CV.pp_hum cv)
   else ()
 ;
 
@@ -789,27 +788,27 @@ value rec circuit env qc = match qc with [
    let ((pfl, qfl, cfl), ty) =
      match Env.find_gate loc env gn with [
          exception Not_found ->
-           Fmt.(raise_failwithf loc "gate-application: gate %a not found" SYN.QC.qgatename gn)
+           Fmt.(raise_failwithf loc "gate-application: gate %a not found" SYN.QG.pp_hum gn)
        | x -> x
        ] in
    if List.length pal <> List.length pfl then
-     Fmt.(raise_failwithf loc "circuit: gate-application %a with param-var length mismatch" SYN.QC.qgatename gn)
+     Fmt.(raise_failwithf loc "circuit: gate-application %a with param-var length mismatch" SYN.QG.pp_hum gn)
    else if List.length qal <> List.length qal then
-     Fmt.(raise_failwithf loc "circuit: gate-application %a with qvar length mismatch" SYN.QC.qgatename gn)
+     Fmt.(raise_failwithf loc "circuit: gate-application %a with qvar length mismatch" SYN.QG.pp_hum gn)
    else if List.length cal <> List.length cal then
-     Fmt.(raise_failwithf loc "circuit: gate-application %a with cvar length mismatch" SYN.QC.qgatename gn)
+     Fmt.(raise_failwithf loc "circuit: gate-application %a with cvar length mismatch" SYN.QG.pp_hum gn)
    else do {
     qal |> List.iter (qvar_find_mark_used loc env) ;
     ty
   }
 | QLET loc bl qc -> do {
     let qvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) ->
-      (List.map SYN.QC.unQV qvl)) in
+      (List.map SYN.QV.toID qvl)) in
     if not (Std.distinct qvars) then
       Fmt.(raise_failwithf loc "TYCHK.circuit: qvars in binding MUST be distinct")
     else () ;
     let cvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) ->
-      (List.map SYN.QC.unCV cvl)) in
+      (List.map SYN.CV.toID cvl)) in
     if not (Std.distinct cvars) then
       Fmt.(raise_failwithf loc "TYCHK.circuit: cvars in binding MUST be distinct")
     else () ;
@@ -835,7 +834,7 @@ value rec circuit env qc = match qc with [
     qv_bindings
     |> List.iter (fun (qv, qvb) ->
            if not qvb.Env.used then
-             Fmt.(raise_failwithf qvb.Env.loc "TYCHK.circuit: qvar %a not used" SYN.QC.qvar qv)
+             Fmt.(raise_failwithf qvb.Env.loc "TYCHK.circuit: qvar %a not used" SYN.QV.pp_hum qv)
            else ()) ;
     ty
   }
@@ -847,14 +846,14 @@ value gate_item loc env gitem = match gitem with [
   SYN.QEnv.DEF gn (((pvl, qvl, cvl) as glam), qc) -> do {
     let (fv_pvs, fv_qvs, fv_cvs) = Ops.circuit_freevars qc in
     let fv_pvs = SYN.PVFVS.subtract fv_pvs (SYN.PVFVS.ofList pvl) in
-    let fv_qvs = SYN.QC.QVFVS.subtract fv_qvs (SYN.QC.QVFVS.ofList qvl) in
-    let fv_cvs = SYN.QC.CVFVS.subtract fv_cvs (SYN.QC.CVFVS.ofList cvl) in
+    let fv_qvs = SYN.QVFVS.subtract fv_qvs (SYN.QVFVS.ofList qvl) in
+    let fv_cvs = SYN.CVFVS.subtract fv_cvs (SYN.CVFVS.ofList cvl) in
     if SYN.PVFVS.mt <> fv_pvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free param-vars %a" SYN.QC.qgatename gn SYN.PVFVS.pp fv_pvs)
-    else if SYN.QC.QVFVS.mt <> fv_qvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free qvars %a" SYN.QC.qgatename gn SYN.QC.QVFVS.pp fv_qvs)
-    else if SYN.QC.CVFVS.mt <> fv_cvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free cvars %a" SYN.QC.qgatename gn SYN.QC.CVFVS.pp fv_cvs)
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free param-vars %a" SYN.QG.pp_hum gn SYN.PVFVS.pp fv_pvs)
+    else if SYN.QVFVS.mt <> fv_qvs then
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free qvars %a" SYN.QG.pp_hum gn SYN.QVFVS.pp fv_qvs)
+    else if SYN.CVFVS.mt <> fv_cvs then
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free cvars %a" SYN.QG.pp_hum gn SYN.CVFVS.pp fv_cvs)
     else
     let env' = Env.mk_for_gate env in
     let qvbl = qvl |> List.map (fun qv -> (qv, { Env.used = False ; loc = loc ; it = None })) in

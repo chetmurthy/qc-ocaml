@@ -33,13 +33,13 @@ value rec param conv_id = fun [
 ] ;
 
 value conv_qreg_or_indexed = fun [
-      IT (QREG s) -> QC.QV Ploc.dummy (ID.mk s)
-    | INDEXED (QREG s) n -> QC.QV Ploc.dummy (ID.mk0 s n)
+      IT (QREG s) -> QV Ploc.dummy (ID.mk s)
+    | INDEXED (QREG s) n -> QV Ploc.dummy (ID.mk0 s n)
     ]
 ;
 
 value conv_qubit = fun [
-      QUBIT s -> QC.QV Ploc.dummy (ID.mk s)
+      QUBIT s -> QV Ploc.dummy (ID.mk s)
     ]
 ;
 
@@ -48,23 +48,23 @@ value wrap_uop loc conv_pv conv_qv ins rhs =
       U pel q ->
       let qv = conv_qv q in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QG Ploc.dummy (ID.mk "U")) pel [qv] [] in
+      let gateapp = QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "U")) pel [qv] [] in
       QC.QLET loc [(Ploc.dummy,  [qv], [], gateapp)] rhs
     | CX q1 q2 ->
       let qv1 = conv_qv q1 in
       let qv2 = conv_qv q2 in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QG Ploc.dummy (ID.mk "CX")) [] [qv1;qv2] [] in
+      let gateapp = QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "CX")) [] [qv1;qv2] [] in
       QC.QLET loc [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
     | COMPOSITE_GATE gname pel ql ->
       let qvl = List.map conv_qv ql in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QC.QG Ploc.dummy (ID.mk gname)) pel qvl [] in
+      let gateapp = QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk gname)) pel qvl [] in
       QC.QLET loc [(Ploc.dummy, qvl, [], gateapp)] rhs
     ]
 ;
 
 value wrap_gate_op ins rhs =
-  let to_qvar = fun [ (QUBIT s) -> QC.QV Ploc.dummy (ID.mk s) ] in
+  let to_qvar = fun [ (QUBIT s) -> QV Ploc.dummy (ID.mk s) ] in
   match ins with [
       (loc, GATE_BARRIER ql) ->
       let qvl = List.map to_qvar ql in
@@ -81,12 +81,12 @@ value gate_circuit qubits clbits instrs =
 
 value wrap_stmt conv_pv ins rhs =
   let to_qvar = fun [
-        IT (QREG s) -> QC.QV Ploc.dummy (ID.mk s)
-      | INDEXED (QREG s) n -> QC.QV Ploc.dummy (ID.mk0 s n)
+        IT (QREG s) -> QV Ploc.dummy (ID.mk s)
+      | INDEXED (QREG s) n -> QV Ploc.dummy (ID.mk0 s n)
       ] in
   let to_cvar = fun [
-        IT (CREG s) -> QC.CV Ploc.dummy (ID.mk s)
-      | INDEXED (CREG s) n -> QC.CV Ploc.dummy (ID.mk0 s n)
+        IT (CREG s) -> CV Ploc.dummy (ID.mk s)
+      | INDEXED (CREG s) n -> CV Ploc.dummy (ID.mk0 s n)
       ] in
   match ins with [
       (loc, STMT_BARRIER ql) ->
@@ -112,14 +112,14 @@ value circuit qubits clbits instrs =
 value rec env_item = fun [
   (loc, STMT_GATEDECL (gname, pvl, qvl, instrs)) ->
    let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
-   let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
+   let qvl = List.map (fun s -> QV Ploc.dummy (ID.mk s)) qvl in
    let qc = gate_circuit qvl [] instrs in
-   QEnv.QGATE loc (DEF (QC.QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc))
+   QEnv.QGATE loc (DEF (QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc))
 
 | (loc, STMT_OPAQUEDECL gname pvl qvl) ->
    let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
-   let qvl = List.map (fun s -> QC.QV Ploc.dummy (ID.mk s)) qvl in
-   QEnv.QGATE loc (OPAQUE (QC.QG Ploc.dummy (ID.mk gname)) (pvl, qvl, []))
+   let qvl = List.map (fun s -> QV Ploc.dummy (ID.mk s)) qvl in
+   QEnv.QGATE loc (OPAQUE (QG Ploc.dummy (ID.mk gname)) (pvl, qvl, []))
 
 | (loc, STMT_INCLUDE ty fname (Some l)) ->
    QEnv.QINCLUDE loc ty fname (List.map env_item l)
@@ -231,13 +231,13 @@ value program (qasm2env, stmts) =
     |> List.concat_map (fun [
       (_,STMT_QREG s count) ->
       (interval 0 (count-1))
-      |> List.map (fun n -> QC.QV Ploc.dummy (ID.mk0 s n)) ]) in
+      |> List.map (fun n -> QV Ploc.dummy (ID.mk0 s n)) ]) in
   let clbits =
     cregs
     |> List.concat_map (fun [
       (_,STMT_CREG s count) ->
       (interval 0 (count-1))
-      |> List.map (fun n -> QC.CV Ploc.dummy (ID.mk0 s n)) ]) in
+      |> List.map (fun n -> CV Ploc.dummy (ID.mk0 s n)) ]) in
   let instrs = List.concat_map (expand_stmt qasm2env) instrs in
   let qc = circuit qubits clbits instrs in
   let qc = List.fold_right (fun qv rhs ->
@@ -301,7 +301,7 @@ value stop_emit ce = { (ce) with emit = False } ;
 value reset_vars ce = { (ce) with qenv = IDMap.empty ; clenv = IDMap.empty } ;
 
 value lookup_gate ce = fun [
-  (QC.QG loc x) ->
+  (QG loc x) ->
   match IDMap.find x ce.genv with [
       exception Not_found ->
                 Fmt.(raise_failwithf loc "lookup_gate: cannot find %s" (ID.unmk x))
@@ -310,7 +310,7 @@ value lookup_gate ce = fun [
 ] ;
 
 value lookup_qv ce = fun [
-  (QC.QV loc x) ->
+  (QV loc x) ->
   match IDMap.find x ce.qenv with [
       exception Not_found ->
                 Fmt.(raise_failwithf loc "lookup_qv: cannot find %s" (ID.unmk x))
@@ -319,7 +319,7 @@ value lookup_qv ce = fun [
 ] ;
 
 value lookup_cv ce = fun [
-  (QC.CV loc x) ->
+  (CV loc x) ->
   match IDMap.find x ce.clenv with [
       exception Not_found ->
                 Fmt.(raise_failwithf loc "lookup_cv: cannot find %s" (ID.unmk x))
@@ -340,7 +340,7 @@ end ;
 module ConvEnv = CE ;
 
 value make_uop loc gn pel qrl =
-  let gn = gn |> QC.unQG |> ID.unmk in
+  let gn = gn |> QG.toID |> ID.unmk in
   match (gn, pel, qrl) with [
       ("U", pel, [qr]) -> U pel qr
     | ("CX", [], [qr1; qr2]) -> CX qr1 qr2
@@ -362,7 +362,7 @@ value conv_paramconst = fun [
 value conv_empty pv : expr empty_t = match pv with [
   PV loc _ -> Fmt.(raise_failwithf loc "conv_param: variables forbidden here")
 ] ;
-value conv_cparamvar pv = ID (unPV pv) ;
+value conv_cparamvar pv = ID (PV.toID pv) ;
 
 value conv_param conv_paramvar e =
   let rec crec = fun [
@@ -432,11 +432,11 @@ value rec conv_circuit loc0 acc env = fun [
         Std.push acc (loc, STMT_QOP (UOP (make_uop loc gn pel qrl)))) ;
     match CE.lookup_gate env gn with [
         Left ((_, qvl,  cvl), qc) ->
-        let qvl = qvl |> List.map (fun  [ QC.QV _ id -> id ]) in
+        let qvl = qvl |> List.map (fun  [ QV _ id -> id ]) in
         if List.length qrl <> List.length qvl then
-          Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" QC.pp_qgatename_t gn)
+          Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" QG.pp gn)
         else if [] <> cvl then
-          Fmt.(raise_failwithf loc "conv_circuit: composite gate %a should not accept classical bits" QC.pp_qgatename_t gn)
+          Fmt.(raise_failwithf loc "conv_circuit: composite gate %a should not accept classical bits" QG.pp gn)
         else
           let env = CE.reset_vars env in
           let env = List.fold_left CE.upsert_qv env (Std.combine qvl qrl) in
@@ -444,9 +444,9 @@ value rec conv_circuit loc0 acc env = fun [
           conv_circuit Ploc.dummy acc env qc
       | Right (_, qvl,  cvl) ->
          if List.length qrl <> List.length qvl then
-           Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" QC.pp_qgatename_t gn)
+           Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" QG.pp gn)
          else if [] <> cvl then
-           Fmt.(raise_failwithf loc "conv_circuit: opaque gate %a should not accept classical bits" QC.pp_qgatename_t gn)
+           Fmt.(raise_failwithf loc "conv_circuit: opaque gate %a should not accept classical bits" QG.pp gn)
          else
            (qrl, [])
       ]
@@ -459,8 +459,8 @@ and conv_bindings loc acc env bl =
 and conv_binding loc0 acc env b =
   let (loc, qvl, cvl, qc) = b in
   let loc = ploc_encl_with_comments loc0 loc in
-  let qvl = qvl |> List.map (fun  [ QC.QV _ id -> id ]) in
-  let cvl = cvl |> List.map (fun  [ QC.CV _ id -> id ]) in
+  let qvl = qvl |> List.map (fun  [ QV _ id -> id ]) in
+  let cvl = cvl |> List.map (fun  [ CV _ id -> id ]) in
   let (qrl, crl) = conv_circuit loc acc env qc in
   if List.length qrl <> List.length qvl then
     Fmt.(raise_failwithf loc "conv_binding: length mismatch in qvars: %a" QC.pp_qbinding_t b)
@@ -492,8 +492,8 @@ value circuit (gates, qc) =
 value rec extract_gates env =
   env |>
     List.concat_map (fun [
-      QEnv.QGATE _ (DEF (QC.QG _ gn) glam) -> [(gn, Left glam)]
-    | QEnv.QGATE _ (OPAQUE (QC.QG _ gn) gargs) -> [(gn, Right gargs)]
+      QEnv.QGATE _ (DEF (QG _ gn) glam) -> [(gn, Left glam)]
+    | QEnv.QGATE _ (OPAQUE (QG _ gn) gargs) -> [(gn, Right gargs)]
     | QEnv.QINCLUDE _ QASM2 _ l -> extract_gates l
     ])
 ;
