@@ -198,7 +198,7 @@ let alpha_equality (name, txt1, txt2, expect) =
   name >:: (fun ctxt ->
     let (env, qc1) = txt1 |> Stream.of_string |> parse_qcircuit in
     let (env, qc2) = txt2 |> Stream.of_string |> parse_qcircuit in
-    let cmp qc1 qc2 = Ops.alpha_equal qc1 qc2 in
+    let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" SYN.QC.qcirc qc) in
     if expect then
       assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2

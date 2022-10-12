@@ -430,7 +430,7 @@ value lower_circuit qc =
 
  *)
 
-
+module AlphaEq = struct
 value add_qvs m l1 l2 =
   List.fold_left2 (fun m v1 v2 -> QVMap.add v1 v2 m) m l1 l2
 ;
@@ -448,8 +448,7 @@ value check_cv_corr loc lr rl v1 v2 =
   with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" cvar v1 cvar v2)
 ;
 
-value alpha_equal qc1 qc2 =
-  let loc = loc_of_qcirc qc1 in
+value circuit qc1 qc2 =
   let rec alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
     (QLET _ bl1 qc1, QLET _ bl2 qc2) ->
     (List.length bl1 = List.length bl2)
@@ -509,6 +508,29 @@ value alpha_equal qc1 qc2 =
       let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVFVS.toList cvfvs1) in
       alpharec (qvmap, qvmap, cvmap, cvmap) (qc1, qc2))
 ;
+end ;
+
+module Fresh = struct
+
+value fresh_counter = ref 0 ;
+
+value test_with_fresh_counter ~{counter} f arg = do {
+  let ocounter = fresh_counter.val in
+  fresh_counter.val := counter ;
+  try let rv = f arg in do { fresh_counter.val := ocounter ; rv }
+  with exc -> do {
+    fresh_counter.val := ocounter ;
+    raise exc
+  }
+  }
+;
+(*
+value qcircuit qc =
+  let (qvfvs, cvfvs) = circuit_freevars qc in
+ *)  
+
+end ;
+
 end ;
 
 module TYCHK = struct
