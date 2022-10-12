@@ -603,32 +603,69 @@ value qgatelam ~{counter} ((pvl, qvl, cvl), qc) =
 end ;
 
 module BetaReduce = struct
-(*
-value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
+
+value subst_pe pvmap pe =
+  let open PE in
   let rec substrec = fun [
-    QLET loc bl qc ->
-    bl |> List.iter (fun (loc, qvl, cvl, _) ->
-              if qvl |> List.exists (QVFVS.mem qvfvs) then
-                Fmt.(raise_failwithf loc "BetaReduce.subst: internal error: binding qvars %a clash with"
-                       (list ~{sep=const string " "} qvar) qvl)
+        (ID loc pv) as pe ->
+        match PVMap.find pv pvmap with [
+            exception Not_found -> pe
+          | x -> x
+          ]
+  | (CONST _ _) as pe -> pe
+  | BINOP loc bop pe1 pe2 -> BINOP loc bop (substrec pe1) (substrec pe2)
+  | UNOP loc uop pe -> UNOP loc uop (substrec pe)
+  | UFUN loc fop pe -> UFUN loc fop (substrec pe)
+  ] in
+  substrec pe
+;
 
-of loc and list qbinding_t and t
-| QWIRES of loc and list qvar_t and list cvar_t
-| QGATEAPP of loc and qgn_t and list PE.t and list qvar_t and list cvar_t
-| QBARRIER of loc and list qvar_t
-| QBIT of loc | QDISCARD of loc and list qvar_t
-| QMEASURE of loc and list qvar_t
-| QRESET of loc and list qvar_t
-
+value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
+  let subst_qvar qv =
+    match QVMap.find qv qvmap with [
+        exception Not_found -> qv
+      | x -> x
       ] in
+  let subst_cvar cv =
+    match CVMap.find cv cvmap with [
+        exception Not_found -> cv
+      | x -> x
+      ] in
+  let subst_pe pe = subst_pe pvmap pe in
+  let rec substrec = fun [
+    QLET loc bl qc -> do {
+      bl |> List.iter (fun (loc, qvl, cvl, _) ->
+                if qvl |> List.exists (QVFVS.mem qvfvs) then
+                  Fmt.(raise_failwithf loc "BetaReduce.subst: internal error: binding qvars %a clash with subst %a"
+                         (list ~{sep=const string " "} QV.pp_hum) qvl
+                         QVFVS.pp_hum qvfvs
+                  )
+                else if cvl |> List.exists (CVFVS.mem cvfvs) then
+                  Fmt.(raise_failwithf loc "BetaReduce.subst: internal error: binding cvars %a clash with subst %a"
+                         (list ~{sep=const string " "} CV.pp_hum) cvl
+                         CVFVS.pp_hum cvfvs
+                  )
+                else ());
+      let bl = bl |> List.map (fun (loc, qvl,cvl, qc) -> (loc, qvl, cvl, substrec qc)) in
+      QLET loc bl (substrec qc)
+    }
+
+  | QWIRES loc qvl cvl -> QWIRES loc (List.map subst_qvar qvl) (List.map subst_cvar cvl)
+  | QGATEAPP loc gn pel qvl cvl -> QGATEAPP loc gn (List.map subst_pe pel) (List.map subst_qvar qvl) (List.map subst_cvar cvl)
+  | QBARRIER loc qvl -> QBARRIER loc (List.map subst_qvar qvl)
+  | (QBIT _) as qc -> qc
+  | QDISCARD loc qvl -> QDISCARD loc (List.map subst_qvar qvl)
+  | QMEASURE loc qvl -> QMEASURE loc (List.map subst_qvar qvl)
+  | QRESET loc qvl -> QRESET loc (List.map subst_qvar qvl)
+  ] in
   substrec qc
 ;
 
 value qcircuit genv = fun [
   QGATEAPP loc gn pel qel cel ->
   let ((pvl,qvl, cvl), qc) = 
-    match GNMAP.find gn genv with [
-      exception Not_found -> Fmt.(raise_failwithf loc "BetaReduce.qcircuit: gate %a not found" qgatename gn)
+    match QGMap.find gn genv with [
+      exception Not_found -> Fmt.(raise_failwithf loc "BetaReduce.qcircuit: gate %a not found" QG.pp_hum gn)
     | x -> x ] in
   if List.length pel <> List.length pvl then
     Fmt.(raise_failwithf loc "BetaReduce.qcircuit: param-vars/actuals differ in length")
@@ -638,13 +675,13 @@ value qcircuit genv = fun [
     Fmt.(raise_failwithf loc "BetaReduce.qcircuit: c-vars/actuals differ in length")
   else 
   let pvmap = List.fold_left2 (fun pvmap pv pe -> PVMap.add pv pe pvmap) PVMap.empty pvl pel in
-  let qvmap = List.fold_left2 (fun qvmap qv qe -> PVMap.add qv qe qvmap) QVMap.empty qvl qel in
+  let qvmap = List.fold_left2 (fun qvmap qv qe -> QVMap.add qv qe qvmap) QVMap.empty qvl qel in
   let cvmap = List.fold_left2 (fun cvmap cv ce -> CVMap.add cv ce cvmap) CVMap.empty cvl cel in
   subst (pvmap, qvmap, cvmap, QVFVS.ofList qel, CVFVS.ofList cel) qc
 
 | x -> Fmt.(raise_failwithf (loc_of_qcirc x) "BetaReduce: can only be applied to gate-application, not %a" qcirc x)
 ] ;
- *)
+
 end ;
 
 (** TODO
