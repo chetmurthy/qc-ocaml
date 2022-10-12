@@ -174,6 +174,25 @@ let tychk_qasm2_file (name, f, expect) =
     assert_equal ~printer expect ty
   )
 ;;
+
+let pp_tests = "pp tests" >:::
+(
+    (List.map pp_qlam [
+       ("pp simple 0", {|
+let q1 = h q0 in
+()
+|})
+       ; ("pp simple 1", {|
+let p = qubit() in
+let q0 = qubit() in
+let q1 = h q0 in
+()
+|})
+     ]
+  )
+)
+;;
+
 let tychk_tests = "tychk tests" >:::
 let open TYCHK.Env in
 let open TYCHK in
@@ -234,22 +253,10 @@ let q0 = h q in
 ()
 |})
      ]
-  )@
-    (List.map pp_qlam [
-       ("pp simple 0", {|
-let q1 = h q0 in
-()
-|})
-       ; ("pp simple 1", {|
-let p = qubit() in
-let q0 = qubit() in
-let q1 = h q0 in
-()
-|})
-     ]
   )
 )
 ;;
+
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
@@ -258,6 +265,7 @@ let _ =
 if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
         roundtrip_tests
+      ; pp_tests
       ; tychk_tests
     ])
 ;;
