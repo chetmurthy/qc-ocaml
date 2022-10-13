@@ -64,6 +64,8 @@ module ID = struct
     if n = -1 then s else
       Printf.sprintf  "%s%d" s n
 
+  let pp_hum pps x = Fmt.(pf pps "%s" (unmk x))
+
 end
 
 module IDMap = Map.Make(ID)

@@ -6,8 +6,6 @@ open Pa_ppx_base.Pp_MLast ;
 open Qc_misc ;
 open Qlam_misc ;
 
-value ident pps x = Fmt.(pf pps "%s" (ID.unmk x)) ;
-
 type loc = Ploc.t ;
 value loc_to_yojson (_ : loc) = `String "<loc>" ;
 value equal_loc _ _ = True ;
@@ -29,7 +27,7 @@ module PV = struct
   value ofID x = PV Ploc.dummy x ;
   value to_loc = fun [ PV loc _ -> loc ] ;
 
-  value pvar pps = fun [ (PV _ id) -> ident pps id ] ;
+  value pvar pps = fun [ (PV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" pvar x) ;
 end ;
 
@@ -43,7 +41,7 @@ module QV = struct
   value toID = fun [ QV _ x -> x ] ;
   value ofID x = QV Ploc.dummy x ;
   value to_loc = fun [ QV loc _ -> loc ] ;
-  value qvar pps = fun [ (QV _ id) -> ident pps id ] ;
+  value qvar pps = fun [ (QV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
 end ;
 module QVMap = VarMap(QV) ;
@@ -55,7 +53,7 @@ module CV = struct
   value toID = fun [ CV _ x -> x ] ;
   value ofID x = CV Ploc.dummy x ;
   value to_loc = fun [ CV loc _ -> loc ] ;
-  value cvar pps = fun [ (CV _ id) -> ident pps id ] ;
+  value cvar pps = fun [ (CV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
 end ;
 module CVMap = VarMap(CV) ;
@@ -67,7 +65,7 @@ module QG = struct
   value toID = fun [ QG _ x -> x ] ;
   value ofID x = QG Ploc.dummy x ;
   value to_loc = fun [ QG loc _ -> loc ] ;
-  value qgn pps = fun [ (QG _ id) -> ident pps id ] ;
+  value qgn pps = fun [ (QG _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" qgn x) ;
 end ;
 module QGMap = VarMap(QG) ;
