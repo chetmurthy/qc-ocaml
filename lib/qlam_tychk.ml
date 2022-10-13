@@ -182,7 +182,7 @@ value rec circuit env qc = match qc with [
 value top_circuit env qc = circuit env qc ;
 
 value gate_item loc env gitem = match gitem with [
-  QEnv.DEF gn (((pvl, qvl, cvl) as glam), qc) -> do {
+  DEF gn (((pvl, qvl, cvl) as glam), qc) -> do {
     let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
     let fv_pvs = PVFVS.subtract fv_pvs (PVFVS.ofList pvl) in
     let fv_qvs = QVFVS.subtract fv_qvs (QVFVS.ofList qvl) in
@@ -212,7 +212,7 @@ value gate_item loc env gitem = match gitem with [
 
 
 value rec env_item env ei = match ei with [
-  QEnv.QINCLUDE loc _ fname l ->
+  QINCLUDE loc _ fname l ->
    List.fold_left env_item env l
 | QGATE loc gitem -> gate_item loc env gitem
 ] ;

@@ -371,7 +371,7 @@ module Unroll = struct
 
 module Env = struct
 
-  type item = { it : SYN.QEnv.gate_item ; builtin : bool } ;
+  type item = { it : SYN.gate_item ; builtin : bool } ;
 
   type t = {
       genv : QGMap.t item

@@ -114,15 +114,15 @@ value rec env_item = fun [
    let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
    let qc = gate_circuit qvl [] instrs in
-   SYN.QEnv.QGATE loc (DEF (QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc))
+   SYN.QGATE loc (DEF (QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc))
 
 | (loc, STMT_OPAQUEDECL gname pvl qvl) ->
    let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
-   SYN.QEnv.QGATE loc (OPAQUE (QG Ploc.dummy (ID.mk gname)) (pvl, qvl, []))
+   SYN.QGATE loc (OPAQUE (QG Ploc.dummy (ID.mk gname)) (pvl, qvl, []))
 
 | (loc, STMT_INCLUDE ty fname (Some l)) ->
-   SYN.QEnv.QINCLUDE loc ty fname (List.map env_item l)
+   SYN.QINCLUDE loc ty fname (List.map env_item l)
 
 | (loc, STMT_INCLUDE ty fname None) ->
    Fmt.(raise_failwithf loc "Qconvert.env_item: can only round-trip once with an include statement")
@@ -492,7 +492,7 @@ value circuit (gates, qc) =
 value rec extract_gates env =
   env |>
     List.concat_map (fun [
-      SYN.QEnv.QGATE _ (DEF (QG _ gn) glam) -> [(gn, Left glam)]
+      SYN.QGATE _ (DEF (QG _ gn) glam) -> [(gn, Left glam)]
     | QGATE _ (OPAQUE (QG _ gn) gargs) -> [(gn, Right gargs)]
     | QINCLUDE _ QASM2 _ l -> extract_gates l
     ])
@@ -501,12 +501,12 @@ value rec extract_gates env =
 value env_item gates it = [] ;
  *)
 value env_item gates it = match it with [
-  SYN.QEnv.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
+  SYN.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
 | QINCLUDE loc _ _ _ ->
    Fmt.(raise_failwithf loc "cannot convert QLAM include into QASM")
 | QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "U" -> [] 
 | QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "CX" -> []
-| _ -> Fmt.(failwithf "Qconvert.env_item: unexpected declaration %a" SYN.QEnv.pp_item it)
+| _ -> Fmt.(failwithf "Qconvert.env_item: unexpected declaration %a" PP.item it)
 ] ;
 
 value env gates =

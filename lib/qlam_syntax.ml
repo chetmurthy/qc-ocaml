@@ -117,8 +117,6 @@ value loc_of_qcirc = fun [
 ] ;
 end ;
 
-module QEnv = struct
-
 type gate_item = [
   DEF of QG.t and QC.qgatelam_t
 | OPAQUE of QG.t and QC.qgateargs_t
@@ -126,14 +124,12 @@ type gate_item = [
 
 type item = [
   QGATE of loc and gate_item
-| QINCLUDE of loc and file_type_t and string and t
+| QINCLUDE of loc and file_type_t and string and env_t
 ]
-and t = list item
+and env_t = list item
 [@@deriving (to_yojson, show, eq, ord);] ;
 
-end ;
-
-type t = (QEnv.t * QC.t)[@@deriving (to_yojson, show, eq, ord);] ;
+type top = (env_t * QC.t)[@@deriving (to_yojson, show, eq, ord);] ;
 end ;
 
 module PP = struct
@@ -238,7 +234,7 @@ and binding pps = fun [
 ] ;
 
 value gate_item pps = fun [
-    QEnv.DEF gname ((pvl, qvl, cvl), qc) ->
+    DEF gname ((pvl, qvl, cvl), qc) ->
     Fmt.(pf pps "@[<v 2>gate %a (%a) %a =@ %a@]@,;"
            QG.pp_hum gname
            (list ~{sep=(const string ", ")} PV.pp_hum) pvl
@@ -252,7 +248,7 @@ value gate_item pps = fun [
 ] ;
 
 value item pps = fun [
-    QEnv.QGATE _ gitem -> gate_item pps gitem
+    QGATE _ gitem -> gate_item pps gitem
   | QINCLUDE _ _ s _ ->
      Fmt.(pf pps "include %a ;" (quote string) s)
 ] ;
@@ -263,7 +259,7 @@ value env pps l =
   Fmt.(pf pps "@[<v>%a@]" (list ~{sep=newline_sep} item) l) ;
 
 
-value top pps (env, qc) =
-  Fmt.(pf pps "%a@.%a%!" QEnv.pp env qcirc qc) ;
+value top pps (l, qc) =
+  Fmt.(pf pps "%a@.%a%!" env l qcirc qc) ;
 
 end ;
