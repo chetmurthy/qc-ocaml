@@ -48,6 +48,6 @@ top: all
 .SUFFIXES: .cmo .cmi .mll .ml .mli .cmx .cma .cmxa .cmt .cmti
 
 clean::
-	$(RM) -rf *.cm* *.o *.a *.byte *.opt *.log *.cache *.ppo *ppo.ml _build/* .cmt *.odoc
+	$(RM) -rf *.cm* *.o *.a *.byte *.opt *.log *.cache *.ppo *ppo.ml _build/* .cmt *.odoc .depend.NEW
 
 realclean:: clean
