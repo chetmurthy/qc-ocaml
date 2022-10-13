@@ -13,7 +13,7 @@ value compare_loc _ _ = 0 ;
 
 module SYN = struct
 
-type const_t = [
+  type const_t = [
     REAL of RealNumeral.t
   | NNINT of int
   | PI
@@ -112,8 +112,8 @@ value loc_of_qcirc = fun [
 ] ;
 
 type gate_item = [
-  DEF of QG.t and qgatelam_t
-| OPAQUE of QG.t and qgateargs_t
+  DEF of qgn_t and qgatelam_t
+| OPAQUE of qgn_t and qgateargs_t
   ][@@deriving (to_yojson, show, eq, ord);] ;
 
 type item = [

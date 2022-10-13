@@ -18,11 +18,12 @@ TARGET := qc_ocaml.cma
 OML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
-	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
+	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml \
+	qlam_migrate.ml
 RML = qlam_misc.ml qlam_syntax.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml
 ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
-	qlam_misc.ml qlam_syntax.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml \
+	qlam_misc.ml qlam_syntax.ml qlam_migrate.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
 
@@ -71,6 +72,13 @@ qlam_syntax.cmo:  qlam_syntax.ml
 qlam_syntax.cmx:  qlam_syntax.ml
 	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
+IMPORT_CFLAGS=-ppopt -pa_import-I -ppopt .
+qlam_migrate.cmo:  qlam_migrate.ml
+#	$(NOT_OCAMLFIND) preprocess $(OCAMLCFLAGS) -package $(PACKAGES),$(PRPACKAGE),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax $(SYNTAX) $< > $*_ppo.ml
+	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax camlp5o -c $<
+
+qlam_migrate.cmx:  qlam_migrate.ml
+	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax camlp5o -c $<
 
 qlam_ops.cmo:  qlam_ops.ml
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
@@ -105,7 +113,7 @@ $(CMO) $(CMI) $(CMX): $(EXTERNAL)
 
 depend:: qasm0_lexer.ml qasm2_lexer.ml
 	echo "$(CMO) $(CMI) $(CMX): $(EXTERNAL)" > .depend.NEW
-	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5o $(OML) $(MLI) >> .depend.NEW
+	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax camlp5o $(OML) $(MLI) >> .depend.NEW
 	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5r $(RML) $(RMLI) >> .depend.NEW \
 		&& mv .depend.NEW .depend
 

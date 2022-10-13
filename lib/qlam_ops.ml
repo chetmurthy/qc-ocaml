@@ -271,7 +271,12 @@ value qgatelam ~{counter} ((pvl, qvl, cvl), qc) =
         ([cv'::cvl], CVMap.add cv cv' cvmap)) cvl ([], cvmap) in
   ((pvl, qvl, cvl), qcircuit ~{qvmap=qvmap} ~{cvmap=cvmap} ~{counter=counter} qc)
 ;
-
+(*
+value max_id_index qc =
+  let open Qlam_migrate in
+  let dt = make_dt() in
+  let 
+ *)
 end ;
 
 module BetaReduce = struct
@@ -391,6 +396,12 @@ module Env = struct
   ] ;
     
 end ;
+
+(** unroll: takes a map [gatename -> gatelam] and a qcircuit,  unrolls all gates possible.
+
+    A gate that is not in the map, is not unrolled.  So the selection of the map completely 
+    determines what is unrolled.
+ *)
 
 end ;
 
