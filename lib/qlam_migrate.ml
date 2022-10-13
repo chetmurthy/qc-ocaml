@@ -28,7 +28,6 @@ and top = [%import: Qlam_syntax.SYN.top]
 [@@deriving migrate
     { dispatch_type = dispatch_table_t
     ; dispatch_table_constructor = make_dt
-    ; default_open_recursion = false
     ; default_dispatchers = [
         {
           srcmod = Qlam_syntax.SYN

@@ -271,12 +271,20 @@ value qgatelam ~{counter} ((pvl, qvl, cvl), qc) =
         ([cv'::cvl], CVMap.add cv cv' cvmap)) cvl ([], cvmap) in
   ((pvl, qvl, cvl), qcircuit ~{qvmap=qvmap} ~{cvmap=cvmap} ~{counter=counter} qc)
 ;
-(*
+
 value max_id_index qc =
+  let max_id = ref (-1) in
   let open Qlam_migrate in
   let dt = make_dt() in
-  let 
- *)
+  let migrate_id dt ((_, n) as x) = do {
+    max_id.val := max max_id.val n ;
+    x
+  } in
+  let dt = { (dt) with migrate_id = migrate_id } in do {
+    ignore(dt.migrate_qcirc_t dt qc) ;
+    max_id.val
+  }
+;
 end ;
 
 module BetaReduce = struct
