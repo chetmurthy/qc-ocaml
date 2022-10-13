@@ -129,18 +129,19 @@ open Qasm2_tests ;;
 open Qlam_tests ;;
 
 open Qlam_syntax ;;
+open Qlam_ops ;;
 open Qlam_parser ;;
 
 open Qasm2syntax.AST ;;
 
-let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" SYN.QC.qcirc qc) ;;
+let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" PP.qcirc qc) ;;
 #install_printer qcircuit_pp ;;
 
-let gate_item_pp gi = Fmt.(pf stdout "<:gate_item< %a >>" SYN.QEnv.gate_item gi) ;;
+let gate_item_pp gi = Fmt.(pf stdout "<:gate_item< %a >>" PP.gate_item gi) ;;
 (*
 #install_printer gate_item_pp ;;
  *)
-let item_pp gi = Fmt.(pf stdout "<:item< %a >>" SYN.QEnv.item gi) ;;
+let item_pp gi = Fmt.(pf stdout "<:item< %a >>" PP.item gi) ;;
 #install_printer item_pp ;;
 
 let read_file_tolam s0 =
@@ -148,11 +149,11 @@ let read_file_tolam s0 =
   (env, instrs) |>  Qconvert.ToLam.program
 ;;
 
-let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QC.QVFVS.pp_hum x) ;;
-let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.QC.CVFVS.pp_hum x) ;;
+let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QVFVS.pp_hum x) ;;
+let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.CVFVS.pp_hum x) ;;
 
-let pp_qv_corr l = Fmt.(pf stdout "<:qvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QC.qvar SYN.QC.qvar))) (SYN.QC.QVMap.bindings l)) ;;
-let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QC.cvar SYN.QC.cvar))) (SYN.QC.CVMap.bindings l)) ;;
+let pp_qv_corr l = Fmt.(pf stdout "<:qvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QV.pp_hum SYN.QV.pp_hum))) (SYN.QVMap.bindings l)) ;;
+let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.CV.pp_hum SYN.CV.pp_hum))) (SYN.CVMap.bindings l)) ;;
 
 #install_printer pp_qvfvs ;;
 #install_printer pp_cvfvs ;;
@@ -167,8 +168,8 @@ let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ")
 let alpha_equality (name, txt1, txt2, expect) = 
     let (env, qc1) = txt1 |> Stream.of_string |> parse_qcircuit in
     let (env, qc2) = txt2 |> Stream.of_string |> parse_qcircuit in
-    let cmp qc1 qc2 = Ops.alpha_equal qc1 qc2 in
-    let printer qc = Fmt.(str "%a" SYN.QC.qcirc qc) in
+    let cmp qc1 qc2 = AlphaEq.circuit qc1 qc2 in
+    let printer qc = Fmt.(str "%a" PP.qcirc qc) in
     if expect then
       assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2
     else
