@@ -11,14 +11,14 @@ module Env = struct
 type qvar_binding_t = {
     used : mutable bool
   ; loc : Ploc.t
-  ; it : option QC.qbinding_t
+  ; it : option qbinding_t
   } ;
 
-type cvar_binding_t = option QC.qbinding_t ;
+type cvar_binding_t = option qbinding_t ;
 type pvar_binding_t = unit ;
 
 type t = {
-    gates : QGMap.t (QC.qgateargs_t * (int * int))
+    gates : QGMap.t (qgateargs_t * (int * int))
   ; qvars : QVMap.t qvar_binding_t
   ; cvars : CVMap.t cvar_binding_t
   ; pvars : PVMap.t pvar_binding_t
@@ -100,7 +100,7 @@ value cvar_find loc env cv =
 ;
 
 value rec circuit env qc = match qc with [
-  QC.QWIRES loc qvl cvl -> do {
+  QWIRES loc qvl cvl -> do {
     qvl |> List.iter (qvar_find_mark_used loc env) ;
     cvl |> List.iter (cvar_find loc env) ;
     (List.length qvl, List.length cvl)

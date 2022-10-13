@@ -73,15 +73,15 @@ EXTEND
   ;
 
   qcirc: [ [
-      "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QC.QLET loc l qc
-    | (qvl,cvl) = paren_qvars_cvars -> QC.QWIRES loc qvl cvl
-    | ["qubit"| "qbit"] ; "(" ; ")" -> QC.QBIT loc
-    | "qdiscard" ; qvl = ne_qvars -> QC.QDISCARD loc qvl
-    | "barrier" ; qvl = ne_qvars -> QC.QBARRIER loc qvl
-    | "measure" ; qvl = ne_qvars -> QC.QMEASURE loc qvl
-    | "reset" ; qvl = ne_qvars -> QC.QRESET loc qvl
+      "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QLET loc l qc
+    | (qvl,cvl) = paren_qvars_cvars -> QWIRES loc qvl cvl
+    | ["qubit"| "qbit"] ; "(" ; ")" -> QBIT loc
+    | "qdiscard" ; qvl = ne_qvars -> QDISCARD loc qvl
+    | "barrier" ; qvl = ne_qvars -> QBARRIER loc qvl
+    | "measure" ; qvl = ne_qvars -> QMEASURE loc qvl
+    | "reset" ; qvl = ne_qvars -> QRESET loc qvl
     | gn = qgatename ; pl = params ; (qvl,cvl) = qvars_cvars ->
-       QC.QGATEAPP loc gn pl qvl cvl
+       QGATEAPP loc gn pl qvl cvl
   ] ]
   ;
 

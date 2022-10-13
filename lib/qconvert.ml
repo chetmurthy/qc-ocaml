@@ -48,18 +48,18 @@ value wrap_uop loc conv_pv conv_qv ins rhs =
       U pel q ->
       let qv = conv_qv q in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = SYN.QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "U")) pel [qv] [] in
-      SYN.QC.QLET loc [(Ploc.dummy,  [qv], [], gateapp)] rhs
+      let gateapp = SYN.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "U")) pel [qv] [] in
+      SYN.QLET loc [(Ploc.dummy,  [qv], [], gateapp)] rhs
     | CX q1 q2 ->
       let qv1 = conv_qv q1 in
       let qv2 = conv_qv q2 in
-      let gateapp = SYN.QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "CX")) [] [qv1;qv2] [] in
-      SYN.QC.QLET loc [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
+      let gateapp = SYN.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "CX")) [] [qv1;qv2] [] in
+      SYN.QLET loc [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
     | COMPOSITE_GATE gname pel ql ->
       let qvl = List.map conv_qv ql in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = SYN.QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk gname)) pel qvl [] in
-      SYN.QC.QLET loc [(Ploc.dummy, qvl, [], gateapp)] rhs
+      let gateapp = SYN.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk gname)) pel qvl [] in
+      SYN.QLET loc [(Ploc.dummy, qvl, [], gateapp)] rhs
     ]
 ;
 
@@ -68,14 +68,14 @@ value wrap_gate_op ins rhs =
   match ins with [
       (loc, GATE_BARRIER ql) ->
       let qvl = List.map to_qvar ql in
-      SYN.QC.QLET loc [(Ploc.dummy, qvl, [], SYN.QC.QBARRIER Ploc.dummy qvl)] rhs
+      SYN.QLET loc [(Ploc.dummy, qvl, [], SYN.QBARRIER Ploc.dummy qvl)] rhs
     | (loc, GATE_UOP uop) ->
        wrap_uop loc conv_cparamvar conv_qubit uop rhs
     ]
 ;
 
 value gate_circuit qubits clbits instrs =
-  let rhs = SYN.QC.QWIRES Ploc.dummy qubits clbits in
+  let rhs = SYN.QWIRES Ploc.dummy qubits clbits in
   List.fold_right wrap_gate_op instrs rhs
 ;
 
@@ -91,21 +91,21 @@ value wrap_stmt conv_pv ins rhs =
   match ins with [
       (loc, STMT_BARRIER ql) ->
       let qvl = List.map to_qvar ql in
-      SYN.QC.QLET loc [(Ploc.dummy, qvl, [], SYN.QC.QBARRIER Ploc.dummy qvl)] rhs
+      SYN.QLET loc [(Ploc.dummy, qvl, [], SYN.QBARRIER Ploc.dummy qvl)] rhs
     | (loc, STMT_QOP(RESET q)) ->
       let qv = to_qvar q in
-      SYN.QC.QLET loc [(Ploc.dummy, [qv], [], SYN.QC.QRESET Ploc.dummy [qv])] rhs
+      SYN.QLET loc [(Ploc.dummy, [qv], [], SYN.QRESET Ploc.dummy [qv])] rhs
     | (loc, STMT_QOP(MEASURE q c)) ->
       let qv = to_qvar q in
       let cv = to_cvar c in
-      SYN.QC.QLET loc [(Ploc.dummy, [qv], [cv], SYN.QC.QMEASURE Ploc.dummy [qv])] rhs
+      SYN.QLET loc [(Ploc.dummy, [qv], [cv], SYN.QMEASURE Ploc.dummy [qv])] rhs
     | (loc, STMT_QOP(UOP uop)) ->
        wrap_uop loc conv_pv conv_qreg_or_indexed uop rhs
     ]
 ;
 
 value circuit qubits clbits instrs =
-  let rhs = SYN.QC.QWIRES Ploc.dummy qubits clbits in
+  let rhs = SYN.QWIRES Ploc.dummy qubits clbits in
   List.fold_right (wrap_stmt empty) instrs rhs
 ;
 
@@ -241,7 +241,7 @@ value program (qasm2env, stmts) =
   let instrs = List.concat_map (expand_stmt qasm2env) instrs in
   let qc = circuit qubits clbits instrs in
   let qc = List.fold_right (fun qv rhs ->
-               SYN.QC.QLET Ploc.dummy [(Ploc.dummy, [qv], [], SYN.QC.QBIT Ploc.dummy)] rhs)
+               SYN.QLET Ploc.dummy [(Ploc.dummy, [qv], [], SYN.QBIT Ploc.dummy)] rhs)
              qubits qc in
   (qlam_env, qc)
 ;
@@ -268,7 +268,7 @@ module CE = struct
 type t = {
     qubits : BC.t
   ; clbits : BC.t
-  ; genv : IDMap.t (choice SYN.QC.qgatelam_t SYN.QC.qgateargs_t)
+  ; genv : IDMap.t (choice SYN.qgatelam_t SYN.qgateargs_t)
   ; qenv : IDMap.t (or_indexed qreg_t)
   ; clenv : IDMap.t (or_indexed creg_t)
   ; emit : bool
@@ -385,7 +385,7 @@ value conv_param conv_paramvar e =
 ;
 
 value rec conv_circuit loc0 acc env = fun [
-  SYN.QC.QLET loc bl qc ->
+  SYN.QLET loc bl qc ->
   let loc = ploc_encl_with_comments loc0 loc in
   let env = conv_bindings loc acc env bl in
   conv_circuit Ploc.dummy acc env qc
@@ -463,9 +463,9 @@ and conv_binding loc0 acc env b =
   let cvl = cvl |> List.map (fun  [ SYN.CV _ id -> id ]) in
   let (qrl, crl) = conv_circuit loc acc env qc in
   if List.length qrl <> List.length qvl then
-    Fmt.(raise_failwithf loc "conv_binding: length mismatch in qvars: %a" SYN.QC.pp_qbinding_t b)
+    Fmt.(raise_failwithf loc "conv_binding: length mismatch in qvars: %a" SYN.pp_qbinding_t b)
   else if List.length crl <> List.length cvl then
-    Fmt.(raise_failwithf loc "conv_binding: length mismatch in clvars: %a" SYN.QC.pp_qbinding_t b)
+    Fmt.(raise_failwithf loc "conv_binding: length mismatch in clvars: %a" SYN.pp_qbinding_t b)
   else
     let env = List.fold_left CE.upsert_qv env (Std.combine qvl qrl) in
     let env = List.fold_left CE.upsert_cv env (Std.combine cvl crl) in

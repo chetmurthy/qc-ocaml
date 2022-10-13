@@ -86,14 +86,11 @@ type pexpr_t = [
   ][@@deriving (to_yojson, show, eq, ord);]
 ;
 
-module QC = struct
-open Fmt ;
-
-type qgatelam_t = (qgateargs_t * t)
+type qgatelam_t = (qgateargs_t * qcirc_t)
 and qgateargs_t = (list pvar_t * list qvar_t * list cvar_t)
 
-and t = [
-  QLET of loc and list qbinding_t and t
+and qcirc_t = [
+  QLET of loc and list qbinding_t and qcirc_t
 | QWIRES of loc and list qvar_t and list cvar_t
 | QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
@@ -102,7 +99,7 @@ and t = [
 | QRESET of loc and list qvar_t
   ]
 and qbinding_t =
-  (loc * list qvar_t * list cvar_t * t)
+  (loc * list qvar_t * list cvar_t * qcirc_t)
 [@@deriving (to_yojson, show, eq, ord);] ;
 
 value loc_of_qcirc = fun [
@@ -115,11 +112,10 @@ value loc_of_qcirc = fun [
 | QMEASURE loc _ -> loc
 | QRESET loc _ -> loc
 ] ;
-end ;
 
 type gate_item = [
-  DEF of QG.t and QC.qgatelam_t
-| OPAQUE of QG.t and QC.qgateargs_t
+  DEF of QG.t and qgatelam_t
+| OPAQUE of QG.t and qgateargs_t
   ][@@deriving (to_yojson, show, eq, ord);] ;
 
 type item = [
@@ -129,7 +125,7 @@ type item = [
 and env_t = list item
 [@@deriving (to_yojson, show, eq, ord);] ;
 
-type top = (env_t * QC.t)[@@deriving (to_yojson, show, eq, ord);] ;
+type top = (env_t * qcirc_t)[@@deriving (to_yojson, show, eq, ord);] ;
 end ;
 
 module PP = struct
@@ -211,7 +207,7 @@ value comm_nl pps = fun [
 ] ;
 
 value rec qcirc pps = fun [
-    QC.QLET loc bl qc ->
+    QLET loc bl qc ->
     let comm = Ploc.comment loc in
      Fmt.(pf pps "@[<v>%alet @[%a@] in@ %a@]" comm_nl comm (list ~{sep=and_sep} binding) bl qcirc qc)
   | QWIRES _ qvl cvl -> paren_qvars_cvars pps (qvl, cvl)
