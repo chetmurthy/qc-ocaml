@@ -8,13 +8,12 @@ open Coll
 open Std
 open Misc_functions
 open Qc_misc
-open Qasm2_lexer
-open Qasm2syntax
-open Qasm2_parser
 open Qasm_io
-open Qasmpp
-open Qasmdag0
-open Qasm_passes
+open Qasm2_parser
+open Qlam_syntax
+open Qlam_parser
+module TYCHK = Qlam_tychk
+module Ops = Qlam_ops
 
 let matches ~pattern text =
   let rex = Pcre.regexp ~flags:[`DOTALL] pattern in
@@ -84,7 +83,6 @@ let testit (name, f, txt, expect_qlam, expect_qasm2) =
 let roundtrip_tests = "roundtrip tests" >:::
 let open TYCHK.Env in
 let open TYCHK in
-let open AST in
 (
   (List.map testit [
        ("example", roundtrip_file, "testdata/example.qasm",
@@ -132,7 +130,7 @@ let lower_qlam (name, txt, expect) =
     match expect with
       Left expect ->
        let qc' = Ops.lower_circuit qc in
-       let txt = Fmt.(str "%a" SYN.QC.qcirc qc') in
+       let txt = Fmt.(str "%a" PP.qcirc qc') in
        let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
        let printer = (fun x -> "<<"^x^">>") in
        assert_equal ~cmp ~printer expect txt
@@ -146,7 +144,7 @@ let lower_qlam (name, txt, expect) =
 let pp_qlam (name, txt) = 
   name >:: (fun ctxt ->
     let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
-    let got = Fmt.(str "%a" SYN.QC.qcirc qc) in
+    let got = Fmt.(str "%a" PP.qcirc qc) in
     let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
     let printer = (fun x -> "<<"^x^">>") in
     assert_equal ~cmp ~printer txt got
@@ -199,7 +197,7 @@ let alpha_equality (name, txt1, txt2, expect) =
     let (env, qc1) = txt1 |> Stream.of_string |> parse_qcircuit in
     let (env, qc2) = txt2 |> Stream.of_string |> parse_qcircuit in
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
-    let printer qc = Fmt.(str "%a" SYN.QC.qcirc qc) in
+    let printer qc = Fmt.(str "%a" PP.qcirc qc) in
     if expect then
       assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2
     else
@@ -224,7 +222,6 @@ let alpha_equality_tests = "alpha equality tests" >:::
 let tychk_tests = "tychk tests" >:::
 let open TYCHK.Env in
 let open TYCHK in
-let open AST in
 (
 
   (List.map tychk_qlam [

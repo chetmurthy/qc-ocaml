@@ -19,10 +19,10 @@ OML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
-RML = qlam_syntax.ml qlam_parser.ml qconvert.ml
+RML = qlam_misc.ml qlam_syntax.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml
 ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
-	qlam_syntax.ml qlam_parser.ml qconvert.ml \
+	qlam_misc.ml qlam_syntax.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
 
@@ -69,6 +69,27 @@ qlam_syntax.cmo:  qlam_syntax.ml
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
 qlam_syntax.cmx:  qlam_syntax.ml
+	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+
+qlam_ops.cmo:  qlam_ops.ml
+	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qlam_ops.cmx:  qlam_ops.ml
+	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+
+qlam_tychk.cmo:  qlam_tychk.ml
+	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qlam_tychk.cmx:  qlam_tychk.ml
+	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+
+qlam_misc.cmo:  qlam_misc.ml
+	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qlam_misc.cmx:  qlam_misc.ml
 	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
 qconvert.cmo:  qconvert.ml
