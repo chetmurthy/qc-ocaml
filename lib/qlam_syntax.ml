@@ -100,6 +100,11 @@ and qbinding_t =
   (loc * list qvar_t * list cvar_t * qcirc_t)
 [@@deriving (to_yojson, show, eq, ord);] ;
 
+value qbinding_loc (loc, _, _, _) = loc ;
+value qbinding_qvl (_, qvl, _, _) = qvl ;
+value qbinding_cvl (_, _, cvl, _) = cvl ;
+value qbinding_qc (_, _, _, qc) = qc ;
+
 value loc_of_qcirc = fun [
   QLET loc _ _ -> loc
 | QWIRES loc _ _ -> loc
@@ -110,6 +115,16 @@ value loc_of_qcirc = fun [
 | QMEASURE loc _ -> loc
 | QRESET loc _ -> loc
 ] ;
+
+value to_letlist qc =
+  let rec torec acc qc = match qc with [
+        QLET loc bl qc ->
+        torec [(loc, bl) :: acc] qc
+      | qc -> (acc, qc)
+      ] in
+  let (acc, qc) = torec [] qc in
+  (List.rev acc, qc)
+;
 
 type gate_item = [
   DEF of qgn_t and qgatelam_t

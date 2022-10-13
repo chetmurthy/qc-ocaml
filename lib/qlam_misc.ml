@@ -12,10 +12,12 @@ module type FVSIG = sig
   value mt : t ;
   value add : t -> M.t -> t ;
   value mem : t -> M.t -> bool ;
+  value intersect : t -> t -> t ;
   value subtract : t -> t -> t ;
   value ofList : list M.t -> t ;
   value toList : t -> list M.t ;
   value union : t -> t -> t ;
+  value concat : list t -> t ;
   value fresh : t -> M.t -> M.t ;
   value equal : t -> t -> bool ;
   value pp_hum : Fmt.t t ;
@@ -42,11 +44,14 @@ module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
   value mt = [] ;
   value mem s x = s |> List.exists (fun y -> M.equal x y) ;
   value add s x = if mem s x then s else [x::s] ;
+  value intersect l1 l2 =
+    l1 |> List.filter (fun x -> mem l2 x) ;
   value subtract l1 l2 =
     l1 |> List.filter (fun x -> not (mem l2 x)) ;
   value ofList l = l ;
   value toList l = l ;
   value union l1 l2 = List.fold_left add l1 l2 ;
+  value concat l = List.fold_left union mt l ;
   value fresh l x =
     let (s,_) = M.toID x in
     let n = List.fold_left (fun acc v ->

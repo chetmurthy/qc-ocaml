@@ -368,6 +368,166 @@ value qcircuit genv = fun [
 
 end ;
 
+module ANorm = struct
+
+(** [separate_let_bindings qcirc] rewrites lets with multiple bindings, where one or more is itself a let
+    so that a binding with a let is always a singleton.  That is to say,
+
+    let x = (let w = E1 in E2) and x' = (let w' = E1' in E2') and y = E3 and z = E4 in
+    E5
+
+    gets rewritten to
+
+    let x = (let w = E1 in E2) in
+    let x' = (let w' = E1' in E2') in
+    let y = E3 and z = E4 in
+    E5
+
+    For this to be safe, x, x' must not appear in the freevars of E3, E4.
+ *)
+
+value separate_let_bindings qc =
+  let rec seprec qc = match qc with [
+    QLET loc bl qc ->
+    let (qc, (qvfvs, cvfvs)) = seprec qc in
+    let bl_fvs =
+      bl
+      |> List.map (fun (loc, qvl, cvl, qc) ->
+             let (qc,  (qvfvs, cvfvs)) = seprec qc in
+             ((loc, qvl, cvl, qc), (qvfvs, cvfvs))) in
+
+    (* split into let-bindings and the rest *)
+    let is_let_binding ((_, _, _, qc), _) = match qc with [
+      SYN.QLET _ _ _ -> True | _ -> False
+    ] in
+
+    let (letbindings_fvs, rest_fvs) = filter_split is_let_binding bl_fvs in
+
+    let (qc, rest_qvfvs,  rest_cvfvs) =
+
+      (* the bindings of the rest *)
+      let rest_bl = List.map fst rest_fvs in
+      (* qvars bound in the rest *)
+      let rest_qvl = rest_bl |> List.map qbinding_qvl |> List.concat in
+      (* cvars bound in the rest *)
+      let rest_cvl = rest_bl |> List.map qbinding_cvl |> List.concat in
+
+      (* qvars-of-qc - qvars bound in the rest *)
+      let qvfvs = QVFVS.(subtract qvfvs (ofList rest_qvl)) in
+      (* cvars-of-qc - cvars bound in the rest *)
+      let cvfvs = CVFVS.(subtract cvfvs (ofList rest_cvl)) in
+
+      (* qvars bound in rhs of rest-bindings *)
+      let rest_qvfvs = QVFVS.(concat (rest_fvs |> List.map snd |>  List.map fst)) in
+      (* cvars bound in rhs of rest-bindings *)
+      let rest_cvfvs = CVFVS.(concat (rest_fvs |> List.map snd |>  List.map snd)) in
+
+
+      (* compute qvars of "let rest-bindings in qc" *)
+      let qvfvs = QVFVS.union qvfvs rest_qvfvs in
+      (* compute cvars of "let rest-bindings in qc" *)
+      let cvfvs = CVFVS.union cvfvs rest_cvfvs in
+      
+      (* let rest-bindings in qc *)
+      (QLET loc bl qc, qvfvs, cvfvs) in
+
+
+    (* the bindings of the letbindings *)
+    let letbindings_bl = List.map fst letbindings_fvs in
+      (* qvars bound in the rest *)
+    let letbindings_qvl = letbindings_bl |> List.map qbinding_qvl |> List.concat in
+    (* cvars bound in the letbindings *)
+    let letbindings_cvl = letbindings_bl |> List.map qbinding_cvl |> List.concat in
+
+    (* qvars-of-qc - qvars bound in the letbindings *)
+    let qvfvs = QVFVS.(subtract qvfvs (ofList letbindings_qvl)) in
+    (* cvars-of-qc - cvars bound in the letbindings *)
+    let cvfvs = CVFVS.(subtract cvfvs (ofList letbindings_cvl)) in
+
+    if QVFVS.(mt <> (intersect rest_qvfvs (ofList letbindings_qvl))) then
+      Fmt.(raise_failwithf loc "separate_let_bindings: let-binding would capture freevars in another binding: letbinding binders %a intersect with freevars %a"
+             QVFVS.pp_hum (QVFVS.ofList letbindings_qvl) QVFVS.pp_hum rest_qvfvs)
+    else if CVFVS.(mt <> (intersect rest_cvfvs (ofList letbindings_cvl))) then
+      Fmt.(raise_failwithf loc "separate_let_bindings: let-binding would capture freevars in another binding: letbinding binders %a intersect with freevars %a"
+             CVFVS.pp_hum (CVFVS.ofList letbindings_cvl) CVFVS.pp_hum rest_cvfvs)
+    else
+
+    (* qvars bound in rhs of letbindings-bindings *)
+    let letbindings_qvfvs = QVFVS.(concat (letbindings_fvs |> List.map snd |>  List.map fst)) in
+    (* cvars bound in rhs of letbindings-bindings *)
+    let letbindings_cvfvs = CVFVS.(concat (letbindings_fvs |> List.map snd |>  List.map snd)) in
+
+
+    (* compute qvars of "let letbindings-bindings in qc" *)
+    let qvfvs = QVFVS.union qvfvs letbindings_qvfvs in
+    (* compute cvars of "let letbindings-bindings in qc" *)
+    let cvfvs = CVFVS.union cvfvs letbindings_cvfvs in
+    
+    (* let letbindings-bindings in qc *)
+    let qc = QLET loc bl qc in
+    (qc, (qvfvs, cvfvs))
+
+  | QWIRES _ qvl cvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl))
+  | QGATEAPP _ _ _ qvl cvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl))
+  | QBARRIER _ qvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.mt))
+  | QBIT _ -> (qc, (SYN.QVFVS.mt, SYN.CVFVS.mt))
+  | QDISCARD _ qvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.mt))
+  | QMEASURE _ qvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.mt))
+  | QRESET _ qvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.mt))
+  ] in
+  let (qc, _) = seprec qc in
+  qc
+;
+
+(** [anorm qcirc] A-normalizes the circuit.  For this restricted language, this consists in flattening
+    let-trees, viz. (where all-CAPS identifiers stand for circuit-expressions and lower-caps identifiers
+    for qubits/wires.
+
+    let x =
+      let y = CIRC in z
+    in W
+
+    into
+
+    let y = CIRC in
+    let x = z in
+    W
+
+    This introduces renamings, which can be eliminated by a further pass.
+
+    There is a subtlety here, which is that (above) y might be free in W, which would mean that the naive
+    rewrite would *capture* y in W.
+
+    We will *assume* that this never happens, but will *check* for it (it's a simple bottom-up calculation of
+    free-variables) and raise an error if it happens.
+ *)
+(*
+value anorm qc =
+  let rec anrec qc = match qc with [
+  | SYN.QLET _ bl _ when bl |> List.exists is_let_binding ->
+
+
+  | SYN.QLET _ _ _ ->
+    let (qc, qvfvs, cvfvs) = anrec qc in
+    let (lets, qc) = SYN.to_letlist qc in
+    
+
+ of loc and list qbinding_t and qcirc_t
+
+  | QWIRES _ qvl cvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl)
+  | QGATEAPP _ _ pvl cvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl)
+  | QBARRIER _ qvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
+  | QBIT _ -> (qc, SYN.QVFVS.mt, SYN.CVFVS.mt)
+  | QDISCARD _ qvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
+  | QMEASURE _ qvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
+  | QRESET _ qvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
+  ] in
+  let (qc, _, _) = anrec qc in
+  qc
+;
+ *)
+end ;
+
 module Unroll = struct
 
 (** unroll: takes a circuit and a gate-environment, and with arguments for either:
