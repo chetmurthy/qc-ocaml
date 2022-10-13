@@ -108,20 +108,20 @@ EXTEND
 
   param: [
     "add" LEFTA [
-      e1 = SELF ; "+" ; e2 = SELF -> PE.BINOP loc PE.ADD e1 e2
-    | e1 = SELF ; "-" ; e2 = SELF -> PE.BINOP loc PE.SUB e1 e2
+      e1 = SELF ; "+" ; e2 = SELF -> BINOP loc ADD e1 e2
+    | e1 = SELF ; "-" ; e2 = SELF -> BINOP loc SUB e1 e2
     ]
   | "mul" LEFTA [
-      e1 = SELF ; "*" ; e2 = SELF -> PE.BINOP loc PE.MUL e1 e2
-    | e1 = SELF ; "/" ; e2 = SELF -> PE.BINOP loc PE.DIV e1 e2
+      e1 = SELF ; "*" ; e2 = SELF -> BINOP loc MUL e1 e2
+    | e1 = SELF ; "/" ; e2 = SELF -> BINOP loc DIV e1 e2
     ]
-  | "uminus" LEFTA [ "-" ; e1 = SELF -> PE.UNOP loc PE.UMINUS e1 ]
+  | "uminus" LEFTA [ "-" ; e1 = SELF -> UNOP loc UMINUS e1 ]
   | "pow" RIGHTA [
-      e1 = SELF ; "**" ; e2 = SELF -> PE.BINOP loc PE.POW e1 e2
+      e1 = SELF ; "**" ; e2 = SELF -> BINOP loc POW e1 e2
     ]
   | "simple" [
-      id = paramvar -> PE.ID loc id
-    | c = paramconst -> PE.CONST loc c
+      id = paramvar -> ID loc id
+    | c = paramconst -> CONST loc c
     | "(" ; p = SELF ; ")" -> p
     | uf = ufun ; "(" ; p = param ; ")" -> uf p
     ]
@@ -129,12 +129,12 @@ EXTEND
   ;
 
   ufun: [ [
-      "sin" -> (fun x ->  PE.UFUN loc PE.SIN x)
-    | "cos" -> (fun x -> PE.UFUN loc PE.COS x)
-    | "tan" -> (fun  x -> PE.UFUN loc PE.TAN x)
-    | "exp" -> (fun x -> PE.UFUN loc PE.EXP x)
-    | "ln" ->  (fun x -> PE.UFUN loc PE.LN x)
-    | "sqrt" -> (fun x -> PE.UFUN loc PE.SQRT x)
+      "sin" -> (fun x ->  UFUN loc SIN x)
+    | "cos" -> (fun x -> UFUN loc COS x)
+    | "tan" -> (fun  x -> UFUN loc TAN x)
+    | "exp" -> (fun x -> UFUN loc EXP x)
+    | "ln" ->  (fun x -> UFUN loc LN x)
+    | "sqrt" -> (fun x -> UFUN loc SQRT x)
     ] ]
   ;
 

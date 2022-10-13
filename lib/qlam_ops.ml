@@ -4,7 +4,6 @@ open Ppxutil ;
 open Qlam_syntax ;
 
 open SYN ;
-open PE ;
 open QC ;
 
 value pe_freevars pe =

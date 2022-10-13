@@ -73,21 +73,17 @@ end ;
 module QGMap = VarMap(QG) ;
 module QGFVS = FreeVarSet(QG) ;
 
-module PE = struct
-
 type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, show, eq, ord);] ;
 type unop_t = [ UMINUS ][@@deriving (to_yojson, show, eq, ord);] ;
 type ufun_t = [ SIN | COS | TAN | EXP | LN | SQRT ][@@deriving (to_yojson, show, eq, ord);] ;
 
-type t = [
+type pexpr_t = [
   ID of loc and pvar_t
 | CONST of loc and const_t
-| BINOP of loc and binop_t and t and t
-| UNOP of loc and unop_t and t
-| UFUN of loc and ufun_t and t
+| BINOP of loc and binop_t and pexpr_t and pexpr_t
+| UNOP of loc and unop_t and pexpr_t
+| UFUN of loc and ufun_t and pexpr_t
   ][@@deriving (to_yojson, show, eq, ord);]
-;
-end
 ;
 
 module QC = struct
@@ -99,7 +95,7 @@ and qgateargs_t = (list pvar_t * list qvar_t * list cvar_t)
 and t = [
   QLET of loc and list qbinding_t and t
 | QWIRES of loc and list qvar_t and list cvar_t
-| QGATEAPP of loc and qgn_t and list PE.t and list qvar_t and list cvar_t
+| QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
 | QBIT of loc | QDISCARD of loc and list qvar_t
 | QMEASURE of loc and list qvar_t
@@ -151,7 +147,7 @@ value pconst pps = fun [
 ;
 
 value string_of_ufun = fun [
-    PE.SIN -> "sin"
+    SIN -> "sin"
   | COS -> "cos"
   | TAN -> "tan"
   | EXP -> "exp"
@@ -160,7 +156,7 @@ value string_of_ufun = fun [
 ] ;
 
 value rec pexpr0 pps = fun [
-  PE.ID _ pv -> Fmt.(pf pps "%a" PV.pp_hum pv)
+  ID _ pv -> Fmt.(pf pps "%a" PV.pp_hum pv)
 | CONST _ pc ->  pconst pps pc
 | UFUN _ fsym pe ->
    Fmt.(pf pps "%s(%a)" (string_of_ufun fsym) pexpr pe)
@@ -168,19 +164,19 @@ value rec pexpr0 pps = fun [
 ]
 
 and pexpr1 pps = fun [
-    PE.UNOP _ UMINUS pe ->
+    UNOP _ UMINUS pe ->
     Fmt.(pf pps "- %a" pexpr1 pe)
   | x -> pexpr0 pps x
 ]
 
 and pexpr2 pps = fun [
-  PE.BINOP _ POW pe1 pe2 ->
+  BINOP _ POW pe1 pe2 ->
    Fmt.(pf pps "%a ** %a" pexpr1 pe1 pexpr2 pe2)
 | x -> pexpr1 pps x
     ]
 
 and pexpr3 pps = fun [
-  PE.BINOP _ MUL pe1 pe2 ->
+  BINOP _ MUL pe1 pe2 ->
    Fmt.(pf pps "%a * %a" pexpr3 pe1 pexpr2 pe2)
 | BINOP _ DIV pe1 pe2 ->
    Fmt.(pf pps "%a / %a" pexpr3 pe1 pexpr2 pe2)
@@ -188,7 +184,7 @@ and pexpr3 pps = fun [
     ]
 
 and pexpr4 pps = fun [
-  PE.BINOP _ ADD pe1 pe2 ->
+  BINOP _ ADD pe1 pe2 ->
    Fmt.(pf pps "%a + %a" pexpr4 pe1 pexpr3 pe2)
 | BINOP _ SUB pe1 pe2 ->
    Fmt.(pf pps "%a - %a" pexpr4 pe1 pexpr3 pe2)
@@ -226,7 +222,7 @@ value rec qcirc pps = fun [
   | QGATEAPP _ qg [] qvl cvl ->
      Fmt.(pf  pps "%a %a" QG.pp_hum qg qvars_cvars (qvl, cvl))
   | QGATEAPP _ qg pel qvl cvl ->
-     Fmt.(pf  pps "%a (%a) %a" QG.pp_hum qg (list ~{sep=(const string ", ")} PE.pp) pel qvars_cvars (qvl, cvl))
+     Fmt.(pf  pps "%a (%a) %a" QG.pp_hum qg (list ~{sep=(const string ", ")} pexpr) pel qvars_cvars (qvl, cvl))
   | QBARRIER _ qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
   | QBIT _ -> Fmt.(pf pps "qubit()")
   | QDISCARD _ qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))

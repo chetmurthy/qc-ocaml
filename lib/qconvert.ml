@@ -10,26 +10,26 @@ open Qlam_syntax ;
 module ToLam = struct
 open Qasm2syntax.AST ;
 
-value conv_cparamvar = fun [ (CPARAMVAR s) -> SYN.PE.ID Ploc.dummy (PV Ploc.dummy (ID.mk s)) ] ;
+value conv_cparamvar = fun [ (CPARAMVAR s) -> SYN.ID Ploc.dummy (PV Ploc.dummy (ID.mk s)) ] ;
 value empty _ = assert False ;
 
 value rec param conv_id = fun [
   ID cp -> conv_id cp
-| REAL r -> SYN.PE.CONST Ploc.dummy (SYN.REAL r) 
-| NNINT n -> SYN.PE.CONST Ploc.dummy (SYN.NNINT n)
-| PI -> SYN.PE.CONST Ploc.dummy SYN.PI
-| ADD e1 e2 -> SYN.PE.(BINOP Ploc.dummy ADD (param conv_id e1) (param conv_id e2))
-| SUB e1 e2 -> SYN.PE.(BINOP Ploc.dummy SUB (param conv_id e1) (param conv_id e2))
-| DIV e1 e2 -> SYN.PE.(BINOP Ploc.dummy DIV (param conv_id e1) (param conv_id e2))
-| MUL e1 e2 -> SYN.PE.(BINOP Ploc.dummy MUL (param conv_id e1) (param conv_id e2))
-| POW e1 e2 -> SYN.PE.(BINOP Ploc.dummy POW (param conv_id e1) (param conv_id e2))
-| UMINUS e -> SYN.PE.(UNOP Ploc.dummy UMINUS (param conv_id e))
-| SIN e -> SYN.PE.(UFUN Ploc.dummy SIN (param conv_id e))
-| COS e -> SYN.PE.(UFUN Ploc.dummy COS (param conv_id e))
-| TAN e -> SYN.PE.(UFUN Ploc.dummy TAN (param conv_id e))
-| EXP e -> SYN.PE.(UFUN Ploc.dummy EXP (param conv_id e))
-| LN e -> SYN.PE.(UFUN Ploc.dummy LN (param conv_id e))
-| SQRT e -> SYN.PE.(UFUN Ploc.dummy SQRT (param conv_id e))
+| REAL r -> SYN.CONST Ploc.dummy (SYN.REAL r) 
+| NNINT n -> SYN.CONST Ploc.dummy (SYN.NNINT n)
+| PI -> SYN.CONST Ploc.dummy SYN.PI
+| ADD e1 e2 -> SYN.(BINOP Ploc.dummy ADD (param conv_id e1) (param conv_id e2))
+| SUB e1 e2 -> SYN.(BINOP Ploc.dummy SUB (param conv_id e1) (param conv_id e2))
+| DIV e1 e2 -> SYN.(BINOP Ploc.dummy DIV (param conv_id e1) (param conv_id e2))
+| MUL e1 e2 -> SYN.(BINOP Ploc.dummy MUL (param conv_id e1) (param conv_id e2))
+| POW e1 e2 -> SYN.(BINOP Ploc.dummy POW (param conv_id e1) (param conv_id e2))
+| UMINUS e -> SYN.(UNOP Ploc.dummy UMINUS (param conv_id e))
+| SIN e -> SYN.(UFUN Ploc.dummy SIN (param conv_id e))
+| COS e -> SYN.(UFUN Ploc.dummy COS (param conv_id e))
+| TAN e -> SYN.(UFUN Ploc.dummy TAN (param conv_id e))
+| EXP e -> SYN.(UFUN Ploc.dummy EXP (param conv_id e))
+| LN e -> SYN.(UFUN Ploc.dummy LN (param conv_id e))
+| SQRT e -> SYN.(UFUN Ploc.dummy SQRT (param conv_id e))
 ] ;
 
 value conv_qreg_or_indexed = fun [
@@ -366,7 +366,7 @@ value conv_cparamvar pv = ID (SYN.PV.toID pv) ;
 
 value conv_param conv_paramvar e =
   let rec crec = fun [
-        SYN.PE.ID _ pv -> conv_paramvar pv
+        SYN.ID _ pv -> conv_paramvar pv
       | CONST _ pc -> conv_paramconst pc
       | BINOP _ ADD pe1 pe2 -> ADD (crec pe1) (crec pe2)
       | BINOP _ SUB pe1 pe2 -> SUB (crec pe1) (crec pe2)
