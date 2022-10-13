@@ -139,9 +139,9 @@ EXTEND
   ;
 
   paramconst: [ [
-      f = FLOAT -> PC.REAL (RealNumeral.mk f)
-    | n = INT -> PC.NNINT (int_of_string n)
-    | "pi" -> PC.PI
+      f = FLOAT -> REAL (RealNumeral.mk f)
+    | n = INT -> NNINT (int_of_string n)
+    | "pi" -> PI
     ] ]
   ;
 

@@ -14,21 +14,13 @@ value equal_loc _ _ = True ;
 value compare_loc _ _ = 0 ;
 
 module SYN = struct
-module PC = struct
 
-type t = [
+type const_t = [
     REAL of RealNumeral.t
   | NNINT of int
   | PI
   ][@@deriving (to_yojson, show, eq, ord);]
 ;
-value pp pps = fun [
-    REAL s -> Fmt.(pf pps "%s" (RealNumeral.unmk s))
-  | NNINT n -> Fmt.(pf pps "%d" n)
-  | PI -> Fmt.(pf pps "pi")
-    ]
-;
-end ;
 
 type pvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module PV = struct
@@ -87,59 +79,13 @@ type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, show, eq, 
 type unop_t = [ UMINUS ][@@deriving (to_yojson, show, eq, ord);] ;
 type ufun_t = [ SIN | COS | TAN | EXP | LN | SQRT ][@@deriving (to_yojson, show, eq, ord);] ;
 
-value string_of_ufun = fun [
-    SIN -> "sin"
-  | COS -> "cos"
-  | TAN -> "tan"
-  | EXP -> "exp"
-  | LN -> "ln"
-  | SQRT -> "sqrt"
-] ;
-
 type t = [
   ID of loc and pvar_t
-| CONST of loc and PC.t
+| CONST of loc and const_t
 | BINOP of loc and binop_t and t and t
 | UNOP of loc and unop_t and t
 | UFUN of loc and ufun_t and t
   ][@@deriving (to_yojson, show, eq, ord);]
-;
-value rec pp0 pps = fun [
-  ID _ pv -> Fmt.(pf pps "%a" PV.pp_hum pv)
-| CONST _ pc ->  PC.pp pps pc
-| UFUN _ fsym pe ->
-   Fmt.(pf pps "%s(%a)" (string_of_ufun fsym) pp pe)
-| x -> Fmt.(pf pps "(%a)" pp x)
-]
-
-and pp1 pps = fun [
-    UNOP _ UMINUS pe ->
-    Fmt.(pf pps "- %a" pp1 pe)
-  | x -> pp0 pps x
-]
-
-and pp2 pps = fun [
-  BINOP _ POW pe1 pe2 ->
-   Fmt.(pf pps "%a ** %a" pp1 pe1 pp2 pe2)
-| x -> pp1 pps x
-    ]
-
-and pp3 pps = fun [
-  BINOP _ MUL pe1 pe2 ->
-   Fmt.(pf pps "%a * %a" pp3 pe1 pp2 pe2)
-| BINOP _ DIV pe1 pe2 ->
-   Fmt.(pf pps "%a / %a" pp3 pe1 pp2 pe2)
-| x -> pp2 pps x
-    ]
-
-and pp4 pps = fun [
-  BINOP _ ADD pe1 pe2 ->
-   Fmt.(pf pps "%a + %a" pp4 pe1 pp3 pe2)
-| BINOP _ SUB pe1 pe2 ->
-   Fmt.(pf pps "%a - %a" pp4 pe1 pp3 pe2)
-| x -> pp3 pps x
-    ]
-and pp pps x = pp4 pps x
 ;
 end
 ;
@@ -196,6 +142,60 @@ end ;
 
 module PP = struct
 open SYN ;
+
+value pconst pps = fun [
+    REAL s -> Fmt.(pf pps "%s" (RealNumeral.unmk s))
+  | NNINT n -> Fmt.(pf pps "%d" n)
+  | PI -> Fmt.(pf pps "pi")
+  ]
+;
+
+value string_of_ufun = fun [
+    PE.SIN -> "sin"
+  | COS -> "cos"
+  | TAN -> "tan"
+  | EXP -> "exp"
+  | LN -> "ln"
+  | SQRT -> "sqrt"
+] ;
+
+value rec pexpr0 pps = fun [
+  PE.ID _ pv -> Fmt.(pf pps "%a" PV.pp_hum pv)
+| CONST _ pc ->  pconst pps pc
+| UFUN _ fsym pe ->
+   Fmt.(pf pps "%s(%a)" (string_of_ufun fsym) pexpr pe)
+| x -> Fmt.(pf pps "(%a)" pexpr x)
+]
+
+and pexpr1 pps = fun [
+    PE.UNOP _ UMINUS pe ->
+    Fmt.(pf pps "- %a" pexpr1 pe)
+  | x -> pexpr0 pps x
+]
+
+and pexpr2 pps = fun [
+  PE.BINOP _ POW pe1 pe2 ->
+   Fmt.(pf pps "%a ** %a" pexpr1 pe1 pexpr2 pe2)
+| x -> pexpr1 pps x
+    ]
+
+and pexpr3 pps = fun [
+  PE.BINOP _ MUL pe1 pe2 ->
+   Fmt.(pf pps "%a * %a" pexpr3 pe1 pexpr2 pe2)
+| BINOP _ DIV pe1 pe2 ->
+   Fmt.(pf pps "%a / %a" pexpr3 pe1 pexpr2 pe2)
+| x -> pexpr2 pps x
+    ]
+
+and pexpr4 pps = fun [
+  PE.BINOP _ ADD pe1 pe2 ->
+   Fmt.(pf pps "%a + %a" pexpr4 pe1 pexpr3 pe2)
+| BINOP _ SUB pe1 pe2 ->
+   Fmt.(pf pps "%a - %a" pexpr4 pe1 pexpr3 pe2)
+| x -> pexpr3 pps x
+    ]
+and pexpr pps x = pexpr4 pps x
+;
 
 value and_sep pps () = Fmt.(pf pps "@ and ") ;
 

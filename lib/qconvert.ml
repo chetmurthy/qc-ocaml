@@ -5,41 +5,41 @@ open Pa_ppx_base ;
 open Ppxutil ;
 
 open Qc_misc ;
-open Qlam_syntax.SYN ;
+open Qlam_syntax ;
 
 module ToLam = struct
 open Qasm2syntax.AST ;
 
-value conv_cparamvar = fun [ (CPARAMVAR s) -> PE.ID Ploc.dummy (PV Ploc.dummy (ID.mk s)) ] ;
+value conv_cparamvar = fun [ (CPARAMVAR s) -> SYN.PE.ID Ploc.dummy (PV Ploc.dummy (ID.mk s)) ] ;
 value empty _ = assert False ;
 
 value rec param conv_id = fun [
   ID cp -> conv_id cp
-| REAL r -> PE.CONST Ploc.dummy (PC.REAL r) 
-| NNINT n -> PE.CONST Ploc.dummy (PC.NNINT n)
-| PI -> PE.CONST Ploc.dummy PC.PI
-| ADD e1 e2 -> PE.(BINOP Ploc.dummy ADD (param conv_id e1) (param conv_id e2))
-| SUB e1 e2 -> PE.(BINOP Ploc.dummy SUB (param conv_id e1) (param conv_id e2))
-| DIV e1 e2 -> PE.(BINOP Ploc.dummy DIV (param conv_id e1) (param conv_id e2))
-| MUL e1 e2 -> PE.(BINOP Ploc.dummy MUL (param conv_id e1) (param conv_id e2))
-| POW e1 e2 -> PE.(BINOP Ploc.dummy POW (param conv_id e1) (param conv_id e2))
-| UMINUS e -> PE.(UNOP Ploc.dummy UMINUS (param conv_id e))
-| SIN e -> PE.(UFUN Ploc.dummy SIN (param conv_id e))
-| COS e -> PE.(UFUN Ploc.dummy COS (param conv_id e))
-| TAN e -> PE.(UFUN Ploc.dummy TAN (param conv_id e))
-| EXP e -> PE.(UFUN Ploc.dummy EXP (param conv_id e))
-| LN e -> PE.(UFUN Ploc.dummy LN (param conv_id e))
-| SQRT e -> PE.(UFUN Ploc.dummy SQRT (param conv_id e))
+| REAL r -> SYN.PE.CONST Ploc.dummy (SYN.REAL r) 
+| NNINT n -> SYN.PE.CONST Ploc.dummy (SYN.NNINT n)
+| PI -> SYN.PE.CONST Ploc.dummy SYN.PI
+| ADD e1 e2 -> SYN.PE.(BINOP Ploc.dummy ADD (param conv_id e1) (param conv_id e2))
+| SUB e1 e2 -> SYN.PE.(BINOP Ploc.dummy SUB (param conv_id e1) (param conv_id e2))
+| DIV e1 e2 -> SYN.PE.(BINOP Ploc.dummy DIV (param conv_id e1) (param conv_id e2))
+| MUL e1 e2 -> SYN.PE.(BINOP Ploc.dummy MUL (param conv_id e1) (param conv_id e2))
+| POW e1 e2 -> SYN.PE.(BINOP Ploc.dummy POW (param conv_id e1) (param conv_id e2))
+| UMINUS e -> SYN.PE.(UNOP Ploc.dummy UMINUS (param conv_id e))
+| SIN e -> SYN.PE.(UFUN Ploc.dummy SIN (param conv_id e))
+| COS e -> SYN.PE.(UFUN Ploc.dummy COS (param conv_id e))
+| TAN e -> SYN.PE.(UFUN Ploc.dummy TAN (param conv_id e))
+| EXP e -> SYN.PE.(UFUN Ploc.dummy EXP (param conv_id e))
+| LN e -> SYN.PE.(UFUN Ploc.dummy LN (param conv_id e))
+| SQRT e -> SYN.PE.(UFUN Ploc.dummy SQRT (param conv_id e))
 ] ;
 
 value conv_qreg_or_indexed = fun [
-      IT (QREG s) -> QV Ploc.dummy (ID.mk s)
-    | INDEXED (QREG s) n -> QV Ploc.dummy (ID.mk0 s n)
+      IT (QREG s) -> SYN.QV Ploc.dummy (ID.mk s)
+    | INDEXED (QREG s) n -> SYN.QV Ploc.dummy (ID.mk0 s n)
     ]
 ;
 
 value conv_qubit = fun [
-      QUBIT s -> QV Ploc.dummy (ID.mk s)
+      QUBIT s -> SYN.QV Ploc.dummy (ID.mk s)
     ]
 ;
 
@@ -48,81 +48,81 @@ value wrap_uop loc conv_pv conv_qv ins rhs =
       U pel q ->
       let qv = conv_qv q in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "U")) pel [qv] [] in
-      QC.QLET loc [(Ploc.dummy,  [qv], [], gateapp)] rhs
+      let gateapp = SYN.QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "U")) pel [qv] [] in
+      SYN.QC.QLET loc [(Ploc.dummy,  [qv], [], gateapp)] rhs
     | CX q1 q2 ->
       let qv1 = conv_qv q1 in
       let qv2 = conv_qv q2 in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "CX")) [] [qv1;qv2] [] in
-      QC.QLET loc [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
+      let gateapp = SYN.QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk "CX")) [] [qv1;qv2] [] in
+      SYN.QC.QLET loc [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
     | COMPOSITE_GATE gname pel ql ->
       let qvl = List.map conv_qv ql in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk gname)) pel qvl [] in
-      QC.QLET loc [(Ploc.dummy, qvl, [], gateapp)] rhs
+      let gateapp = SYN.QC.QGATEAPP Ploc.dummy (QG Ploc.dummy (ID.mk gname)) pel qvl [] in
+      SYN.QC.QLET loc [(Ploc.dummy, qvl, [], gateapp)] rhs
     ]
 ;
 
 value wrap_gate_op ins rhs =
-  let to_qvar = fun [ (QUBIT s) -> QV Ploc.dummy (ID.mk s) ] in
+  let to_qvar = fun [ (QUBIT s) -> SYN.QV Ploc.dummy (ID.mk s) ] in
   match ins with [
       (loc, GATE_BARRIER ql) ->
       let qvl = List.map to_qvar ql in
-      QC.QLET loc [(Ploc.dummy, qvl, [], QC.QBARRIER Ploc.dummy qvl)] rhs
+      SYN.QC.QLET loc [(Ploc.dummy, qvl, [], SYN.QC.QBARRIER Ploc.dummy qvl)] rhs
     | (loc, GATE_UOP uop) ->
        wrap_uop loc conv_cparamvar conv_qubit uop rhs
     ]
 ;
 
 value gate_circuit qubits clbits instrs =
-  let rhs = QC.QWIRES Ploc.dummy qubits clbits in
+  let rhs = SYN.QC.QWIRES Ploc.dummy qubits clbits in
   List.fold_right wrap_gate_op instrs rhs
 ;
 
 value wrap_stmt conv_pv ins rhs =
   let to_qvar = fun [
-        IT (QREG s) -> QV Ploc.dummy (ID.mk s)
-      | INDEXED (QREG s) n -> QV Ploc.dummy (ID.mk0 s n)
+        IT (QREG s) -> SYN.QV Ploc.dummy (ID.mk s)
+      | INDEXED (QREG s) n -> SYN.QV Ploc.dummy (ID.mk0 s n)
       ] in
   let to_cvar = fun [
-        IT (CREG s) -> CV Ploc.dummy (ID.mk s)
-      | INDEXED (CREG s) n -> CV Ploc.dummy (ID.mk0 s n)
+        IT (CREG s) -> SYN.CV Ploc.dummy (ID.mk s)
+      | INDEXED (CREG s) n -> SYN.CV Ploc.dummy (ID.mk0 s n)
       ] in
   match ins with [
       (loc, STMT_BARRIER ql) ->
       let qvl = List.map to_qvar ql in
-      QC.QLET loc [(Ploc.dummy, qvl, [], QC.QBARRIER Ploc.dummy qvl)] rhs
+      SYN.QC.QLET loc [(Ploc.dummy, qvl, [], SYN.QC.QBARRIER Ploc.dummy qvl)] rhs
     | (loc, STMT_QOP(RESET q)) ->
       let qv = to_qvar q in
-      QC.QLET loc [(Ploc.dummy, [qv], [], QC.QRESET Ploc.dummy [qv])] rhs
+      SYN.QC.QLET loc [(Ploc.dummy, [qv], [], SYN.QC.QRESET Ploc.dummy [qv])] rhs
     | (loc, STMT_QOP(MEASURE q c)) ->
       let qv = to_qvar q in
       let cv = to_cvar c in
-      QC.QLET loc [(Ploc.dummy, [qv], [cv], QC.QMEASURE Ploc.dummy [qv])] rhs
+      SYN.QC.QLET loc [(Ploc.dummy, [qv], [cv], SYN.QC.QMEASURE Ploc.dummy [qv])] rhs
     | (loc, STMT_QOP(UOP uop)) ->
        wrap_uop loc conv_pv conv_qreg_or_indexed uop rhs
     ]
 ;
 
 value circuit qubits clbits instrs =
-  let rhs = QC.QWIRES Ploc.dummy qubits clbits in
+  let rhs = SYN.QC.QWIRES Ploc.dummy qubits clbits in
   List.fold_right (wrap_stmt empty) instrs rhs
 ;
 
 value rec env_item = fun [
   (loc, STMT_GATEDECL (gname, pvl, qvl, instrs)) ->
-   let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
-   let qvl = List.map (fun s -> QV Ploc.dummy (ID.mk s)) qvl in
+   let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
+   let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
    let qc = gate_circuit qvl [] instrs in
-   QEnv.QGATE loc (DEF (QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc))
+   SYN.QEnv.QGATE loc (DEF (QG Ploc.dummy (ID.mk gname)) ((pvl, qvl, []), qc))
 
 | (loc, STMT_OPAQUEDECL gname pvl qvl) ->
-   let pvl = List.map (fun s -> PV Ploc.dummy (ID.mk s)) pvl in
-   let qvl = List.map (fun s -> QV Ploc.dummy (ID.mk s)) qvl in
-   QEnv.QGATE loc (OPAQUE (QG Ploc.dummy (ID.mk gname)) (pvl, qvl, []))
+   let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
+   let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
+   SYN.QEnv.QGATE loc (OPAQUE (QG Ploc.dummy (ID.mk gname)) (pvl, qvl, []))
 
 | (loc, STMT_INCLUDE ty fname (Some l)) ->
-   QEnv.QINCLUDE loc ty fname (List.map env_item l)
+   SYN.QEnv.QINCLUDE loc ty fname (List.map env_item l)
 
 | (loc, STMT_INCLUDE ty fname None) ->
    Fmt.(raise_failwithf loc "Qconvert.env_item: can only round-trip once with an include statement")
@@ -231,17 +231,17 @@ value program (qasm2env, stmts) =
     |> List.concat_map (fun [
       (_,STMT_QREG s count) ->
       (interval 0 (count-1))
-      |> List.map (fun n -> QV Ploc.dummy (ID.mk0 s n)) ]) in
+      |> List.map (fun n -> SYN.QV Ploc.dummy (ID.mk0 s n)) ]) in
   let clbits =
     cregs
     |> List.concat_map (fun [
       (_,STMT_CREG s count) ->
       (interval 0 (count-1))
-      |> List.map (fun n -> CV Ploc.dummy (ID.mk0 s n)) ]) in
+      |> List.map (fun n -> SYN.CV Ploc.dummy (ID.mk0 s n)) ]) in
   let instrs = List.concat_map (expand_stmt qasm2env) instrs in
   let qc = circuit qubits clbits instrs in
   let qc = List.fold_right (fun qv rhs ->
-               QC.QLET Ploc.dummy [(Ploc.dummy, [qv], [], QC.QBIT Ploc.dummy)] rhs)
+               SYN.QC.QLET Ploc.dummy [(Ploc.dummy, [qv], [], SYN.QC.QBIT Ploc.dummy)] rhs)
              qubits qc in
   (qlam_env, qc)
 ;
@@ -268,7 +268,7 @@ module CE = struct
 type t = {
     qubits : BC.t
   ; clbits : BC.t
-  ; genv : IDMap.t (choice QC.qgatelam_t QC.qgateargs_t)
+  ; genv : IDMap.t (choice SYN.QC.qgatelam_t SYN.QC.qgateargs_t)
   ; qenv : IDMap.t (or_indexed qreg_t)
   ; clenv : IDMap.t (or_indexed creg_t)
   ; emit : bool
@@ -301,7 +301,7 @@ value stop_emit ce = { (ce) with emit = False } ;
 value reset_vars ce = { (ce) with qenv = IDMap.empty ; clenv = IDMap.empty } ;
 
 value lookup_gate ce = fun [
-  (QG loc x) ->
+  (SYN.QG loc x) ->
   match IDMap.find x ce.genv with [
       exception Not_found ->
                 Fmt.(raise_failwithf loc "lookup_gate: cannot find %s" (ID.unmk x))
@@ -310,7 +310,7 @@ value lookup_gate ce = fun [
 ] ;
 
 value lookup_qv ce = fun [
-  (QV loc x) ->
+  (SYN.QV loc x) ->
   match IDMap.find x ce.qenv with [
       exception Not_found ->
                 Fmt.(raise_failwithf loc "lookup_qv: cannot find %s" (ID.unmk x))
@@ -319,7 +319,7 @@ value lookup_qv ce = fun [
 ] ;
 
 value lookup_cv ce = fun [
-  (CV loc x) ->
+  (SYN.CV loc x) ->
   match IDMap.find x ce.clenv with [
       exception Not_found ->
                 Fmt.(raise_failwithf loc "lookup_cv: cannot find %s" (ID.unmk x))
@@ -340,7 +340,7 @@ end ;
 module ConvEnv = CE ;
 
 value make_uop loc gn pel qrl =
-  let gn = gn |> QG.toID |> ID.unmk in
+  let gn = gn |> SYN.QG.toID |> ID.unmk in
   match (gn, pel, qrl) with [
       ("U", pel, [qr]) -> U pel qr
     | ("CX", [], [qr1; qr2]) -> CX qr1 qr2
@@ -354,19 +354,19 @@ value make_uop loc gn pel qrl =
 ;
 
 value conv_paramconst = fun [
-  PC.REAL r -> REAL r
+  SYN.REAL r -> REAL r
 | NNINT n -> NNINT n
 | PI -> PI
 ] ;
 
 value conv_empty pv : expr empty_t = match pv with [
-  PV loc _ -> Fmt.(raise_failwithf loc "conv_param: variables forbidden here")
+  SYN.PV loc _ -> Fmt.(raise_failwithf loc "conv_param: variables forbidden here")
 ] ;
-value conv_cparamvar pv = ID (PV.toID pv) ;
+value conv_cparamvar pv = ID (SYN.PV.toID pv) ;
 
 value conv_param conv_paramvar e =
   let rec crec = fun [
-        PE.ID _ pv -> conv_paramvar pv
+        SYN.PE.ID _ pv -> conv_paramvar pv
       | CONST _ pc -> conv_paramconst pc
       | BINOP _ ADD pe1 pe2 -> ADD (crec pe1) (crec pe2)
       | BINOP _ SUB pe1 pe2 -> SUB (crec pe1) (crec pe2)
@@ -385,16 +385,16 @@ value conv_param conv_paramvar e =
 ;
 
 value rec conv_circuit loc0 acc env = fun [
-  QC.QLET loc bl qc ->
+  SYN.QC.QLET loc bl qc ->
   let loc = ploc_encl_with_comments loc0 loc in
   let env = conv_bindings loc acc env bl in
   conv_circuit Ploc.dummy acc env qc
-| QC.QWIRES _ qvl cvl ->
+| QWIRES _ qvl cvl ->
    (List.map (CE.lookup_qv env) qvl, List.map (CE.lookup_cv env) cvl)
-| QC.QBIT _ ->
+| QBIT _ ->
    ([CE.next_qreg env], [])
-| QC.QDISCARD _ _ -> ([], [])
-| QC.QRESET loc qvl -> do {
+| QDISCARD _ _ -> ([], [])
+| QRESET loc qvl -> do {
     let loc = ploc_encl_with_comments loc0 loc in
     let qrl = List.map (CE.lookup_qv env) qvl in
     CE.if_emit env (fun () ->
@@ -402,13 +402,13 @@ value rec conv_circuit loc0 acc env = fun [
                    Std.push acc (loc, STMT_QOP (RESET qr)))) ;
     (qrl, [])
   }
-| QC.QBARRIER loc qvl -> do {
+| QBARRIER loc qvl -> do {
     let loc = ploc_encl_with_comments loc0 loc in
     let qrl = List.map (CE.lookup_qv env) qvl in
     CE.if_emit env (fun () -> Std.push acc (loc, STMT_BARRIER qrl)) ;
     (qrl, [])
   }
-| QC.QMEASURE loc qvl -> do {
+| QMEASURE loc qvl -> do {
     let loc = ploc_encl_with_comments loc0 loc in
     let qrl = List.map (CE.lookup_qv env) qvl in
     let crl = List.map (fun _ -> CE.next_creg env) qrl in
@@ -421,7 +421,7 @@ value rec conv_circuit loc0 acc env = fun [
          ) ;
     (qrl, crl)
   }
-| QC.QGATEAPP loc gn pel qvl cvl ->
+| QGATEAPP loc gn pel qvl cvl ->
     let loc = ploc_encl_with_comments loc0 loc in
    if cvl <> [] then
      Fmt.(raise_failwithf loc "conv_circuit: gates cannot take classical bits in qasm2")
@@ -432,11 +432,11 @@ value rec conv_circuit loc0 acc env = fun [
         Std.push acc (loc, STMT_QOP (UOP (make_uop loc gn pel qrl)))) ;
     match CE.lookup_gate env gn with [
         Left ((_, qvl,  cvl), qc) ->
-        let qvl = qvl |> List.map (fun  [ QV _ id -> id ]) in
+        let qvl = qvl |> List.map (fun  [ SYN.QV _ id -> id ]) in
         if List.length qrl <> List.length qvl then
-          Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" QG.pp gn)
+          Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" SYN.QG.pp gn)
         else if [] <> cvl then
-          Fmt.(raise_failwithf loc "conv_circuit: composite gate %a should not accept classical bits" QG.pp gn)
+          Fmt.(raise_failwithf loc "conv_circuit: composite gate %a should not accept classical bits" SYN.QG.pp gn)
         else
           let env = CE.reset_vars env in
           let env = List.fold_left CE.upsert_qv env (Std.combine qvl qrl) in
@@ -444,9 +444,9 @@ value rec conv_circuit loc0 acc env = fun [
           conv_circuit Ploc.dummy acc env qc
       | Right (_, qvl,  cvl) ->
          if List.length qrl <> List.length qvl then
-           Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" QG.pp gn)
+           Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg args to gate: %a" SYN.QG.pp gn)
          else if [] <> cvl then
-           Fmt.(raise_failwithf loc "conv_circuit: opaque gate %a should not accept classical bits" QG.pp gn)
+           Fmt.(raise_failwithf loc "conv_circuit: opaque gate %a should not accept classical bits" SYN.QG.pp gn)
          else
            (qrl, [])
       ]
@@ -459,13 +459,13 @@ and conv_bindings loc acc env bl =
 and conv_binding loc0 acc env b =
   let (loc, qvl, cvl, qc) = b in
   let loc = ploc_encl_with_comments loc0 loc in
-  let qvl = qvl |> List.map (fun  [ QV _ id -> id ]) in
-  let cvl = cvl |> List.map (fun  [ CV _ id -> id ]) in
+  let qvl = qvl |> List.map (fun  [ SYN.QV _ id -> id ]) in
+  let cvl = cvl |> List.map (fun  [ SYN.CV _ id -> id ]) in
   let (qrl, crl) = conv_circuit loc acc env qc in
   if List.length qrl <> List.length qvl then
-    Fmt.(raise_failwithf loc "conv_binding: length mismatch in qvars: %a" QC.pp_qbinding_t b)
+    Fmt.(raise_failwithf loc "conv_binding: length mismatch in qvars: %a" SYN.QC.pp_qbinding_t b)
   else if List.length crl <> List.length cvl then
-    Fmt.(raise_failwithf loc "conv_binding: length mismatch in clvars: %a" QC.pp_qbinding_t b)
+    Fmt.(raise_failwithf loc "conv_binding: length mismatch in clvars: %a" SYN.QC.pp_qbinding_t b)
   else
     let env = List.fold_left CE.upsert_qv env (Std.combine qvl qrl) in
     let env = List.fold_left CE.upsert_cv env (Std.combine cvl crl) in
@@ -492,21 +492,21 @@ value circuit (gates, qc) =
 value rec extract_gates env =
   env |>
     List.concat_map (fun [
-      QEnv.QGATE _ (DEF (QG _ gn) glam) -> [(gn, Left glam)]
-    | QEnv.QGATE _ (OPAQUE (QG _ gn) gargs) -> [(gn, Right gargs)]
-    | QEnv.QINCLUDE _ QASM2 _ l -> extract_gates l
+      SYN.QEnv.QGATE _ (DEF (QG _ gn) glam) -> [(gn, Left glam)]
+    | QGATE _ (OPAQUE (QG _ gn) gargs) -> [(gn, Right gargs)]
+    | QINCLUDE _ QASM2 _ l -> extract_gates l
     ])
 ;
 (*
 value env_item gates it = [] ;
  *)
 value env_item gates it = match it with [
-  QEnv.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
-| QEnv.QINCLUDE loc _ _ _ ->
+  SYN.QEnv.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
+| QINCLUDE loc _ _ _ ->
    Fmt.(raise_failwithf loc "cannot convert QLAM include into QASM")
-| QEnv.QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "U" -> [] 
-| QEnv.QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "CX" -> []
-| _ -> Fmt.(failwithf "Qconvert.env_item: unexpected declaration %a" QEnv.pp_item it)
+| QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "U" -> [] 
+| QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "CX" -> []
+| _ -> Fmt.(failwithf "Qconvert.env_item: unexpected declaration %a" SYN.QEnv.pp_item it)
 ] ;
 
 value env gates =
