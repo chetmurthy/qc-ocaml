@@ -134,6 +134,18 @@ open Qlam_parser ;;
 
 open Qasm2syntax.AST ;;
 
+let id_pp x = Fmt.(pf stdout "<:id<%a>>" ID.pp_hum x) ;;
+#install_printer id_pp ;;
+
+let qvar_pp x = Fmt.(pf stdout "<:qvar<%a>>" SYN.QV.pp_hum x) ;;
+#install_printer qvar_pp ;;
+
+let cvar_pp x = Fmt.(pf stdout "<:cvar<%a>>" SYN.CV.pp_hum x) ;;
+#install_printer cvar_pp ;;
+
+let qgn_pp x = Fmt.(pf stdout "<:qgn<%a>>" SYN.QG.pp_hum x) ;;
+#install_printer qgn_pp ;;
+
 let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" PP.qcirc qc) ;;
 #install_printer qcircuit_pp ;;
 
@@ -160,11 +172,6 @@ let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ")
 #install_printer pp_qv_corr ;;
 #install_printer pp_cv_corr ;;
 
-#trace Ops.add_qvs ;;
-#trace Ops.add_cvs ;;
-#trace Ops.check_qv_corr ;;
-#trace Ops.check_cv_corr ;;
-
 let alpha_equality (name, txt1, txt2, expect) = 
     let (env, qc1) = txt1 |> Stream.of_string |> parse_qcircuit in
     let (env, qc2) = txt2 |> Stream.of_string |> parse_qcircuit in
@@ -177,6 +184,16 @@ let alpha_equality (name, txt1, txt2, expect) =
 ;;
 
 alpha_equality("2", {|let q = qubit () in (q)|},{|let p = qubit () in (p)|}, true) ;;
+
+#trace ANorm.seprec ;;
+#trace ANorm.watch_qvl ;;
+#trace ANorm.watch_cvl ;;
+#trace ANorm.watch_qvfvs ;;
+#trace ANorm.watch_cvfvs ;;
+
+{| let x' = let w' = E1' in E2' and y = E3 x' and z = E4 in
+    E5 |} |> Stream.of_string |> parse_qcircuit |> snd |> ANorm.separate_let_bindings;;
+
 
 (* Local Variables: *)
 (* mode: tuareg *)

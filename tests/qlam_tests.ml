@@ -37,6 +37,12 @@ let printer x = Fmt.(str "<:id<%a>>" ID.pp x) in
   ; assert_equal ~printer (ID.mk "a'") ("a'", -1)
   ; assert_equal ~printer (ID.mk "a'_") ("a'_", -1)
   )
+; "2" >:: (fun _ ->
+  let assert_roundtrip x =
+    assert_equal ~msg:x (ID.unmk (ID.mk x)) x in
+    assert_roundtrip "x"
+  ; assert_roundtrip "x'0"
+  )
 ]
 
 open Qlam_syntax ;;
