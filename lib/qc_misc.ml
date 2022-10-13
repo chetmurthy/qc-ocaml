@@ -52,7 +52,7 @@ end
 
 module ID = struct
   type t = string * int[@@deriving (yojson, show, eq, ord)]
-  let id_re = Pcre.regexp "^([A-Za-z](?:[A-Za-z_0-9_]*[A-Za-z])?)([0-9]*)$"
+  let id_re = Pcre.regexp "^([A-Za-z](?:[A-Za-z_'0-9]*[A-Za-z_'])?)([0-9]*)$"
   let mk0 s n = (s,n)
   let mk s =
     let ss = Pcre.extract ~rex:id_re s in

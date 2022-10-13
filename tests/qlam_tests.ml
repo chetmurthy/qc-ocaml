@@ -29,6 +29,16 @@ let assert_raises_exn_pattern ~msg pattern f =
     f
 
 
+let id_tests = "ID tests" >:::
+let printer x = Fmt.(str "<:id<%a>>" ID.pp x) in
+[
+  "1" >:: (fun _ ->
+    assert_equal ~printer (ID.mk "a") ("a", -1)
+  ; assert_equal ~printer (ID.mk "a'") ("a'", -1)
+  ; assert_equal ~printer (ID.mk "a'_") ("a'_", -1)
+  )
+]
+
 open Qlam_syntax ;;
 open Qlam_parser ;;
 
@@ -289,7 +299,8 @@ Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 let _ =
 if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
-        roundtrip_tests
+        id_tests
+      ; roundtrip_tests
       ; pp_tests
       ; alpha_equality_tests
       ; tychk_tests
