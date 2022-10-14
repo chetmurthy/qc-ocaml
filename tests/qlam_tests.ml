@@ -299,39 +299,40 @@ let q0 = h q in
 ;;
 
 
-let separate_let_qlam (name, txt, expect) = 
+let anorm_qlam (name, txt, expect) = 
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
     let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
     match expect with
       Left expect ->
-       let got_qc = Ops.ANorm.separate_let_bindings qc in
+       let got_qc = Ops.ANorm.anorm qc in
        let (_, expect_qc) = expect |> Stream.of_string |> parse_qcircuit in
       assert_equal ~cmp ~printer expect_qc got_qc
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> Ops.ANorm.separate_let_bindings qc)
+         (fun () -> Ops.ANorm.anorm qc)
   )
 
 let separate_let_tests = "separate_let tests" >:::
 (
 
-  (List.map separate_let_qlam [
-       ("simple", {|
+  (List.map anorm_qlam [
+       ("captures", {|
 let x' = let w' = E1' in E2' and y = E3 x' and z = E4 in
     E5
 |},
-        Right "separate.*would capture")
+        Right "anorm.*capture")
      ; ("simple", {|
 let x' = let w' = E1' in E2' and y = E3 and z = E4 in
     E5
 |},
-        Left {|let x' = 
-let w' = E1'  in E2'  in
-let y = E3  and z = E4  in
-E5
+        Left {|
+let w' = E1' in
+let x' = E2' in
+let y = E3 and z = E4 in
+    E5
 |})
      ]
   )

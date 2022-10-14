@@ -185,14 +185,8 @@ let alpha_equality (name, txt1, txt2, expect) =
 
 alpha_equality("2", {|let q = qubit () in (q)|},{|let p = qubit () in (p)|}, true) ;;
 
-#trace ANorm.seprec ;;
-#trace ANorm.watch_qvl ;;
-#trace ANorm.watch_cvl ;;
-#trace ANorm.watch_qvfvs ;;
-#trace ANorm.watch_cvfvs ;;
-
 {| let x' = let w' = E1' in E2' and y = E3 x' and z = E4 in
-    E5 |} |> Stream.of_string |> parse_qcircuit |> snd |> ANorm.separate_let_bindings;;
+    E5 |} |> Stream.of_string |> parse_qcircuit |> snd |> ANorm.anorm;;
 
 
 (* Local Variables: *)

@@ -430,50 +430,20 @@ value rebuild_let_fvs loc bl_fvs (qc,fvs) =
   (QLET loc bl qc, fvs)
 ;
 
-value wrap_separated_letbinding (((loc, qvl, cvl, _) as letb), letb_fvs) ((qc, qc_fvs), rest_fvs) =
-  if FVS.(mt <> (intersect rest_fvs (of_ids (qvl, cvl)))) then
-    Fmt.(raise_failwithf loc "separate_let_bindings: let-binding would capture freevars in another binding: letbinding binders %a intersect with freevars %a"
-           FVS.pp_hum (FVS.of_ids (qvl, cvl))
-           FVS.pp_hum qc_fvs)
-  else
-
-    let (qc, qc_fvs) = rebuild_let_fvs loc [(letb, letb_fvs)] (qc, qc_fvs) in
-    let rest_fvs = FVS.union rest_fvs letb_fvs in
-    ((qc, qc_fvs), rest_fvs)
-;
-
-value rec separate_let_bindings qc =
-  let (qc, _) = seprec qc in
-  qc
-
-and seprec qc = match qc with [
-    QLET loc bl qc ->
-    let (qc, qc_fvs) = seprec qc in
-    let bl_fvs = List.map (compute_binding_fvs seprec) bl in
-
-    (* split into let-bindings and the rest *)
-    let is_let_binding ((_, _, _, qc), _) = match qc with [
-      SYN.QLET _ _ _ -> True | _ -> False
-    ] in
-
-    let (letbindings_fvs, restbindings_fvs) = filter_split is_let_binding bl_fvs in
-
-    let (qc, qc_fvs) = rebuild_let_fvs loc restbindings_fvs (qc, qc_fvs) in
-    let rhs_fvs = FVS.concat (restbindings_fvs |> List.map snd) in
-      
-    let ((qc, qc_fvs), rhs_fvs) =
-      List.fold_right wrap_separated_letbinding letbindings_fvs ((qc, qc_fvs), rhs_fvs) in
-
-    (qc, qc_fvs)
-
-  | QWIRES _ qvl cvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl))
-  | QGATEAPP _ _ _ qvl cvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl))
-  | QBARRIER _ qvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.mt))
-  | QBIT _ -> (qc, (SYN.QVFVS.mt, SYN.CVFVS.mt))
-  | QDISCARD _ qvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.mt))
-  | QMEASURE _ qvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.mt))
-  | QRESET _ qvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.mt))
-  ]
+value rebuild_letlist_fvs (b, b_fvs) (qc, qc_fvs) =
+  let (ll, b_qc) = SYN.to_letlist (qbinding_qc b) in
+  let _ = assert ([] <> ll) in
+  let bl =
+    ll
+    |> List.map snd
+    |> List.concat in
+  let qc =
+    let (loc, qvl, cvl, _) = b in
+    QLET loc [(loc, qvl, cvl, b_qc)] qc  in
+  let qc = List.fold_right (fun b qc ->
+               let loc = qbinding_loc b in
+               QLET loc [b] qc) bl qc in
+  (qc, FVS.union b_fvs qc_fvs)
 ;
 
 (** [anorm qcirc] A-normalizes the circuit.  For this restricted language, this consists in flattening
@@ -568,9 +538,7 @@ value anormalize_let loc bl_fvs (qc, qc_fvs) = do {
     else
     let (letbindings_fvs, restbindings_fvs) = filter_split is_let_binding bl_fvs in
     let (qc, qc_fvs) = rebuild_let_fvs loc restbindings_fvs (qc, qc_fvs) in
-    List.fold_right (rebuild_let_fvs loc)
-      (List.map (fun x -> [x]) letbindings_fvs)
-    (qc,qc_fvs)
+    List.fold_right rebuild_letlist_fvs letbindings_fvs (qc,qc_fvs)
   } ;
 
 value anorm qc =
