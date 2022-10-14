@@ -386,38 +386,58 @@ module ANorm = struct
     For this to be safe, x, x' must not appear in the freevars of E3, E4.
  *)
 
-value watch_qvl ((s : string), (l : list QV.t)) = () ;
-value watch_cvl ((s : string), (l : list CV.t)) = () ;
-value watch_qvfvs ((s : string), (l : QVFVS.t)) = () ;
-value watch_cvfvs ((s : string), (l : CVFVS.t)) = () ;
+module FVS = struct
+type t = (QVFVS.t * CVFVS.t) ;
+value mt = (QVFVS.mt, CVFVS.mt) ;
+value union (q1, c1) (q2, c2) = (QVFVS.union q1 q2, CVFVS.union c1 c2) ;
+value concat l = List.fold_left union mt l ;
+value subtract_ids (q, c) (qvl, cvl) = 
+  (QVFVS.(subtract q (ofList qvl)), CVFVS.(subtract c (ofList cvl))) ;
+value subtract (q1, c1) (q2, c2) = 
+  (QVFVS.(subtract q1 q2), CVFVS.(subtract c1 c2)) ;
+value intersect (q1, c1) (q2, c2) = 
+  (QVFVS.(intersect q1 q2), CVFVS.(intersect c1 c2)) ;
+value of_ids (qvl, cvl) = (QVFVS.ofList qvl, CVFVS.ofList cvl) ;
+value pp_hum pps (q, c) = Fmt.(pf pps "{q=%a; c=%a}" QVFVS.pp_hum q CVFVS.pp_hum c) ;
+end ;
 
-value wrap_separated_letbinding
-  (((loc, qvl, cvl, letb_qc) as letb), (letb_qvfvs, letb_cvfvs))
-  ((qc, (qvfvs,  cvfvs)), (rest_qvfvs,  rest_cvfvs)) =
-  if QVFVS.(mt <> (intersect rest_qvfvs (ofList qvl))) then
+value compute_binding_fvs bindingf ((loc, qvl, cvl, qc) : qbinding_t) : (qbinding_t * FVS.t) =
+  let (qc, fvs) = bindingf qc in
+  ((loc, qvl, cvl, qc), fvs)
+;
+
+value rebuild_let_fvs loc bl_fvs (qc,fvs) =
+
+  (* the bindings of the rest *)
+  let bl = List.map fst bl_fvs in
+  (* qvars bound in the rest *)
+  let bl_qvl = bl |> List.map qbinding_qvl |> List.concat in
+  (* cvars bound in the rest *)
+  let bl_cvl = bl |> List.map qbinding_cvl |> List.concat in
+
+  (* subtract IDs bound in [bl] from [fvs] *)
+  let fvs = FVS.subtract_ids fvs (bl_qvl, bl_cvl) in
+
+  (* fvs of rhs of bindings *)
+  let bl_fvs = FVS.concat (List.map snd bl_fvs) in
+
+  (* [fvs of qc] - [ids bound in bl] union [fvs of RHS of bl] *)
+  let fvs = FVS.union fvs bl_fvs in
+  
+  (* let rest-bindings in qc *)
+  (QLET loc bl qc, fvs)
+;
+
+value wrap_separated_letbinding (((loc, qvl, cvl, _) as letb), letb_fvs) ((qc, qc_fvs), rest_fvs) =
+  if FVS.(mt <> (intersect rest_fvs (of_ids (qvl, cvl)))) then
     Fmt.(raise_failwithf loc "separate_let_bindings: let-binding would capture freevars in another binding: letbinding binders %a intersect with freevars %a"
-           QVFVS.pp_hum (QVFVS.ofList qvl) QVFVS.pp_hum rest_qvfvs)
-  else if CVFVS.(mt <> (intersect rest_cvfvs (ofList cvl))) then
-    Fmt.(raise_failwithf loc "separate_let_bindings: let-binding would capture freevars in another binding: letbinding binders %a intersect with freevars %a"
-           CVFVS.pp_hum (CVFVS.ofList cvl) CVFVS.pp_hum rest_cvfvs)
-    else
+           FVS.pp_hum (FVS.of_ids (qvl, cvl))
+           FVS.pp_hum qc_fvs)
+  else
 
-    (* qvars-of-qc - qvars bound in the letbindings *)
-    let qvfvs = QVFVS.(subtract qvfvs (ofList qvl)) in
-    (* cvars-of-qc - cvars bound in the letbindings *)
-    let cvfvs = CVFVS.(subtract cvfvs (ofList cvl)) in
-
-    (* compute qvars of "let letbindings-bindings in qc" *)
-    let qvfvs = QVFVS.union qvfvs letb_qvfvs in
-    (* compute cvars of "let letbindings-bindings in qc" *)
-    let cvfvs = CVFVS.union cvfvs letb_cvfvs in
-    
-    let rest_qvfvs = QVFVS.union rest_qvfvs letb_qvfvs in
-    let rest_cvfvs = CVFVS.union rest_cvfvs letb_cvfvs in
-
-    (* let letbindings-bindings in qc *)
-    let qc = QLET loc [letb] qc in
-    ((qc, (qvfvs, cvfvs)), (rest_qvfvs,  rest_cvfvs))
+    let (qc, qc_fvs) = rebuild_let_fvs loc [(letb, letb_fvs)] (qc, qc_fvs) in
+    let rest_fvs = FVS.union rest_fvs letb_fvs in
+    ((qc, qc_fvs), rest_fvs)
 ;
 
 value rec separate_let_bindings qc =
@@ -426,90 +446,23 @@ value rec separate_let_bindings qc =
 
 and seprec qc = match qc with [
     QLET loc bl qc ->
-    let (qc, (qvfvs, cvfvs)) = seprec qc in
-    let bl_fvs =
-      bl
-      |> List.map (fun (loc, qvl, cvl, qc) ->
-             let (qc,  (qvfvs, cvfvs)) = seprec qc in
-             ((loc, qvl, cvl, qc), (qvfvs, cvfvs))) in
+    let (qc, qc_fvs) = seprec qc in
+    let bl_fvs = List.map (compute_binding_fvs seprec) bl in
 
     (* split into let-bindings and the rest *)
     let is_let_binding ((_, _, _, qc), _) = match qc with [
       SYN.QLET _ _ _ -> True | _ -> False
     ] in
 
-    let (letbindings_fvs, rest_fvs) = filter_split is_let_binding bl_fvs in
+    let (letbindings_fvs, restbindings_fvs) = filter_split is_let_binding bl_fvs in
 
-    let ((qc, (qvfvs,  cvfvs)), (rest_qvfvs,  rest_cvfvs)) =
-      (* the bindings of the rest *)
-      let rest_bl = List.map fst rest_fvs in
-      (* qvars bound in the rest *)
-      let rest_qvl = rest_bl |> List.map qbinding_qvl |> List.concat in
-      (* cvars bound in the rest *)
-      let rest_cvl = rest_bl |> List.map qbinding_cvl |> List.concat in
-
-      (* qvars-of-qc - qvars bound in the rest *)
-      let qvfvs = QVFVS.(subtract qvfvs (ofList rest_qvl)) in
-      (* cvars-of-qc - cvars bound in the rest *)
-      let cvfvs = CVFVS.(subtract cvfvs (ofList rest_cvl)) in
-
-      (* qvars bound in rhs of rest-bindings *)
-      let rest_qvfvs = QVFVS.(concat (rest_fvs |> List.map snd |>  List.map fst)) in
-      (* cvars bound in rhs of rest-bindings *)
-      let rest_cvfvs = CVFVS.(concat (rest_fvs |> List.map snd |>  List.map snd)) in
-
-
-      (* compute qvars of "let rest-bindings in qc" *)
-      let qvfvs = QVFVS.union qvfvs rest_qvfvs in
-      (* compute cvars of "let rest-bindings in qc" *)
-      let cvfvs = CVFVS.union cvfvs rest_cvfvs in
+    let (qc, qc_fvs) = rebuild_let_fvs loc restbindings_fvs (qc, qc_fvs) in
+    let rhs_fvs = FVS.concat (restbindings_fvs |> List.map snd) in
       
-      (* let rest-bindings in qc *)
-      ((QLET loc rest_bl qc, (qvfvs, cvfvs)), (rest_qvfvs, rest_cvfvs)) in
+    let ((qc, qc_fvs), rhs_fvs) =
+      List.fold_right wrap_separated_letbinding letbindings_fvs ((qc, qc_fvs), rhs_fvs) in
 
-    if [] = letbindings_fvs then
-      (qc, (qvfvs,  cvfvs)) else
-
-    (* the bindings of the letbindings *)
-    let letbindings_bl = List.map fst letbindings_fvs in
-      (* qvars bound in the rest *)
-    let letbindings_qvl = letbindings_bl |> List.map qbinding_qvl |> List.concat in
-    (* cvars bound in the letbindings *)
-    let letbindings_cvl = letbindings_bl |> List.map qbinding_cvl |> List.concat in
-
-    let _ = watch_qvl ("letbindings_qvl", letbindings_qvl) in
-    let _ = watch_cvl ("letbindings_cvl", letbindings_cvl) in
-
-    let _ = watch_qvfvs ("rest_qvfvs", rest_qvfvs) in
-    let _ = watch_cvfvs ("rest_cvfvs", rest_cvfvs) in
-
-    if QVFVS.(mt <> (intersect rest_qvfvs (ofList letbindings_qvl))) then
-      Fmt.(raise_failwithf loc "separate_let_bindings: let-binding would capture freevars in another binding: letbinding binders %a intersect with freevars %a"
-             QVFVS.pp_hum (QVFVS.ofList letbindings_qvl) QVFVS.pp_hum rest_qvfvs)
-    else if CVFVS.(mt <> (intersect rest_cvfvs (ofList letbindings_cvl))) then
-      Fmt.(raise_failwithf loc "separate_let_bindings: let-binding would capture freevars in another binding: letbinding binders %a intersect with freevars %a"
-             CVFVS.pp_hum (CVFVS.ofList letbindings_cvl) CVFVS.pp_hum rest_cvfvs)
-    else
-
-    (* qvars-of-qc - qvars bound in the letbindings *)
-    let qvfvs = QVFVS.(subtract qvfvs (ofList letbindings_qvl)) in
-    (* cvars-of-qc - cvars bound in the letbindings *)
-    let cvfvs = CVFVS.(subtract cvfvs (ofList letbindings_cvl)) in
-
-    (* qvars bound in rhs of letbindings-bindings *)
-    let letbindings_qvfvs = QVFVS.(concat (letbindings_fvs |> List.map snd |>  List.map fst)) in
-    (* cvars bound in rhs of letbindings-bindings *)
-    let letbindings_cvfvs = CVFVS.(concat (letbindings_fvs |> List.map snd |>  List.map snd)) in
-
-
-    (* compute qvars of "let letbindings-bindings in qc" *)
-    let qvfvs = QVFVS.union qvfvs letbindings_qvfvs in
-    (* compute cvars of "let letbindings-bindings in qc" *)
-    let cvfvs = CVFVS.union cvfvs letbindings_cvfvs in
-    
-    (* let letbindings-bindings in qc *)
-    let qc = QLET loc letbindings_bl qc in
-    (qc, (qvfvs, cvfvs))
+    (qc, qc_fvs)
 
   | QWIRES _ qvl cvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl))
   | QGATEAPP _ _ _ qvl cvl -> (qc, (SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl))
@@ -542,12 +495,25 @@ and seprec qc = match qc with [
 
     We will *assume* that this never happens, but will *check* for it (it's a simple bottom-up calculation of
     free-variables) and raise an error if it happens.
+
+    NOTE WELL: a let-binding (e.g. "let x = let y = ...") will always appear separate from other bindings;
+    [separate_let_binding] does that transformation.
+
  *)
+
 (*
+
 value anorm qc =
   let rec anrec qc = match qc with [
-  | SYN.QLET _ bl _ when bl |> List.exists is_let_binding ->
-
+  | SYN.QLET _ bl _ when not (List.exists is_let_binding bl) ->
+     let bl_fvs =
+       bl |> List.map (fun (loc, qvl, cvl, qc) ->
+                 let (qc, fvs) = anrec qc in
+                 ((loc, qvl, cvl, qc), fvs)
+               ) in
+     let bl = List.map fst bl_fvs in
+     let (qc, fvs) = anrec qc in
+     
 
   | SYN.QLET _ _ _ ->
     let (qc, qvfvs, cvfvs) = anrec qc in
@@ -567,7 +533,9 @@ value anorm qc =
   let (qc, _, _) = anrec qc in
   qc
 ;
+
  *)
+
 end ;
 
 module Unroll = struct
