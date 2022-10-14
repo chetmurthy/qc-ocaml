@@ -116,6 +116,8 @@ value loc_of_qcirc = fun [
 | QRESET loc _ -> loc
 ] ;
 
+value is_qlet = fun [ QLET _ _ _ -> True | _ -> False ] ;
+
 value to_letlist qc =
   let rec torec acc qc = match qc with [
         QLET loc bl qc ->
@@ -222,7 +224,7 @@ value comm_nl pps = fun [
 value rec qcirc pps = fun [
     QLET loc bl qc ->
     let comm = Ploc.comment loc in
-     Fmt.(pf pps "@[<v>%alet @[%a@] in@ %a@]" comm_nl comm (list ~{sep=and_sep} binding) bl qcirc qc)
+     Fmt.(pf pps "@[<v>%alet @[%a@] in@ %a@]" comm_nl comm (list ~{sep=and_sep} qbinding) bl qcirc qc)
   | QWIRES _ qvl cvl -> paren_qvars_cvars pps (qvl, cvl)
   | QGATEAPP _ qg [] qvl cvl ->
      Fmt.(pf  pps "%a %a" QG.pp_hum qg qvars_cvars (qvl, cvl))
@@ -235,7 +237,7 @@ value rec qcirc pps = fun [
   | QRESET _ qvl -> Fmt.(pf pps "reset %a" qvars_cvars (qvl, []))
 ]
 
-and binding pps = fun [
+and qbinding pps = fun [
     (_, [qv],  [], qc) ->
     Fmt.(pf pps "%a = %a" QV.pp_hum qv qcirc qc)
   | (_, qvl,  cvl, qc) ->

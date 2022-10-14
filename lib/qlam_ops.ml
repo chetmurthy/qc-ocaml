@@ -1,6 +1,8 @@
 
+open Pa_ppx_utils ;
 open Pa_ppx_base ;
 open Ppxutil ;
+open Qc_misc ;
 open Qlam_syntax ;
 
 open SYN ;
@@ -514,43 +516,85 @@ and seprec qc = match qc with [
    (3) {all binding-ids of all top-level bindings} concat {all binding-ids in let-lists} MUST be distinct.
 
  *)
-value anormalizable loc bl_fvs (qc, qc_fvs) = () ;
+value anormalize_let loc bl_fvs (qc, qc_fvs) = do {
+    let is_let_binding ((_, _, _, qc), _) = match qc with [
+      SYN.QLET _ _ _ -> True | _ -> False
+    ] in
+    let top_binders =
+      let qvl = bl_fvs |> List.map fst |>  List.map qbinding_qvl |>  List.concat in
+      let cvl = bl_fvs |> List.map fst |>  List.map qbinding_cvl |>  List.concat in
+      (qvl, cvl) in
+    let top_binders_fvs = FVS.of_ids top_binders in
 
+    let letlist_binders =
+      let letlist_l : list (list (loc * list qbinding_t) * qcirc_t) =
+        bl_fvs
+        |>  List.map fst
+        |> List.map qbinding_qc
+        |> List.map SYN.to_letlist (* list letlists *) in
+      let letlist_bl =
+        letlist_l
+        |> List.map fst (* list (list (loc * list qbinding)) *)
+        |> List.concat (* list (loc * list qbinding) *)
+        |> List.map snd (* list (list qbinding) *)
+        |> List.concat (* list (list qbinding) *) in
+      let letlist_qvl = letlist_bl |> List.map qbinding_qvl |> List.concat in
+      let letlist_cvl = letlist_bl |> List.map qbinding_cvl |> List.concat in
+      (letlist_qvl, letlist_cvl) in
+    let letlist_binders_fvs = FVS.of_ids letlist_binders in
 
-(*
+    let binder_ids =
+      (top_binders |> fst |> List.map QV.toID)
+      @(top_binders |> snd |> List.map CV.toID)
+      @(letlist_binders |> fst |> List.map QV.toID)
+      @(letlist_binders |> snd |> List.map CV.toID) in
+
+    bl_fvs
+    |> List.iter (fun (b, binding_fvs) ->
+           if FVS.(mt <> (intersect top_binders_fvs binding_fvs)) then
+             Fmt.(raise_failwithf loc "anormalizable: top binders of let-bindings %a capture RHS of let-binding %a"
+                    FVS.pp_hum top_binders_fvs PP.qbinding b)
+           else if FVS.(mt <> (intersect letlist_binders_fvs binding_fvs)) then
+             Fmt.(raise_failwithf loc "anormalizable: letlist binders of let-bindings %a capture RHS of let-binding %a"
+                    FVS.pp_hum letlist_binders_fvs PP.qbinding b)
+           else ()
+         ) ;
+    if FVS.(mt <> (intersect letlist_binders_fvs qc_fvs)) then
+      Fmt.(raise_failwithf loc "anormalizable: letlist binders of let-bindings %a capture body of LET"
+             FVS.pp_hum letlist_binders_fvs)
+    else if not (Std.distinct binder_ids) then
+      Fmt.(raise_failwithf loc "anormalizable: binders are not distinct %a"
+             (list ~{sep=const string " "} ID.pp_hum) binder_ids)
+    else
+    let (letbindings_fvs, restbindings_fvs) = filter_split is_let_binding bl_fvs in
+    let (qc, qc_fvs) = rebuild_let_fvs loc restbindings_fvs (qc, qc_fvs) in
+    List.fold_right (rebuild_let_fvs loc)
+      (List.map (fun x -> [x]) letbindings_fvs)
+    (qc,qc_fvs)
+  } ;
 
 value anorm qc =
   let rec anrec qc = match qc with [
-  | SYN.QLET _ bl _ when not (List.exists is_let_binding bl) ->
+    SYN.QLET loc bl qc ->
      let bl_fvs =
        bl |> List.map (fun (loc, qvl, cvl, qc) ->
                  let (qc, fvs) = anrec qc in
                  ((loc, qvl, cvl, qc), fvs)
                ) in
-     let bl = List.map fst bl_fvs in
-     let (qc, fvs) = anrec qc in
-     
+     let (qc, qc_fvs) = anrec qc in
+     anormalize_let loc bl_fvs (qc, qc_fvs)
 
-  | SYN.QLET _ _ _ ->
-    let (qc, qvfvs, cvfvs) = anrec qc in
-    let (lets, qc) = SYN.to_letlist qc in
-    
-
- of loc and list qbinding_t and qcirc_t
-
-  | QWIRES _ qvl cvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl)
-  | QGATEAPP _ _ pvl cvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.ofList cvl)
-  | QBARRIER _ qvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
-  | QBIT _ -> (qc, SYN.QVFVS.mt, SYN.CVFVS.mt)
-  | QDISCARD _ qvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
-  | QMEASURE _ qvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
-  | QRESET _ qvl -> (qc, SYN.QVFVS.ofList qvl, SYN.CVFVS.mt)
+  | QWIRES _ qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
+  | QGATEAPP _ _ pvl qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
+  | QBARRIER _ qvl -> (qc, FVS.(of_ids (qvl, [])))
+  | QBIT _ -> (qc, FVS.mt)
+  | QDISCARD _ qvl -> (qc, FVS.(of_ids (qvl, [])))
+  | QMEASURE _ qvl -> (qc, FVS.(of_ids (qvl, [])))
+  | QRESET _ qvl -> (qc, FVS.(of_ids (qvl, [])))
   ] in
-  let (qc, _, _) = anrec qc in
+  let (qc, _) = anrec qc in
   qc
 ;
-
- *)
 
 end ;
 
