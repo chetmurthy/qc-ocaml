@@ -41,7 +41,7 @@ let printer x = Fmt.(str "<:id<%a>>" ID.pp x) in
   let assert_roundtrip x =
     assert_equal ~msg:x (ID.unmk (ID.mk x)) x in
     assert_roundtrip "x"
-  ; assert_roundtrip "x'0"
+  ; assert_roundtrip "x'"
   )
 ]
 
@@ -298,6 +298,46 @@ let q0 = h q in
 )
 ;;
 
+
+let separate_let_qlam (name, txt, expect) = 
+  name >:: (fun ctxt ->
+    let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
+    let printer qc = Fmt.(str "%a" PP.qcirc qc) in
+    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    match expect with
+      Left expect ->
+       let got_qc = Ops.ANorm.separate_let_bindings qc in
+       let (_, expect_qc) = expect |> Stream.of_string |> parse_qcircuit in
+      assert_equal ~cmp ~printer expect_qc got_qc
+    | Right exnpat ->
+       assert_raises_exn_pattern ~msg:("should match "^exnpat)
+         exnpat
+         (fun () -> Ops.ANorm.separate_let_bindings qc)
+  )
+
+let separate_let_tests = "separate_let tests" >:::
+(
+
+  (List.map separate_let_qlam [
+       ("simple", {|
+let x' = let w' = E1' in E2' and y = E3 x' and z = E4 in
+    E5
+|},
+        Right "separate.*would capture")
+     ; ("simple", {|
+let x' = let w' = E1' in E2' and y = E3 and z = E4 in
+    E5
+|},
+        Left {|let x' = 
+let w' = E1'  in E2'  in
+let y = E3  and z = E4  in
+E5
+|})
+     ]
+  )
+)
+;;
+
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
@@ -309,6 +349,7 @@ if not !Sys.interactive then
       ; roundtrip_tests
       ; pp_tests
       ; alpha_equality_tests
+      ; separate_let_tests
       ; tychk_tests
     ])
 ;;
