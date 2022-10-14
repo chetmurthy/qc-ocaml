@@ -501,6 +501,22 @@ and seprec qc = match qc with [
 
  *)
 
+(** [anormalizable loc bindings_and_fvs qc_and_fvs]
+
+    a LET with a collection of top-level bindings  is A-normalizable if:
+
+   (1) all binding-ids of all top-level bindings MUST NOT capture any of the RHS of the top-level bindings.
+
+   (2) for all bindings that are let-lists (e.g. "let ... in let ... in ..."), all binding-ids
+       of all bindings in let-lists MUST NOT capture any of the RHS of the top-level bindings, nor
+       of the body of the LET itself.
+
+   (3) {all binding-ids of all top-level bindings} concat {all binding-ids in let-lists} MUST be distinct.
+
+ *)
+value anormalizable loc bl_fvs (qc, qc_fvs) = () ;
+
+
 (*
 
 value anorm qc =

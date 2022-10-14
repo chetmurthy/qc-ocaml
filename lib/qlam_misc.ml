@@ -40,31 +40,31 @@ end ;
 
 module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
   module M = M ;
-  type t = list M.t[@@deriving (show);] ;
-  value mt = [] ;
-  value mem s x = s |> List.exists (fun y -> M.equal x y) ;
-  value add s x = if mem s x then s else [x::s] ;
-  value intersect l1 l2 =
-    l1 |> List.filter (fun x -> mem l2 x) ;
-  value subtract l1 l2 =
-    l1 |> List.filter (fun x -> not (mem l2 x)) ;
-  value ofList l = l ;
-  value toList l = l ;
-  value union l1 l2 = List.fold_left add l1 l2 ;
+  module S = Set.Make(M) ;
+  type t = S.t ;
+  value mt = S.empty ;
+  value mem s x = S.mem x s ;
+  value add s x = S.add x s ;
+  value intersect l1 l2 = S.inter l1 l2 ;
+  value subtract l1 l2 = S.diff l1 l2 ;
+  value ofList l = S.of_list l ;
+  value toList l = S.elements l ;
+  value union l1 l2 = S.union l1 l2 ;
   value concat l = List.fold_left union mt l ;
   value fresh l x =
     let (s,_) = M.toID x in
-    let n = List.fold_left (fun acc v ->
+    let n = S.fold (fun v acc ->
       let (s', m) = M.toID v in
       if s <> s' then acc else max acc m)
-          Int.min_int l in
+          l Int.min_int in
     if n = Int.min_int then
       M.ofID (s,-1)
     else M.ofID (s, n+1) ;
 
-  value equal l1 l2 =
-    l1 |> List.for_all (mem l2)
-    && l2 |> List.for_all (mem l1)  ;
+  value equal l1 l2 = S.equal l1 l2 ;
 
-  value pp_hum pps l = Fmt.(pf pps "%a" (brackets (list ~{sep=const string "; "} M.pp_hum)) l) ;
+  type _t = list M.t[@@deriving (show);] ;
+  value pp pps l = pp__t pps (toList l) ;
+  value show l = show__t (toList l) ;
+  value pp_hum pps l = Fmt.(pf pps "%a" (brackets (list ~{sep=const string "; "} M.pp_hum)) (toList l)) ;
 end ;

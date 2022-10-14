@@ -168,9 +168,11 @@ qlam_misc.cmo : \
 qlam_misc.cmx : \
     qc_misc.cmx
 qlam_ops.cmo : \
-    qlam_syntax.cmo
+    qlam_syntax.cmo \
+    qlam_migrate.cmo
 qlam_ops.cmx : \
-    qlam_syntax.cmx
+    qlam_syntax.cmx \
+    qlam_migrate.cmx
 qlam_parser.cmo : \
     qlam_syntax.cmo \
     qc_misc.cmo \
