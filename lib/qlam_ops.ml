@@ -568,46 +568,30 @@ end ;
 
 module Unroll = struct
 
-(** unroll: takes a circuit and a gate-environment, and with arguments for either:
-
-    ~only: unroll only these gates
-    ~except: unroll all gates except these
-
-    will unroll gates until we reach a normal form.
-
-    Implicit is that any gate in the environment that is OPAQUE, is (of course) not unrolled.
-
- *)
-
-module Env = struct
-
-  type item = { it : SYN.gate_item ; builtin : bool } ;
-
-  type t = {
-      genv : QGMap.t item
-    } ;
-  value mk () =
-    {
-      genv = QGMap.empty
-    } ;
-  value add it (gn, gitem) =
-    { genv = QGMap.add gn gitem it.genv } ;
-
-  value has loc env id = QGMap.mem id env.genv ;
-
-  value find loc env gid = match QGMap.find gid env.genv with [
-    x -> x
-  | exception Not_found ->
-     Fmt.(raise_failwithf loc "Unroll.Env.find: gate %a not found" QG.pp_hum gid)
-  ] ;
-    
-end ;
-
 (** unroll: takes a map [gatename -> gatelam] and a qcircuit,  unrolls all gates possible.
 
     A gate that is not in the map, is not unrolled.  So the selection of the map completely 
     determines what is unrolled.
  *)
+
+value unroll genv qc =
+  let rec unrec qc = match qc with [
+    QLET loc bl qc ->
+    QLET loc (List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, unrec qc)) bl) (unrec qc)
+
+  | QGATEAPP _ gn _ _ _ when QGMap.mem gn genv ->
+     let qc = BetaReduce.qcircuit genv qc in
+     unrec qc
+
+  | (QGATEAPP _ _ _ _ _
+     | QWIRES _ _ _
+    | QBARRIER _ _
+    | QBIT _ | QDISCARD _ _
+    | QMEASURE _ _
+    | QRESET _ _) -> qc
+  ]
+  in unrec qc
+;
 
 end ;
 

@@ -172,22 +172,6 @@ let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ")
 #install_printer pp_qv_corr ;;
 #install_printer pp_cv_corr ;;
 
-let alpha_equality (name, txt1, txt2, expect) = 
-    let (env, qc1) = txt1 |> Stream.of_string |> parse_qcircuit in
-    let (env, qc2) = txt2 |> Stream.of_string |> parse_qcircuit in
-    let cmp qc1 qc2 = AlphaEq.circuit qc1 qc2 in
-    let printer qc = Fmt.(str "%a" PP.qcirc qc) in
-    if expect then
-      assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2
-    else
-      assert_bool "should not be alpha-equal" (not (cmp qc1 qc2))
-;;
-
-alpha_equality("2", {|let q = qubit () in (q)|},{|let p = qubit () in (p)|}, true) ;;
-
-{| let x' = let w' = E1' in E2' and y = E3 x' and z = E4 in
-    E5 |} |> Stream.of_string |> parse_qcircuit |> snd |> ANorm.anorm;;
-
 
 (* Local Variables: *)
 (* mode: tuareg *)

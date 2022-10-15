@@ -11,6 +11,9 @@ value qbinding = Grammar.Entry.create g "qbinding";
 value env = Grammar.Entry.create g "env";
 value env_item = Grammar.Entry.create g "env_item";
 value top = Grammar.Entry.create g "top";
+value qcirc_eoi = Grammar.Entry.create g "qcirc_eoi";
+value top_eoi = Grammar.Entry.create g "top_eoi";
+value env_eoi = Grammar.Entry.create g "env_eoi";
 
 value tokens_fun strm =
   list_of_stream_eof (fun [ ("EOI",_) -> True | _ -> False ]) strm ;
@@ -29,7 +32,7 @@ value with_input_file fname f arg =
 ;
 
 value parse_qelib ?{file="<string>"} s =
-  s |> with_input_file file (Grammar.Entry.parse env)
+  s |> with_input_file file (Grammar.Entry.parse env_eoi)
 ;
 
 value qelib_from_string s =
@@ -44,7 +47,8 @@ value qelib_from_file s =
 ;
 
 EXTEND
-  GLOBAL: qcirc qbinding env env_item top ;
+  GLOBAL: qcirc qbinding env env_item top
+          qcirc_eoi env_eoi top_eoi ;
 
   env: [ [
     l = LIST0 env_item -> l
@@ -161,10 +165,14 @@ EXTEND
   cvar: [ [ x = ident -> CV loc x ] ] ;
   qgatename: [ [ x = ident -> QG loc x ] ] ;
 
+  top_eoi: [ [ x = top ; EOI -> x ] ] ;
+  qcirc_eoi: [ [ x = qcirc ; EOI -> x ] ] ;
+  env_eoi: [ [ x = env ; EOI -> x ] ] ;
+
 END;
 
 value parse_qcircuit ?{file="<string>"} s =
-  s |> with_input_file file (Grammar.Entry.parse top)
+  s |> with_input_file file (Grammar.Entry.parse top_eoi)
 ;
 
 value qcircuit_from_string s =
