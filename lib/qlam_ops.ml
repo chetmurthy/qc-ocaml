@@ -347,12 +347,12 @@ value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
   substrec qc
 ;
 
-value qcircuit genv = fun [
+value qcircuit ~{counter} genv = fun [
   QGATEAPP loc gn pel qel cel ->
   let ((pvl,qvl, cvl), qc) = 
     match QGMap.find gn genv with [
       exception Not_found -> Fmt.(raise_failwithf loc "BetaReduce.qcircuit: gate %a not found" QG.pp_hum gn)
-    | x -> x ] in
+    | x -> Fresh.qgatelam ~{counter=counter} x ] in
   if List.length pel <> List.length pvl then
     Fmt.(raise_failwithf loc "BetaReduce.qcircuit: param-vars/actuals differ in length")
   else if List.length qel <> List.length qvl then
@@ -566,6 +566,33 @@ value anorm qc =
 
 end ;
 
+module Env = struct
+type t = QGMap.t qgatelam_t ;
+
+value mk ?{only} ?{except} env =
+  let (only, except) = match (only, except) with [
+        (None, None) -> (None, Some [])
+      | (Some l, None) -> (Some l, None)
+      | (None, Some l) -> (None, Some l)
+      | (Some l1, Some l2) ->
+         Fmt.(failwithf "Qlam_ops.Env.mk: cannot specify both ~{only=%a} and ~{except=%a}"
+                (list ~{sep=const string ", "} QG.pp_hum) l1
+                (list ~{sep=const string ", "} QG.pp_hum) l2)
+      ] in
+  let accept gn =
+    (match only with [ None -> True | Some l -> List.exists (QG.equal gn) l ])
+    && (match except with [ None -> False | Some l -> not(List.exists (QG.equal gn) l) ]) in
+  let rec flatrec m = fun [
+      QGATE _ (DEF gn x) -> if accept gn then QGMap.add gn x m else m
+    | QGATE _ (OPAQUE _ _) -> m
+    | QINCLUDE _ _ _ l ->
+       List.fold_left flatrec m l
+    ] in
+  List.fold_left flatrec QGMap.empty env
+;
+
+end ;
+
 module Unroll = struct
 
 (** unroll: takes a map [gatename -> gatelam] and a qcircuit,  unrolls all gates possible.
@@ -574,13 +601,14 @@ module Unroll = struct
     determines what is unrolled.
  *)
 
-value unroll genv qc =
+value unroll (genv : Env.t) qc =
+  let counter = Fresh.(mk ~{base=max_id_index qc} ()) in
   let rec unrec qc = match qc with [
     QLET loc bl qc ->
     QLET loc (List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, unrec qc)) bl) (unrec qc)
 
   | QGATEAPP _ gn _ _ _ when QGMap.mem gn genv ->
-     let qc = BetaReduce.qcircuit genv qc in
+     let qc = BetaReduce.qcircuit ~{counter=counter} genv qc in
      unrec qc
 
   | (QGATEAPP _ _ _ _ _
