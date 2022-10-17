@@ -83,11 +83,13 @@ let cleanws ?(lf=false) s =
 
 let lfs_re = Pcre.regexp "\n+"
 let ws_re = Pcre.regexp " +"
+let comma_ws_re = Pcre.regexp ", +"
 let clean_all_left_re = Pcre.regexp ~flags:[`DOTALL] "^[\\h\\v]*([^\\h\\v].*)?$"
 let clean_all_right_re = Pcre.regexp ~flags:[`DOTALL] "^(.*[^\\h\\v])?[\\h\\v]*$"
 let collapse_ws s =
   let s = Pcre.substitute ~rex:lfs_re ~subst:(fun s -> "\n") s in
   let s = Pcre.substitute ~rex:ws_re ~subst:(fun s -> " ") s in
+  let s = Pcre.substitute ~rex:comma_ws_re ~subst:(fun s -> ",") s in
   let rv1 = Pcre.extract ~rex:clean_all_left_re s in
   let s = rv1.(1) in
   let rv2 = Pcre.extract ~rex:clean_all_right_re s in

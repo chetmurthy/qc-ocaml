@@ -210,22 +210,25 @@ q, b;|},
 let test_roundtrip_main_buf (name, txt, expect) =
   name >:: (fun ctxt ->
     let rv = with_include_path  ~path:["testdata"] (full_parse PA.mainprogram) txt in
-    let pretty = Misc_functions.pp CSTPP.main rv in
-    assert_equal ~printer:(fun x -> x) expect pretty
+    let pretty = Fmt.(str "%a" CSTPP.main rv) in
+    let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
+    assert_equal ~cmp ~printer:(fun x -> x) expect pretty
   )
 
 let test_roundtrip_main_file (name, fname, expect) =
   name >:: (fun ctxt ->
     let rv = with_include_path ~path:["testdata"] (full_parse_from_file PA.mainprogram) fname in
-    let pretty = Misc_functions.pp CSTPP.main rv in
-    assert_equal ~printer:(fun x -> x) expect pretty
+    let pretty = Fmt.(str "%a" CSTPP.main rv) in
+    let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
+    assert_equal ~cmp ~printer:(fun x -> x) expect pretty
   )
 
 let test_roundtrip_program_file (name, fname, expect) =
   name >:: (fun ctxt ->
     let rv = with_include_path ~path:["testdata"] (body_parse_from_file PA.mainprogram) fname in
-    let pretty = Misc_functions.pp CSTPP.main rv in
-    assert_equal ~printer:(fun x -> x) expect pretty
+    let pretty = Fmt.(str "%a" CSTPP.main rv) in
+    let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
+    assert_equal ~cmp ~printer:(fun x -> x) expect pretty
   )
 
 let parser_tests = "parser tests" >:::
@@ -607,7 +610,7 @@ let do_trip_test_circuit_to_qasm name dir =
   let qasm1 = Printf.sprintf "testdata/extracted-unit-tests/%s/1-orig.qasm" dir in
   let qasm2 = Printf.sprintf "testdata/extracted-unit-tests/%s/2-from-circuit.qasm" dir in
   let rv = with_include_path ~path:["testdata"] (full_parse_from_file PA.mainprogram) qasm1 in
-  let pretty = Misc_functions.pp CSTPP.main rv in
+  let pretty = Fmt.(str "%a" CSTPP.main rv) in
   if pretty <> (file_contents qasm2) then begin
       Printf.printf "\n================================ %s ================================\n" name ;
       Printf.printf "%s\n" pretty ;
