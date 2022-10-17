@@ -237,12 +237,12 @@ let swap f a b = f b a
 (*
 let combine l1 l2 = List.map2 (fun a b -> (a,b)) l1 l2
 let split l = (List.map fst l,List.map snd l)
- *)
+
 let pp ppfun arg =
   let strm = ppfun arg in
   let l = list_of_stream strm in
   String.concat "" l
-(*
+
 let intersect l1 l2 = filter (fun x -> List.mem x l2) l1
 
 let diff_set l1 l2 =

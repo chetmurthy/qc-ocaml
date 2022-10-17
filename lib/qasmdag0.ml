@@ -155,44 +155,41 @@ module Dot = Graph.Graphviz.Dot(struct
       target : (bit_t, int) Coll.LM.t ;
     }
 
-  let pr_node_info ~prefix info =
+  let pr_node_info pps info =
     match info.label with
-    | INPUT bit -> [< '"<input " ; 'bit_to_string bit ; '">\n" >]
-    | OUTPUT bit -> [< '"<output " ; 'bit_to_string bit ; '">\n" >]
-    | STMT stmt -> [< 'Fmt.(str "%a" ASTPP.raw_stmt stmt) >]
+    | INPUT bit -> Fmt.(pf pps "<input %s>@." (bit_to_string bit))
+    | OUTPUT bit -> Fmt.(pf pps "<output %s>@." (bit_to_string bit))
+    | STMT stmt -> Fmt.(pf pps "%a" ASTPP.raw_stmt stmt)
 
-  let pr_node dag (vertex, info) =
+  let pr_node dag pps (vertex, info) =
     let el = G.succ_e dag.g vertex in
-    [< '"  " ;
-     'string_of_int vertex
-     ; '" "; pr_node_info ~prefix:"  " info ;
-     prlist (fun (_, elabel, succ_vertex) ->
-         [< '"    " ; 'Printf.sprintf "%s -> %d\n" (bit_to_string elabel) succ_vertex >]
-       ) el ;
-     >]
+    let pr1 pps (_, elabel, succ_vertex) =
+      Fmt.(pf pps "%s -> %d@." (bit_to_string elabel) succ_vertex) in
+    Fmt.(pf pps "%d %a@[<2>%a@]"
+           vertex
+           pr_node_info info
+           (list pr1) el)
 
-  let pp_dag dag =
+  let pp_dag pps dag =
     let canon x = List.sort Stdlib.compare x in
+    Fmt.(pf pps "nextid: %d@.node_info:@.%a"
+           dag.nextid
+           (list (pr_node dag)) (dag.node_info |> LM.toList |> canon))
 
-    [< 'Printf.sprintf "nextid: %d\n" dag.nextid ;
-     '"node_info:\n" ;
-     prlist (fun (n, info) ->
-         pr_node dag (n, info))
-       (dag.node_info |> LM.toList |> canon)
-     >]
-
-  let pp_half_edges name m =
+  let pp_half_edges name pps m =
     let canon x = List.sort Stdlib.compare x in
     let l = m |> LM.toList |> canon in
-    if l = [] then [< >]
-    else [< 'name ; '":\n" ;
-          prlist (fun (bit, vertex) ->
-              [< '"  " ; 'string_of_int vertex ; '" -> " ; 'bit_to_string bit ; '"\n" >]
-            ) l
-          >]
+    if l = [] then Fmt.(pf pps "")
+    else
+      let pr1 pps (bit, vertex) =
+        Fmt.(pf pps "%d -> %s@." vertex (bit_to_string bit)) in
+      Fmt.(pf pps "%s:@[<2>@.%a@]" name (list pr1) l)
 
-  let pp_open_dag odag =
-    [< pp_dag odag.dag ; pp_half_edges "frontier" odag.frontier ; pp_half_edges "target" odag.target >]
+  let pp_open_dag pps odag =
+    Fmt.(pf pps "%a%a%a"
+           pp_dag odag.dag
+           (pp_half_edges "frontier") odag.frontier
+           (pp_half_edges "target") odag.target)
 
   let mk_open_dag () =
     {

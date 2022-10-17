@@ -413,7 +413,7 @@ let open AST in
 let test_dag0 (name, txt) =
   name >:: (fun ctxt ->
     let _,dag = with_include_path ~path:["testdata"] program_to_dag0 txt in
-    Misc_functions.pp DAG.pp_dag dag ;
+    Fmt.(str "%a" DAG.pp_dag dag) ;
     ()
   )
 
