@@ -159,7 +159,7 @@ module Dot = Graph.Graphviz.Dot(struct
     match info.label with
     | INPUT bit -> [< '"<input " ; 'bit_to_string bit ; '">\n" >]
     | OUTPUT bit -> [< '"<output " ; 'bit_to_string bit ; '">\n" >]
-    | STMT stmt -> ASTPP.raw_stmt stmt
+    | STMT stmt -> [< 'Fmt.(str "%a" ASTPP.raw_stmt stmt) >]
 
   let pr_node dag (vertex, info) =
     let el = G.succ_e dag.g vertex in
@@ -470,7 +470,7 @@ let generate_qubit_instances envs l =
     close_odag odag
 
   let rec stmt_to_label ~terse stmt =
-    if not terse then pp ASTPP.raw_stmt stmt
+    if not terse then Fmt.(str "%a" ASTPP.raw_stmt stmt)
     else match stmt with
          | AST.STMT_QOP(AST.UOP (AST.U _)) -> "U"
          | AST.STMT_QOP(AST.UOP (AST.CX _)) -> "CX"

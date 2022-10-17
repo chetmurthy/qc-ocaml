@@ -304,7 +304,7 @@ let test_typecheck_roundtrip (name, txt, expect_env, expect) =
     let pl = with_include_path ~path:["testdata"] (body_parse PA.program) txt in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
-    let pretty_p = Misc_functions.pp ASTPP.program p in
+    let pretty_p = Fmt.(str "%a" ASTPP.program p) in
 
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
@@ -320,7 +320,7 @@ let test_typecheck_roundtrip_file (name, fname, expect_env, expect) =
     let vers,pl = with_include_path ~path:["testdata"] (full_parse_from_file PA.mainprogram) fname in
     let (envs, p) = TYCHK.program pl in
     let envs = TYCHK.Env.auxmap aux2unit_mapper envs in
-    let pretty_p = Misc_functions.pp ASTPP.main (vers, p) in
+    let pretty_p = Fmt.(str "%a" ASTPP.main (vers, p)) in
 
     do_option (fun expect_env ->
         assert_equal ~cmp:TYCHK.Env.equal expect_env envs)
@@ -453,12 +453,13 @@ let unroll ~only txt =
   let dag = DAG.make envs p in
   let dag = Unroll.execute ~only envs dag in
   let pl = DAG.to_ast envs dag in  
-  Misc_functions.pp ASTPP.program pl
+  Fmt.(str "%a" ASTPP.program pl)
 
 let test_unroll (name, only, txt, expect) =
   name >:: (fun ctxt ->
     let txt = unroll ~only txt in
-    assert_equal txt expect
+    let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
+    assert_equal ~cmp ~printer:(fun x -> x) txt expect
   )
 
 let unroll_tests = "unroll tests" >:::

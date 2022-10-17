@@ -420,7 +420,7 @@ module Unroll = struct
     let (envs, dag) = with_include_path ~path:include_path full_to_dag0_from_file qasmfile in
     let dag = Unroll.execute ~only:only_gates envs dag in
     let pl = DAG.to_ast envs dag in  
-    print_string (pp ASTPP.program pl)
+    Fmt.(pf stdout "%a" ASTPP.program pl)
 
   let cmd =
     let term = Cmdliner.Term.(const do_unroll $ cmdliner_term ()) in
@@ -487,7 +487,7 @@ module Ast = struct
     let (envs, dag) = with_include_path ~path:include_path full_to_dag0_from_file qasmfile in
     if only_to_dag then () else
     let pl = DAG.to_ast envs dag in  
-    print_string (pp ASTPP.program pl)
+    Fmt.(pf stdout "%a" ASTPP.program pl)
 
   let cmd =
     let term = Cmdliner.Term.(const do_ast $ cmdliner_term ()) in
