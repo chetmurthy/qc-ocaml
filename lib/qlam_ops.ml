@@ -522,18 +522,18 @@ value anormalize_let loc bl_fvs (qc, qc_fvs) = do {
     bl_fvs
     |> List.iter (fun (b, binding_fvs) ->
            if FVS.(mt <> (intersect top_binders_fvs binding_fvs)) then
-             Fmt.(raise_failwithf loc "anormalizable: top binders of let-bindings %a capture RHS of let-binding %a"
+             Fmt.(raise_failwithf loc "anormalize_let: top binders of let-bindings %a capture RHS of let-binding %a"
                     FVS.pp_hum top_binders_fvs PP.qbinding b)
            else if FVS.(mt <> (intersect letlist_binders_fvs binding_fvs)) then
-             Fmt.(raise_failwithf loc "anormalizable: letlist binders of let-bindings %a capture RHS of let-binding %a"
+             Fmt.(raise_failwithf loc "anormalize_let: letlist binders of let-bindings %a capture RHS of let-binding %a"
                     FVS.pp_hum letlist_binders_fvs PP.qbinding b)
            else ()
          ) ;
     if FVS.(mt <> (intersect letlist_binders_fvs qc_fvs)) then
-      Fmt.(raise_failwithf loc "anormalizable: letlist binders of let-bindings %a capture body of LET"
+      Fmt.(raise_failwithf loc "anormalize_let: letlist binders of let-bindings %a capture body of LET"
              FVS.pp_hum letlist_binders_fvs)
     else if not (Std.distinct binder_ids) then
-      Fmt.(raise_failwithf loc "anormalizable: binders are not distinct %a"
+      Fmt.(raise_failwithf loc "anormalize_let: binders are not distinct %a"
              (list ~{sep=const string " "} ID.pp_hum) binder_ids)
     else
     let (letbindings_fvs, restbindings_fvs) = filter_split is_let_binding bl_fvs in
@@ -602,7 +602,8 @@ module Unroll = struct
  *)
 
 value unroll (genv : Env.t) qc =
-  let counter = Fresh.(mk ~{base=max_id_index qc} ()) in
+  let counter = Fresh.(mk ~{base=1 + max_id_index qc} ()) in
+  let qc = Fresh.qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc in
   let rec unrec qc = match qc with [
     QLET loc bl qc ->
     QLET loc (List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, unrec qc)) bl) (unrec qc)

@@ -64,7 +64,7 @@ module CSTPP = struct
     | CST.RESET l -> Fmt.(pf pps "reset %a;@." id_or_indexed l)
 
   let qop pps (aux, i) =
-    let commentstring = Ploc.comment aux in
+    let commentstring = cleanws (Ploc.comment aux) in
     match commentstring with
     | "" -> raw_qop pps i
     | _ -> Fmt.(pf pps "%s%a" commentstring raw_qop i)
@@ -76,7 +76,7 @@ module CSTPP = struct
     | CST.GATE_BARRIER l -> Fmt.(pf pps "barrier %a;@." (list ~sep:(const string ", ") pr_id) l)
 
   let gate_op pps (aux, gop) =
-    let commentstring = Ploc.comment aux in
+    let commentstring = cleanws (Ploc.comment aux) in
     match commentstring with
     | "" -> raw_gate_op pps gop
     | _ -> Fmt.(pf pps "%s%a" commentstring raw_gate_op gop)
@@ -105,7 +105,7 @@ module CSTPP = struct
        Fmt.(pf pps "creg %s[%d];@." x n)
 
   let stmt pps (aux, s) =
-    let commentstring = Ploc.comment aux in
+    let commentstring = cleanws (Ploc.comment aux) in
     match commentstring with
     | "" -> raw_stmt pps s
     | _ -> Fmt.(pf pps "%s%a" commentstring raw_stmt s)
@@ -183,7 +183,7 @@ module ASTPP = struct
     | AST.RESET l -> Fmt.(pf pps "reset %a;@." (or_indexed pr_qreg) l)
 
   let qop pps (aux, i) =
-    let commentstring = Ploc.comment aux in
+    let commentstring = cleanws (Ploc.comment aux) in
     match commentstring with
     | "" -> raw_qop pps i
     | _ -> Fmt.(pf pps "%s%a" commentstring raw_qop i)
@@ -197,7 +197,7 @@ module ASTPP = struct
     | AST.GATE_BARRIER l -> Fmt.(pf pps "barrier %a;@." (list ~sep:(const string ",") pr_qubit) l)
 
   let gate_op pps (aux, gop) =
-    let commentstring = Ploc.comment aux in
+    let commentstring = cleanws (Ploc.comment aux) in
     match commentstring with
     | "" -> raw_gate_op pps gop
     | _ -> Fmt.(pf pps "%s%a" commentstring raw_gate_op gop)
@@ -228,13 +228,13 @@ module ASTPP = struct
        Fmt.(pf pps "creg %s[%d];@." x n)
 
   let stmt pps (aux, s) =
-    let commentstring = Ploc.comment aux in
+    let commentstring = cleanws (Ploc.comment aux) in
     match commentstring with
     | "" -> raw_stmt pps s
     | _ -> Fmt.(pf pps "%s%a" commentstring raw_stmt s)
 
   let program pps l =
-    Fmt.(pf pps "%a" (list stmt) l)
+    Fmt.(pf pps "@[<v>%a@]" (list stmt) l)
 
   let main pps (vers, l) =
     Fmt.(pf pps "OPENQASM %s;@.%a" vers program l)
