@@ -409,7 +409,7 @@ value compute_binding_fvs bindingf ((loc, qvl, cvl, qc) : qbinding_t) : (qbindin
 ;
 
 value rebuild_let_fvs loc bl_fvs (qc,fvs) =
-
+  if bl_fvs = [] then (qc, fvs) else
   (* the bindings of the rest *)
   let bl = List.map fst bl_fvs in
   (* qvars bound in the rest *)
@@ -566,10 +566,59 @@ value anorm qc =
 
 end ;
 
-module Env = struct
-type t = QGMap.t qgatelam_t ;
+module NameNorm = struct
 
-value mk ?{only} ?{except} env =
+value is_rename_binding = fun [ (_, _, _, QWIRES _ _ _) -> True | _ -> False ] ;
+
+value nnorm qc =
+  let rec nnrec (qvmap, cvmap) qc =
+    let map_qv qv = match QVMap.find qv qvmap with [ exception Not_found -> qv | x -> x ] in 
+    let map_cv cv = match CVMap.find cv cvmap with [ exception Not_found -> cv | x -> x ] in 
+    match qc  with [
+    SYN.QLET loc bl qc ->
+    let (rename_bindings, rest_bindings) = filter_split is_rename_binding bl in
+    let (qvmap,cvmap) =
+      List.fold_left (fun (qvmap,cvmap) b ->
+             let (loc, qvl, cvl, qel, cel) = match b with [
+                   (loc, qvl, cvl, QWIRES _ qel cel) -> (loc, qvl, cvl, qel, cel)
+                 | _ -> assert False ] in
+             if List.length qvl <> List.length qel then
+               Fmt.(raise_failwithf loc "NameNorm.nnorm: malformed binding: qvar lengths don't match: len(%a) <> len(%a)"
+                      (brackets (list ~{sep=const string " "} QV.pp_hum)) qvl
+                      (brackets (list ~{sep=const string " "} QV.pp_hum)) qel)
+             else if List.length cvl <> List.length cel then
+               Fmt.(raise_failwithf loc "NameNorm.nnorm: malformed binding: cvar lengths don't match: len(%a) <> len(%a)"
+                      (brackets (list ~{sep=const string " "} CV.pp_hum)) cvl
+                      (brackets (list ~{sep=const string " "} CV.pp_hum)) cel)
+             else
+               let qvmap = List.fold_right2 QVMap.add qvl qel qvmap in
+               let cvmap = List.fold_right2 CVMap.add cvl cel cvmap in
+               (qvmap, cvmap))
+        (qvmap, cvmap) rename_bindings in
+    let qc = nnrec (qvmap, cvmap) qc in
+    if rest_bindings = [] then qc else
+      SYN.QLET loc rest_bindings qc
+
+  | QWIRES loc qvl cvl -> QWIRES loc (List.map map_qv qvl) (List.map map_cv cvl)
+  | QGATEAPP loc gn pvl qvl cvl -> QGATEAPP loc gn pvl (List.map map_qv qvl) (List.map map_cv cvl)
+  | QBARRIER loc qvl -> QBARRIER loc (List.map map_qv qvl)
+  | QBIT _ -> qc
+  | QDISCARD loc qvl -> QDISCARD loc (List.map map_qv qvl)
+  | QMEASURE loc qvl -> QMEASURE loc (List.map map_qv qvl)
+  | QRESET loc qvl -> QRESET loc (List.map map_qv qvl)
+  ] in
+  nnrec (QVMap.empty, CVMap.empty) qc
+;
+end ;
+
+module Env = struct
+
+end ;
+
+module Unroll = struct
+
+type env_t = QGMap.t qgatelam_t ;
+value mk_env ~{only} ~{except} env =
   let (only, except) = match (only, except) with [
         (None, None) -> (None, Some [])
       | (Some l, None) -> (Some l, None)
@@ -591,9 +640,6 @@ value mk ?{only} ?{except} env =
   List.fold_left flatrec QGMap.empty env
 ;
 
-end ;
-
-module Unroll = struct
 
 (** unroll: takes a map [gatename -> gatelam] and a qcircuit,  unrolls all gates possible.
 
@@ -601,7 +647,8 @@ module Unroll = struct
     determines what is unrolled.
  *)
 
-value unroll (genv : Env.t) qc =
+value unroll ?{only} ?{except} (env : SYN.env_t) qc =
+  let genv = mk_env ~{only=only} ~{except=except} env in
   let counter = Fresh.(mk ~{base=1 + max_id_index qc} ()) in
   let qc = Fresh.qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc in
   let rec unrec qc = match qc with [

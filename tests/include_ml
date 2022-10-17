@@ -174,11 +174,11 @@ let ([], qc) = {| let q = qubit() in let q = tg q in (q) |} |> qcircuit_from_str
 let e = {|
 gate tg () x = let q = h x in (q) ;
 |} |> qelib_from_string ;;
-let e' = Qlam_ops.Env.mk e ;;
 #trace BetaReduce.qcircuit ;;
-let qc' = Unroll.unroll e' qc ;;
-let qc'' = ANorm.anorm qc' ;;
-Fmt.(pf stdout "%a" Qasmpp.ASTPP.program (Qconvert.ToQasm2.program (env0@env1, qc'')));;
+let qc2 = Unroll.unroll e qc ;;
+let qc3 = ANorm.anorm qc2 ;;
+let qc4 = NameNorm.nnorm qc3 ;;
+Fmt.(pf stdout "%a" Qasmpp.ASTPP.program (Qconvert.ToQasm2.program (env0@env1, qc4)));;
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)
