@@ -1,4 +1,5 @@
 
+open Misc_functions ;
 open Pa_ppx_utils ;
 open Pa_ppx_base ;
 open Ppxutil ;
@@ -671,6 +672,153 @@ value unroll ?{only} ?{except} (env : SYN.env_t) qc =
 
 end ;
 
+module Hoist = struct
+
+  (** Hoist let-bindings as far "up" as possible.
+
+    Method:
+
+    (1) assign a distinct numeric index to each let-binding
+
+    (2) edge from [binding i]->[binding j] if a variable bound in [i]
+     is among the freevars of the RHS of [binding j].
+
+    (3) apply tsort to this graph, producing layers (lists of bindings
+     that are independent of each other)
+
+    (4) and rebuild the let-list from these layers
+
+ *)
+
+
+(* representation of a node -- must be hashable *)
+module Node = struct
+   type t = int ;
+   value compare (v1: t) (v2: t) = Stdlib.compare v1 v2 ;
+   value hash = Hashtbl.hash ;
+   value equal = (=) ;
+end ;
+
+(* representation of an edge -- must be comparable *)
+module Edge = struct
+   type t = ID.t ;
+
+   value compare = Stdlib.compare ;
+   value equal = (=) ;
+   value default = ("", -1) ;
+end ;
+
+(* a functional/persistent graph *)
+module G = Graph.Persistent.Digraph.ConcreteLabeled(Node)(Edge) ;
+
+(* more modules available, e.g. graph traversal with depth-first-search *)
+module D = Graph.Traverse.Dfs(G) ;
+
+(* Stable Tsort
+ *
+ * We have two datastructures we use for the algorithm:
+ *
+ * (a) [todo]: this holds a list of zero-indegree vertexes
+ *
+ * (b) [indegree]: this is a map from vertex to indegree, for vertexes of NONZERO indegree
+ *
+ * If at any time, indegree is not empty, but todo is empty, we have a failure (b/c there's a cycle)
+ *
+ * Algorithm:
+ *
+ * (1) basis case: iterate across vertexes, populating [todo] and [indegree]
+ *
+ * (2) step case:
+ *     (a) grab [todo] list as [t]
+ *     (b) zero [todo] list
+ *     (c) for each vertex [v] in [t], decrement [indegree v]
+ *         if [indegree v] is zero, delete from [indegree] and insert into [todo]
+ *     (d) sort [t]
+ *     (e) deliver [v] in [t] to [f]
+ *
+ *)
+
+value tsort g =
+  let todo = ref [] in
+  let indegree = Hashtbl.create 97 in do {
+
+    G.iter_vertex (fun v ->
+        let d = G.in_degree g v in
+        if d = 0 then Std.push todo v
+        else Hashtbl.add indegree v d
+      ) g;
+    
+    let rec dorec acc =
+      if todo.val = [] then
+        if Hashtbl.length indegree = 0 then acc
+        else failwith "tsort: DAG was cyclic!"
+      else
+        let work = todo.val in do {
+          todo.val := [] ;
+          List.iter (fun src ->
+              G.iter_succ_e (fun (_, _, dst) ->
+                  if not (Hashtbl.mem indegree dst) then failwith "tsort: DAG was cyclic" else
+                    let d = Hashtbl.find indegree dst in
+                    if d = 1 then do {
+                      Hashtbl.remove indegree dst ;
+                      Std.push todo dst
+                    }
+                    else
+                      Hashtbl.replace indegree dst (d-1)
+                ) g src
+            ) work ;
+          let work = List.sort compare work in
+          let acc = [work :: acc] in
+          dorec acc
+        }
+    in List.rev (dorec [])
+  }
+;
+
+value make_dag loc ll =
+  let bl =
+    ll
+    |> List.concat_map (fun (loc, bl) ->
+           bl |> List.map (fun (loc', a, b, c) -> (ploc_encl_with_comments loc loc', a,b,c))) in
+  let bl_fvs = bl |> List.map (fun ((_, _, _, qc) as b) ->
+                         let (_, q, c) = circuit_freevars qc in
+                         (b, (q,c))) in
+  let numbered_bl_fvs = bl_fvs |> List.mapi (fun i b -> (i,b)) in
+  let bl_array = Array.of_list bl in
+  let all_bound_ids =
+    bl
+    |> List.concat_map (fun (_, qvl, cvl, _) ->
+           (List.map QV.toID qvl)@(List.map CV.toID cvl)) in
+  if not (Std.distinct all_bound_ids) then
+    Fmt.(raise_failwithf loc "Hoist.make_dag: not all binder-vars are distinct")
+  else
+  let var2node =
+    List.fold_left (fun m (node, ((_, qvl, cvl, _), _)) ->
+        let bound_ids = (List.map QV.toID qvl)@(List.map CV.toID cvl) in
+        List.fold_left (fun m id -> IDMap.add id node m) m bound_ids
+      ) IDMap.empty numbered_bl_fvs in
+  let g = G.empty in
+  let g = List.fold_left (fun g (node, _) -> G.add_vertex g node) g numbered_bl_fvs in
+  let g = List.fold_left (fun g (node, ((_, qvl, cvl, _), fvs)) ->
+    let free_ids = (fvs |> fst |> QVFVS.toList |> List.map QV.toID)
+                   @(fvs |> snd |> CVFVS.toList |> List.map CV.toID) in
+    List.fold_left (fun g id ->
+        let e = G.E.create (IDMap.find id var2node) id node in
+        G.add_edge_e g e)
+      g free_ids)
+            g numbered_bl_fvs in
+  (g, bl_array)
+;
+
+value hoist qc =
+  let (ll, qc0) = SYN.to_letlist qc in
+  let (g, bl_array) = make_dag (loc_of_qcirc qc) ll in
+  let layers = tsort g in
+  let bll = layers |> List.map (List.map (Array.get bl_array)) in
+  List.fold_right (fun bl qc -> SYN.QLET Ploc.dummy bl qc) bll qc0
+;
+end ;
+
 (** TODO
 
 (1) alpha-equality
@@ -681,8 +829,9 @@ end ;
 
 (4) unroll
 
-(5) A-normalize
+(5) A-normalize / name-normalize
 
+(6) hoist (maximize parallelism)
 
  *)
 

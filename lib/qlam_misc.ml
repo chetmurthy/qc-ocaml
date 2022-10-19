@@ -68,3 +68,6 @@ module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
   value show l = show__t (toList l) ;
   value pp_hum pps l = Fmt.(pf pps "%a" (brackets (list ~{sep=const string "; "} M.pp_hum)) (toList l)) ;
 end ;
+
+module IDMap = VarMap(ID) ;
+module IDFVS = FreeVarSet(ID) ;

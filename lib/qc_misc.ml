@@ -66,6 +66,8 @@ module ID = struct
 
   let pp_hum pps x = Fmt.(pf pps "%s" (unmk x))
 
+  let ofID x = x
+  let toID x = x
 end
 
 module IDMap = Map.Make(ID)
