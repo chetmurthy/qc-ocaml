@@ -76,11 +76,12 @@ EXTEND
     ] ]
   ;
 
+  unique: [ [ "#" ; n=INT -> Unique.UNIQUE (int_of_string n) | -> Unique.mk() ] ] ;
   qcirc: [ [
       "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QLET loc l qc
     | (qvl,cvl) = paren_qvars_cvars -> QWIRES loc qvl cvl
-    | ["qubit"| "qbit"] ; "(" ; ")" -> QBIT loc (Unique.mk())
-    | "qdiscard" ; qvl = ne_qvars -> QDISCARD loc (Unique.mk()) qvl
+    | ["qubit"| "qbit"] ; u=unique ; "(" ; ")" -> QBIT loc u
+    | "qdiscard" ; u = unique ; qvl = ne_qvars -> QDISCARD loc u qvl
     | "barrier" ; qvl = ne_qvars -> QBARRIER loc qvl
     | "measure" ; qvl = ne_qvars -> QMEASURE loc qvl
     | "reset" ; qvl = ne_qvars -> QRESET loc qvl

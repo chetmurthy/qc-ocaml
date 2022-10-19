@@ -179,8 +179,49 @@ value rec circuit env qc = match qc with [
   }
 ] ;
 
-value top_circuit env qc = circuit env qc ;
+value gather_qubits qc =
+  let acc = ref [] in
+  let open Qlam_migrate in
+  let dt = make_dt() in
+  let old_migrate_qcirc_t = dt.migrate_qcirc_t in
+  let migrate_qcirc_t dt qc = match qc with [
+        SYN.QBIT _ u -> do { Std.push acc u ; qc }
+      | _ -> old_migrate_qcirc_t dt qc
+      ] in
+  let dt = { (dt) with migrate_qcirc_t = migrate_qcirc_t } in do {
+    ignore (dt.migrate_qcirc_t dt qc) ;
+    acc.val
+  }
+;
 
+value gather_qdiscards qc =
+  let acc = ref [] in
+  let open Qlam_migrate in
+  let dt = make_dt() in
+  let old_migrate_qcirc_t = dt.migrate_qcirc_t in
+  let migrate_qcirc_t dt qc = match qc with [
+        SYN.QDISCARD _ u _ -> do { Std.push acc u ; qc }
+      | _ -> old_migrate_qcirc_t dt qc
+      ] in
+  let dt = { (dt) with migrate_qcirc_t = migrate_qcirc_t } in do {
+    ignore (dt.migrate_qcirc_t dt qc) ;
+    acc.val
+  }
+;
+
+value check_unique qc =
+  if not (Std.distinct (gather_qubits qc)) then
+    Fmt.(raise_failwithf (loc_of_qcirc qc) "check_unique: qubit() expressions are not unique")
+  else if not (Std.distinct (gather_qdiscards qc)) then
+    Fmt.(raise_failwithf (loc_of_qcirc qc) "check_unique: qdiscard expressions are not unique")
+  else ()
+;
+
+value top_circuit env qc = do {
+    check_unique qc ;
+    circuit env qc
+}
+;
 value gate_item loc env gitem = match gitem with [
   DEF gn (((pvl, qvl, cvl) as glam), qc) -> do {
     let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in

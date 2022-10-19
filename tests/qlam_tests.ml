@@ -247,6 +247,21 @@ let q1 = h q0 in
 ()
 |},
         Right ".*Exc.*q1 not used")
+     ; ("qbits not unique", {|
+let q0 = qubit #1 () in
+let q1 = qubit #1 () in
+let q2 = h q0 in
+(q1, q2)
+|},
+        Right "check_unique: qubit.*expressions are not unique")
+     ; ("qdiscards not unique", {|
+let q0 = qubit () in
+let q1 = qubit () in
+let () = qdiscard #1 q0 in
+let () = qdiscard #1 q1 in
+()
+|},
+        Right "check_unique: qdiscard expressions are not unique")
      ; ("two", {|
 let q0 = qubit() in
 let q1 = h q0 in
