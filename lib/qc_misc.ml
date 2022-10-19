@@ -95,3 +95,15 @@ let with_include_path ~path f arg =
   with exc ->
         include_path := oinclude_path ;
         raise exc
+
+module Counter = struct
+type t = {
+    it : int ref
+  }
+let mk ?(base=0) () = { it = ref base }
+let next { it=it } = 
+  let n = !it in
+  it := n+1 ;
+  n
+
+end

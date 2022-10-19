@@ -8,6 +8,7 @@ let _migrate_list subrw0 __dt__ l =
   List.map (subrw0 __dt__) l
 
 type loc = [%import: Qlam_syntax.loc]
+and unique_t = [%import: Qlam_syntax.SYN.Unique.t]
 and const_t = [%import: Qlam_syntax.SYN.const_t]
 and pvar_t = [%import: Qlam_syntax.SYN.pvar_t]
 and qvar_t = [%import: Qlam_syntax.SYN.qvar_t]
@@ -19,7 +20,9 @@ and ufun_t = [%import: Qlam_syntax.SYN.ufun_t]
 and pexpr_t = [%import: Qlam_syntax.SYN.pexpr_t]
 and qgatelam_t = [%import: Qlam_syntax.SYN.qgatelam_t]
 and qgateargs_t = [%import: Qlam_syntax.SYN.qgateargs_t]
-and qcirc_t = [%import: Qlam_syntax.SYN.qcirc_t]
+and qcirc_t = [%import: Qlam_syntax.SYN.qcirc_t
+              [@with Unique.t := unique_t]
+              ]
 and qbinding_t = [%import: Qlam_syntax.SYN.qbinding_t]
 and item = [%import: Qlam_syntax.SYN.item]
 and gate_item = [%import: Qlam_syntax.SYN.gate_item]
@@ -70,6 +73,11 @@ and top = [%import: Qlam_syntax.SYN.top]
         ; dsttype = [%typ: Qc_misc.ID.t]
         ; code = fun __dt__ x -> x
         }
+      ; migrate_unique_t = {
+          srctype = [%typ: unique_t]
+        ; dsttype = [%typ: unique_t]
+        ; code = fun __dt__ x -> x
+        }
       ; migrate_file_type_t = {
           srctype = [%typ: Qc_misc.file_type_t]
         ; dsttype = [%typ: Qc_misc.file_type_t]
@@ -83,3 +91,4 @@ and top = [%import: Qlam_syntax.SYN.top]
       }
     }
 ]
+

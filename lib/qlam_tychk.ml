@@ -106,8 +106,8 @@ value rec circuit env qc = match qc with [
     (List.length qvl, List.length cvl)
   }
 
-| QBIT _ -> (1, 0)
-| QDISCARD loc qvl -> do {
+| QBIT _ _ -> (1, 0)
+| QDISCARD loc _ qvl -> do {
     qvl |> List.iter (qvar_find_mark_used loc env) ;
     (0,0)
   }

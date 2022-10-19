@@ -36,8 +36,8 @@ value circuit_freevars qc =
          let pvl = List.fold_left (fun pvl pe -> PVFVS.union pvl (pe_freevars pe)) PVFVS.mt pel in
          (pvl, QVFVS.ofList qvl, CVFVS.ofList cvl)
       | QBARRIER _ qvl  -> (PVFVS.mt,  QVFVS.ofList qvl, CVFVS.mt)
-      | QBIT _ -> (PVFVS.mt, QVFVS.mt, CVFVS.mt)
-      | QDISCARD _ qvl -> (PVFVS.mt,  QVFVS.ofList qvl,  CVFVS.mt)
+      | QBIT _ _ -> (PVFVS.mt, QVFVS.mt, CVFVS.mt)
+      | QDISCARD _ _ qvl -> (PVFVS.mt,  QVFVS.ofList qvl,  CVFVS.mt)
       | QMEASURE _ qvl -> (PVFVS.mt, QVFVS.ofList qvl, CVFVS.mt)
       | QRESET _ qvl -> (PVFVS.mt, QVFVS.ofList qvl, CVFVS.mt)
   ] in
@@ -111,8 +111,8 @@ value lower_circuit qc =
 
     | QGATEAPP loc g pel qvl cvl -> QGATEAPP loc g pel (List.map rename_qv qvl) (List.map rename_cv cvl)
     | QBARRIER loc qvl -> QBARRIER loc (List.map rename_qv qvl)
-    | QBIT loc -> QBIT loc
-    | QDISCARD loc qvl -> QDISCARD loc (List.map rename_qv qvl)
+    | QBIT loc u -> QBIT loc u
+    | QDISCARD loc u qvl -> QDISCARD loc u (List.map rename_qv qvl)
     | QMEASURE loc qvl -> QMEASURE loc (List.map rename_qv qvl)
     | QRESET loc qvl -> QRESET loc (List.map rename_qv qvl)
     ] in
@@ -173,9 +173,9 @@ value circuit qc1 qc2 =
      (List.length qvl1 = List.length qvl2)
     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
     
-  | (QBIT _, QBIT _) -> True
+  | (QBIT _ u1, QBIT _ u2) -> True
                       
-  | (QDISCARD loc qvl1, QDISCARD _ qvl2) ->
+  | (QDISCARD loc u1 qvl1, QDISCARD _ u2 qvl2) ->
      (List.length qvl1 = List.length qvl2)
      && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
     
@@ -201,15 +201,7 @@ end ;
 
 module Fresh = struct
 
-type t = {
-    it : ref int
-  } ;
-value mk ?{base=0} () = { it = ref base } ;
-value next { it=it } = do {
-  let n = it.val in
-  it.val := n+1 ;
-  n
-} ;
+include Counter ;
 
 value qcircuit ~{counter} ~{qvmap} ~{cvmap} qc =
   let fresh_qvar = fun [ (QV loc (s,_)) -> QV loc (s, next counter) ] in
@@ -251,8 +243,8 @@ value qcircuit ~{counter} ~{qvmap} ~{cvmap} qc =
     | QGATEAPP loc gn pel qvl cvl -> QGATEAPP loc gn pel (List.map map_qvar qvl) (List.map map_cvar cvl)
 
     | QBARRIER loc qvl -> QBARRIER loc (List.map map_qvar qvl)
-    | (QBIT _) as qc -> qc
-    | QDISCARD loc qvl -> QDISCARD loc (List.map map_qvar qvl)
+    | QBIT loc _ -> QBIT loc (Unique.mk())
+    | QDISCARD loc _ qvl -> QDISCARD loc (Unique.mk()) (List.map map_qvar qvl)
     | QMEASURE loc qvl -> QMEASURE loc (List.map map_qvar qvl)
     | QRESET loc qvl -> QRESET loc (List.map map_qvar qvl)
     ] in
@@ -340,8 +332,8 @@ value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
   | QWIRES loc qvl cvl -> QWIRES loc (List.map subst_qvar qvl) (List.map subst_cvar cvl)
   | QGATEAPP loc gn pel qvl cvl -> QGATEAPP loc gn (List.map subst_pe pel) (List.map subst_qvar qvl) (List.map subst_cvar cvl)
   | QBARRIER loc qvl -> QBARRIER loc (List.map subst_qvar qvl)
-  | (QBIT _) as qc -> qc
-  | QDISCARD loc qvl -> QDISCARD loc (List.map subst_qvar qvl)
+  | (QBIT _ _) as qc -> qc
+  | QDISCARD loc u qvl -> QDISCARD loc u (List.map subst_qvar qvl)
   | QMEASURE loc qvl -> QMEASURE loc (List.map subst_qvar qvl)
   | QRESET loc qvl -> QRESET loc (List.map subst_qvar qvl)
   ] in
@@ -556,8 +548,8 @@ value anorm qc =
   | QWIRES _ qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
   | QGATEAPP _ _ pvl qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
   | QBARRIER _ qvl -> (qc, FVS.(of_ids (qvl, [])))
-  | QBIT _ -> (qc, FVS.mt)
-  | QDISCARD _ qvl -> (qc, FVS.(of_ids (qvl, [])))
+  | QBIT _ _ -> (qc, FVS.mt)
+  | QDISCARD _ _ qvl -> (qc, FVS.(of_ids (qvl, [])))
   | QMEASURE _ qvl -> (qc, FVS.(of_ids (qvl, [])))
   | QRESET _ qvl -> (qc, FVS.(of_ids (qvl, [])))
   ] in
@@ -603,8 +595,8 @@ value nnorm qc =
   | QWIRES loc qvl cvl -> QWIRES loc (List.map map_qv qvl) (List.map map_cv cvl)
   | QGATEAPP loc gn pvl qvl cvl -> QGATEAPP loc gn pvl (List.map map_qv qvl) (List.map map_cv cvl)
   | QBARRIER loc qvl -> QBARRIER loc (List.map map_qv qvl)
-  | QBIT _ -> qc
-  | QDISCARD loc qvl -> QDISCARD loc (List.map map_qv qvl)
+  | QBIT _ _ -> qc
+  | QDISCARD loc u qvl -> QDISCARD loc u (List.map map_qv qvl)
   | QMEASURE loc qvl -> QMEASURE loc (List.map map_qv qvl)
   | QRESET loc qvl -> QRESET loc (List.map map_qv qvl)
   ] in
@@ -663,7 +655,7 @@ value unroll ?{only} ?{except} (env : SYN.env_t) qc =
   | (QGATEAPP _ _ _ _ _
      | QWIRES _ _ _
     | QBARRIER _ _
-    | QBIT _ | QDISCARD _ _
+    | QBIT _ _ | QDISCARD _ _ _
     | QMEASURE _ _
     | QRESET _ _) -> qc
   ]
