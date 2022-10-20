@@ -64,6 +64,9 @@ EXTEND
          QINCLUDE loc QLAM s (qelib_from_file s)
        else
          Fmt.(raise_failwithf loc "QLAM parser only accepts QLAM (.qli) includes")
+    | "coupling_map" ; mname = ident ; "[" ;
+      l = LIST1 [ n = INT ; bidi=[ "->" -> False | "<->" -> True ] ; m = INT -> (int_of_string n,bidi,int_of_string m) ] SEP "," ;
+      "]" ; ";" -> QCOUPLING_MAP loc mname (CouplingMap.mk l)
   ] ]
   ;
   gate_args: [ [

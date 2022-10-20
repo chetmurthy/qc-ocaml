@@ -825,5 +825,15 @@ end ;
 
 (6) hoist (maximize parallelism)
 
+(7) SabreSwap
+
+  (a) coupling map
+  (b) 
+
+
  *)
 
+module SabreSwap = struct
+
+
+end ;

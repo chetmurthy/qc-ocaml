@@ -33,6 +33,8 @@ open OUnit2 ;;
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := false ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := false ;;
 
+#install_printer Fpath.pp ;;
+
 let lexbuf_contents lb =
   let open Lexing in
   let pos = lb.lex_curr_pos in
@@ -194,4 +196,3 @@ let q1 = h q1 in
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)
-

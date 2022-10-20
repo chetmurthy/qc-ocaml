@@ -7,3 +7,5 @@ qasmlex.ml
 *.opt
 qctool
 local-install
+*.ppo*
+*_ppo*
