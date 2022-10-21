@@ -86,10 +86,11 @@ type pexpr_t = [
 
 module Unique = struct
   value ctr = Counter.mk () ;
-  type t = [ UNIQUE of int ] [@@deriving (to_yojson, show, eq, ord);] ;
-  value mk () = UNIQUE (Counter.next ctr) ;
+  type t = int [@@deriving (to_yojson, show, eq, ord);] ;
+  value mk () = Counter.next ctr ;
 end ;
 
+type bit_ident_t = [ UNIQUE of Unique.t | EXPLICIT of int ] [@@deriving (to_yojson, show, eq, ord);] ;
 type qgatelam_t = (qgateargs_t * qcirc_t)
 and qgateargs_t = (list pvar_t * list qvar_t * list cvar_t)
 
@@ -98,7 +99,7 @@ and qcirc_t = [
 | QWIRES of loc and list qvar_t and list cvar_t
 | QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
-| QBIT of loc and Unique.t | QDISCARD of loc and Unique.t and list qvar_t
+| QBIT of loc and bit_ident_t | QDISCARD of loc and list qvar_t
 | QMEASURE of loc and list qvar_t
 | QRESET of loc and list qvar_t
   ]
@@ -117,7 +118,7 @@ value loc_of_qcirc = fun [
 | QGATEAPP loc _ _ _ _ -> loc
 | QBARRIER loc _ -> loc
 | QBIT loc _ -> loc
-| QDISCARD loc _ _ -> loc
+| QDISCARD loc _ -> loc
 | QMEASURE loc _ -> loc
 | QRESET loc _ -> loc
 ] ;
@@ -265,8 +266,9 @@ value rec qcirc pps = fun [
   | QGATEAPP _ qg pel qvl cvl ->
      Fmt.(pf  pps "%a (%a) %a" QG.pp_hum qg (list ~{sep=(const string ", ")} pexpr) pel qvars_cvars (qvl, cvl))
   | QBARRIER _ qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
-  | QBIT _ _ -> Fmt.(pf pps "qubit()")
-  | QDISCARD _ _ qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))
+  | QBIT _ (EXPLICIT n) -> Fmt.(pf pps "qubit #%d ()" n)
+  | QBIT _ (UNIQUE _) -> Fmt.(pf pps "qubit ()")
+  | QDISCARD _ qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))
   | QMEASURE _ qvl -> Fmt.(pf pps "measure %a" qvars_cvars (qvl, []))
   | QRESET _ qvl -> Fmt.(pf pps "reset %a" qvars_cvars (qvl, []))
 ]

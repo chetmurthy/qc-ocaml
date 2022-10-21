@@ -9,6 +9,9 @@ let _migrate_list subrw0 __dt__ l =
 
 type loc = [%import: Qlam_syntax.loc]
 and unique_t = [%import: Qlam_syntax.SYN.Unique.t]
+and bit_ident_t = [%import: Qlam_syntax.SYN.bit_ident_t
+                  [@with Unique.t := unique_t]
+                  ]
 and coupling_map_t = [%import: Qlam_syntax.SYN.CouplingMap.t]
 and const_t = [%import: Qlam_syntax.SYN.const_t]
 and pvar_t = [%import: Qlam_syntax.SYN.pvar_t]
@@ -79,6 +82,11 @@ and top = [%import: Qlam_syntax.SYN.top]
       ; migrate_unique_t = {
           srctype = [%typ: unique_t]
         ; dsttype = [%typ: unique_t]
+        ; code = fun __dt__ x -> x
+        }
+      ; migrate_bit_ident_t = {
+          srctype = [%typ: bit_ident_t]
+        ; dsttype = [%typ: bit_ident_t]
         ; code = fun __dt__ x -> x
         }
       ; migrate_coupling_map_t = {

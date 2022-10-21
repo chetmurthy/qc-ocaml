@@ -226,12 +226,13 @@ value program (qasm2env, stmts) =
     instrs |>  filter_split (fun [ (_, (STMT_QREG _ _ | STMT_CREG _ _)) -> True | _ -> False ]) in
   let (qregs, cregs) =
     regs |> filter_split (fun [ (_, STMT_QREG _ _) -> True | (_, STMT_CREG _ _) -> False ]) in
-  let qubits =
+  let qubits_ids =
     qregs
     |> List.concat_map (fun [
       (_,STMT_QREG s count) ->
       (interval 0 (count-1))
-      |> List.map (fun n -> SYN.QV Ploc.dummy (ID.mk0 s n)) ]) in
+      |> List.map (fun n -> SYN.QV Ploc.dummy (ID.mk0 s n)) ])
+    |> List.mapi (fun i q -> (q,SYN.EXPLICIT i)) in
   let clbits =
     cregs
     |> List.concat_map (fun [
@@ -239,10 +240,10 @@ value program (qasm2env, stmts) =
       (interval 0 (count-1))
       |> List.map (fun n -> SYN.CV Ploc.dummy (ID.mk0 s n)) ]) in
   let instrs = List.concat_map (expand_stmt qasm2env) instrs in
-  let qc = circuit qubits clbits instrs in
-  let qc = List.fold_right (fun qv rhs ->
-               SYN.QLET Ploc.dummy [(Ploc.dummy, [qv], [], SYN.QBIT Ploc.dummy (SYN.Unique.mk()))] rhs)
-             qubits qc in
+  let qc = circuit (List.map fst qubits_ids) clbits instrs in
+  let qc = List.fold_right (fun (qv, id) rhs ->
+               SYN.QLET Ploc.dummy [(Ploc.dummy, [qv], [], SYN.QBIT Ploc.dummy id)] rhs)
+             qubits_ids qc in
   (qlam_env, qc)
 ;
 
@@ -393,7 +394,7 @@ value rec conv_circuit loc0 acc env = fun [
    (List.map (CE.lookup_qv env) qvl, List.map (CE.lookup_cv env) cvl)
 | QBIT _ _ ->
    ([CE.next_qreg env], [])
-| QDISCARD _ _ _ -> ([], [])
+| QDISCARD _ _ -> ([], [])
 | QRESET loc qvl -> do {
     let loc = ploc_encl_with_comments loc0 loc in
     let qrl = List.map (CE.lookup_qv env) qvl in

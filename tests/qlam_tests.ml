@@ -159,6 +159,16 @@ let lower_qlam (name, txt, expect) =
   )
 ;;
 
+let pp_tolam (name, qasm, qlam) = 
+  name >:: (fun ctxt ->
+    let (env, qc) = qasm |> parse_tolam in
+    let got = Fmt.(str "%a" PP.qcirc qc) in
+    let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
+    let printer = (fun x -> "<<"^x^">>") in
+    assert_equal ~cmp ~printer qlam got
+  )
+;;
+
 let pp_qlam (name, txt) = 
   name >:: (fun ctxt ->
     let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
@@ -193,18 +203,31 @@ let tychk_qasm2_file (name, f, expect) =
 
 let pp_tests = "pp tests" >:::
 (
-    (List.map pp_qlam [
+  (List.map pp_qlam [
        ("pp simple 0", {|
 let q1 = h q0 in
 ()
 |})
        ; ("pp simple 1", {|
-let p = qubit() in
-let q0 = qubit() in
+let p = qubit () in
+let q0 = qubit () in
 let q1 = h q0 in
 ()
 |})
      ]
+  )
+  @(List.map pp_tolam [
+        ("parse bell", {|OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[2];
+h q[0];
+cx q[0],q[1];
+|},{|let q0 = qubit #0 () in
+let q1 = qubit #1 () in
+let q0 = h q0 in
+let (q0, q1) = cx q0 q1 in
+(q0, q1)|})
+      ]
   )
 )
 ;;
@@ -256,14 +279,6 @@ let q2 = h q0 in
 (q1, q2)
 |},
         Right "check_unique: qubit.*expressions are not unique")
-     ; ("qdiscards not unique", {|
-let q0 = qubit () in
-let q1 = qubit () in
-let () = qdiscard #1 q0 in
-let () = qdiscard #1 q1 in
-()
-|},
-        Right "check_unique: qdiscard expressions are not unique")
      ; ("two", {|
 let q0 = qubit() in
 let q1 = h q0 in
@@ -301,12 +316,12 @@ let q2 = h q0 and  q2 = h q1 in
   )@
     (List.map lower_qlam [
        ("simple", {|
-let q0 = qubit() in
+let q0 = qubit () in
 let q1 = h q0 in
 ()
 |},
         Left {|
-let q = qubit() in
+let q = qubit () in
 let q0 = h q in
 ()
 |})
