@@ -214,6 +214,12 @@ let q0 = qubit () in
 let q1 = h q0 in
 ()
 |})
+       ; ("pp explicit 1", {|
+let p = qubit #1 () in
+let q0 = qubit #2 () in
+let q1 = h q0 in
+()
+|})
      ]
   )
   @(List.map pp_tolam [
