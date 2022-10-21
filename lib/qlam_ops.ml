@@ -834,6 +834,104 @@ end ;
  *)
 
 module SabreSwap = struct
+open CouplingMap ;
+
+(* representation of a node -- must be hashable *)
+module Node = struct
+   type t = int ;
+   value compare (v1: t) (v2: t) = Stdlib.compare v1 v2 ;
+   value hash = Hashtbl.hash ;
+   value equal = (=) ;
+end ;
+
+(* representation of an edge -- must be comparable *)
+module Edge = struct
+   type t = int ;
+
+   value compare = Stdlib.compare ;
+   value equal = (=) ;
+   value default = max_int ;
+end ;
+
+(* a functional/persistent graph *)
+module G = Graph.Persistent.Digraph.ConcreteLabeled(Node)(Edge) ;
+
+(* more modules available, e.g. graph traversal with depth-first-search *)
+module D = Graph.Traverse.Dfs(G) ;
 
 
+value distance g v1 v2 =
+    match G.find_edge g v1 v2 with [
+        exception Not_found -> max_int
+      | e -> G.E.label e
+      ] ;
+value add_distances g v1 v2 v3 =
+    let d12 = distance g v1 v2 in
+    let d23 = distance g v2 v3 in
+    if d12 = max_int || d23 = max_int then max_int
+    else d12+d23 ;
+value upsert_edge g v1 newdist v2 =
+  if v1 = v2 then g else
+    let dist0 = distance g v1 v2  in
+    if newdist < dist0 then
+      G.(add_edge_e (G.remove_edge g v1 v2) (E.create v1 newdist v2))
+    else g ;
+
+
+value add_transitive_closure ?{reflexive=False} g0 =
+    let phi v g =
+      let g = if reflexive then upsert_edge g v 0 v else g in
+      G.fold_succ
+        (fun sv g -> G.fold_pred (fun pv g -> upsert_edge g pv (add_distances g pv v sv) sv) g v g)
+        g v g
+    in
+    G.fold_vertex phi g0 g0
+;
+  value transitive_closure ?{reflexive=False} g0 =
+    add_transitive_closure ~{reflexive=reflexive} g0
+;
+
+value to_graph cm = 
+  let l = cm.it in
+  List.fold_left (fun g (i,j) ->
+      G.(add_edge_e g (E.create i 1 j)))
+  G.empty l
+;
+
+
+value dot ?{terse=True} g =
+  let open Odot in
+  let dot_vertex_0 v acc =
+    let color = "lightblue" in
+    let label = string_of_int v in
+    ([(Stmt_node (Simple_id (string_of_int v), None)
+         [(Simple_id "color", Some (Simple_id "black"));
+          (Simple_id "fillcolor", Some (Simple_id color));
+          (Simple_id "label", Some (Double_quoted_id label));
+          (Simple_id "style", Some (Simple_id "filled"))
+      ]) :: acc]) in
+    let dot_edge_0 (s, label, d) acc =
+      ([(Stmt_edge
+        (Edge_node_id (Simple_id (string_of_int s), None),
+         [Edge_node_id (Simple_id (string_of_int d), None)],
+         [
+           (Simple_id "label", Some (Double_quoted_id (string_of_int label)))
+        ])) :: acc]) in
+
+    let l =
+      []
+      |> G.fold_vertex dot_vertex_0 g
+      |> G.fold_edges_e dot_edge_0 g
+      |> List.rev in
+    let l = 
+      [(Odot.Stmt_attr
+         (Odot.Attr_node
+            [(Odot.Simple_id "label", Some (Odot.Double_quoted_id "\\N"))])) :: l] in
+
+    {strict = False; kind = Digraph; id = Some (Simple_id "G");
+     stmt_list = l }
+;
+  value dot_to_file fname p =
+    Std.apply_to_out_channel (fun oc -> Odot.print oc p) fname
+;
 end ;

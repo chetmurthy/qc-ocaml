@@ -495,6 +495,12 @@ value rec extract_gates env =
       SYN.QGATE _ (DEF (QG _ gn) glam) -> [(gn, Left glam)]
     | QGATE _ (OPAQUE (QG _ gn) gargs) -> [(gn, Right gargs)]
     | QINCLUDE _ QASM2 _ l -> extract_gates l
+    | QCOUPLING_MAP loc mname _ -> do {
+        Fmt.(pf stderr "%a: ToQasm2.extract_gates: coupling map %a skipped@.%!"
+               Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc
+               ID.pp_hum mname) ;
+        []
+    }
     ])
 ;
 (*
@@ -506,6 +512,13 @@ value env_item gates it = match it with [
    Fmt.(raise_failwithf loc "cannot convert QLAM include into QASM")
 | QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "U" -> [] 
 | QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "CX" -> []
+| QCOUPLING_MAP loc mname _ -> do {
+    Fmt.(pf stderr "%a: ToQasm2.env_item: coupling map %a skipped@.%!"
+           Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc
+           ID.pp_hum mname) ;
+    []
+  }
+
 | _ -> Fmt.(failwithf "Qconvert.env_item: unexpected declaration %a" PP.item it)
 ] ;
 

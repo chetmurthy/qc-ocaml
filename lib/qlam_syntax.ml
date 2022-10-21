@@ -144,6 +144,20 @@ value mk l =
         | (n,True,m) -> [(n,m); (m,n)]
         ]) in
   { it = l } ;
+
+value from_core_config cc =
+  let open Qrpc_types.CoreConfig in
+  let m = match cc.coupling_map  with [
+        None -> Fmt.(failwithf "CouplingMap.from_core_config: CoreConfig did not contain coupling map")
+      | Some m -> m
+      ] in
+  let l = m |> List.map (fun [
+              [n;m] -> (n,m)
+            | l -> Fmt.(failwithf "CouplingMap.from_core_config: invalid edge spec %a"
+                          (brackets (list ~{sep=const string "; "} int)) l)
+            ]) in
+  { it = l } ;
+
 end ;
 
 type gate_item = [

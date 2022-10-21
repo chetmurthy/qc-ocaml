@@ -2,6 +2,8 @@
 open Pa_ppx_utils ;
 open Pa_ppx_base ;
 open Ppxutil ;
+open Qc_misc ;
+open Qlam_misc ;
 open Qlam_syntax ;
 open Qlam_syntax.SYN ;
 open Qlam_ops ;
@@ -19,6 +21,7 @@ type pvar_binding_t = unit ;
 
 type t = {
     gates : QGMap.t (qgateargs_t * (int * int))
+  ; machs : IDMap.t CouplingMap.t
   ; qvars : QVMap.t qvar_binding_t
   ; cvars : CVMap.t cvar_binding_t
   ; pvars : PVMap.t pvar_binding_t
@@ -27,6 +30,7 @@ type t = {
 
 value mk () = {
   gates = QGMap.empty
+; machs = IDMap.empty
 ; qvars = QVMap.empty
 ; cvars = CVMap.empty
 ; pvars = PVMap.empty
@@ -58,25 +62,31 @@ value has_qvar loc env id = QVMap.mem id env.qvars ;
 value has_cvar loc env id = CVMap.mem id env.cvars ;
 value has_pvar loc env id = PVMap.mem id env.pvars ;
 
-value find_gate loc env gid = match QGMap.find gid env.gates with [
+value find_mach ?{loc=Ploc.dummy} env mid = match IDMap.find mid env.machs with [
+  x -> x
+| exception Not_found ->
+   Fmt.(raise_failwithf loc "find_mach: machine %a not found" ID.pp_hum mid)
+] ;
+
+value find_gate ?{loc=Ploc.dummy} env gid = match QGMap.find gid env.gates with [
   x -> x
 | exception Not_found ->
    Fmt.(raise_failwithf loc "find_gate: gate %a not found" QG.pp_hum gid)
 ] ;
 
-value find_qvar loc env qid = match QVMap.find qid env.qvars with [
+value find_qvar ?{loc=Ploc.dummy} env qid = match QVMap.find qid env.qvars with [
   x -> x
 | exception Not_found ->
    Fmt.(raise_failwithf loc "find_qvar: qvar %a not found" QV.pp_hum qid)
 ] ;
 
-value find_cvar loc env cid = match CVMap.find cid env.cvars with [
+value find_cvar ?{loc=Ploc.dummy} env cid = match CVMap.find cid env.cvars with [
   x -> x
 | exception Not_found ->
    Fmt.(raise_failwithf loc "find_cvar: cvar %a not found" CV.pp_hum cid)
 ] ;
 
-value find_pvar loc env pid = match PVMap.find pid env.pvars with [
+value find_pvar ?{loc=Ploc.dummy} env pid = match PVMap.find pid env.pvars with [
   x -> x
 | exception Not_found ->
    Fmt.(raise_failwithf loc "find_pvar: pvar %a not found" PV.pp_hum pid)
@@ -85,7 +95,7 @@ value find_pvar loc env pid = match PVMap.find pid env.pvars with [
 end ;
 
 value qvar_find_mark_used loc env qv =
-  match Env.find_qvar loc env qv with [
+  match Env.find_qvar ~{loc=loc} env qv with [
       exception Not_found ->
                 Fmt.(raise_failwithf loc "circuit: undeclared qvar %a" QV.pp_hum qv)
     | x -> if x.used then
@@ -125,7 +135,7 @@ value rec circuit env qc = match qc with [
   }
 | QGATEAPP loc gn pal qal cal ->
    let ((pfl, qfl, cfl), ty) =
-     match Env.find_gate loc env gn with [
+     match Env.find_gate ~{loc=loc} env gn with [
          exception Not_found ->
            Fmt.(raise_failwithf loc "gate-application: gate %a not found" QG.pp_hum gn)
        | x -> x
@@ -256,6 +266,8 @@ value rec env_item env ei = match ei with [
   QINCLUDE loc _ fname l ->
    List.fold_left env_item env l
 | QGATE loc gitem -> gate_item loc env gitem
+| QCOUPLING_MAP loc mname cm ->
+   { (env) with machs = IDMap.add mname cm env.machs }
 ] ;
 
 value env env_items =
