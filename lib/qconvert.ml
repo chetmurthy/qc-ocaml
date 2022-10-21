@@ -232,7 +232,7 @@ value program (qasm2env, stmts) =
       (_,STMT_QREG s count) ->
       (interval 0 (count-1))
       |> List.map (fun n -> SYN.QV Ploc.dummy (ID.mk0 s n)) ])
-    |> List.mapi (fun i q -> (q,SYN.EXPLICIT i)) in
+    |> List.mapi (fun i q -> (q,SYN.BI.EXPLICIT i)) in
   let clbits =
     cregs
     |> List.concat_map (fun [

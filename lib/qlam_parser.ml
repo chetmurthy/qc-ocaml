@@ -79,7 +79,7 @@ EXTEND
     ] ]
   ;
 
-  bitid: [ [ "#" ; n=INT -> EXPLICIT (int_of_string n) | -> UNIQUE (Unique.mk()) ] ] ;
+  bitid: [ [ "#" ; n=INT -> BI.EXPLICIT (int_of_string n) | -> BI.UNIQUE (Unique.mk()) ] ] ;
   qcirc: [ [
       "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QLET loc l qc
     | (qvl,cvl) = paren_qvars_cvars -> QWIRES loc qvl cvl

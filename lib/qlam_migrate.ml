@@ -9,7 +9,7 @@ let _migrate_list subrw0 __dt__ l =
 
 type loc = [%import: Qlam_syntax.loc]
 and unique_t = [%import: Qlam_syntax.SYN.Unique.t]
-and bit_ident_t = [%import: Qlam_syntax.SYN.bit_ident_t
+and bit_ident_t = [%import: Qlam_syntax.SYN.BI.t
                   [@with Unique.t := unique_t]
                   ]
 and coupling_map_t = [%import: Qlam_syntax.SYN.CouplingMap.t]
@@ -26,6 +26,7 @@ and qgatelam_t = [%import: Qlam_syntax.SYN.qgatelam_t]
 and qgateargs_t = [%import: Qlam_syntax.SYN.qgateargs_t]
 and qcirc_t = [%import: Qlam_syntax.SYN.qcirc_t
               [@with Unique.t := unique_t]
+              [@with BI.t := bit_ident_t]
               ]
 and qbinding_t = [%import: Qlam_syntax.SYN.qbinding_t]
 and item = [%import: Qlam_syntax.SYN.item

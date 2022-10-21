@@ -21,7 +21,7 @@ type pvar_binding_t = unit ;
 
 type t = {
     gates : QGMap.t (qgateargs_t * (int * int))
-  ; machs : IDMap.t CouplingMap.t
+  ; machs : IDMap.t SYN.CouplingMap.t
   ; qvars : QVMap.t qvar_binding_t
   ; cvars : CVMap.t cvar_binding_t
   ; pvars : PVMap.t pvar_binding_t

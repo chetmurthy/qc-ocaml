@@ -90,7 +90,20 @@ module Unique = struct
   value mk () = Counter.next ctr ;
 end ;
 
-type bit_ident_t = [ UNIQUE of Unique.t | EXPLICIT of int ] [@@deriving (to_yojson, show, eq, ord);] ;
+module BI = struct
+type t = [ UNIQUE of Unique.t | EXPLICIT of int ] [@@deriving (to_yojson, show, eq, ord);] ;
+value pp_hum pps = fun [
+  UNIQUE u -> Fmt.(pf pps "<unique %d>" u)
+| EXPLICIT n -> Fmt.(pf pps "#%d" n)
+] ;
+end ;
+module BIMap = struct
+  include Map.Make(BI) ;
+  value pp_hum ppval pps l =
+    Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} BI.pp_hum ppval))) (bindings l))
+  ;
+end ;
+module BitIdent = BI ;
 type qgatelam_t = (qgateargs_t * qcirc_t)
 and qgateargs_t = (list pvar_t * list qvar_t * list cvar_t)
 
@@ -99,7 +112,7 @@ and qcirc_t = [
 | QWIRES of loc and list qvar_t and list cvar_t
 | QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
-| QBIT of loc and bit_ident_t | QDISCARD of loc and list qvar_t
+| QBIT of loc and BI.t | QDISCARD of loc and list qvar_t
 | QMEASURE of loc and list qvar_t
 | QRESET of loc and list qvar_t
   ]

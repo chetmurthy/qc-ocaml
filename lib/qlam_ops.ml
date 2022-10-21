@@ -833,7 +833,7 @@ end ;
 
  *)
 
-module SabreSwap = struct
+module CM = struct
 open CouplingMap ;
 
 (* representation of a node -- must be hashable *)
@@ -935,3 +935,4 @@ value dot ?{terse=True} g =
     Std.apply_to_out_channel (fun oc -> Odot.print oc p) fname
 ;
 end ;
+module CouplingMap = CM ;
