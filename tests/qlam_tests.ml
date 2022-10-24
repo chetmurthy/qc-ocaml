@@ -52,7 +52,8 @@ open Qasm2syntax.AST ;;
 
 let env0a = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "qelib0.qli") ;;
 let env0b = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "machines.qli") ;;
-let env0 = env0a @ env0b ;;
+let env0c = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "layouts.qli") ;;
+let env0 = env0a @ env0b @ env0c ;;
 
 let roundtrip s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in

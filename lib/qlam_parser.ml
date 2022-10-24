@@ -67,7 +67,15 @@ EXTEND
     | "coupling_map" ; mname = ident ; "[" ;
       l = LIST1 [ n = INT ; bidi=[ "->" -> False | "<->" -> True ] ; m = INT -> (int_of_string n,bidi,int_of_string m) ] SEP "," ;
       "]" ; ";" -> QCOUPLING_MAP loc mname (CouplingMap.mk l)
+    | "layout" ; mname = ident ; "[" ;
+      l = LIST1 layout_item SEP "," ;
+      "]" ; ";" -> QLAYOUT loc mname (Layout.mk l)
   ] ]
+  ;
+  layout_item: [ [
+        OPT "logical" ; lbit = explicit_bit ; ":"  ; pbit = physical_bit -> (lbit, pbit)
+      | pbit = physical_bit ; ":" ; OPT "logical" ; lbit = explicit_bit -> (lbit, pbit)
+    ] ]
   ;
   gate_args: [ [
       "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars -> (pvl, qvl, cvl)
@@ -79,7 +87,9 @@ EXTEND
     ] ]
   ;
 
-  bitid: [ [ "#" ; n=INT -> BI.EXPLICIT (int_of_string n) | -> BI.UNIQUE (Unique.mk()) ] ] ;
+  physical_bit : [ [ "<" ; "physical" ; n = INT ; ">" -> Physical (int_of_string n) ] ] ;
+  explicit_bit : [ [ "#" ; n=INT -> BI.EXPLICIT (int_of_string n) ] ] ;
+  bitid: [ [ lbit = explicit_bit -> lbit | -> BI.UNIQUE (Unique.mk()) ] ] ;
   qcirc: [ [
       "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QLET loc l qc
     | (qvl,cvl) = paren_qvars_cvars -> QWIRES loc qvl cvl

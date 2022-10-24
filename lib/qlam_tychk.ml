@@ -22,6 +22,7 @@ type pvar_binding_t = unit ;
 type t = {
     gates : QGMap.t (qgateargs_t * (int * int))
   ; machs : IDMap.t SYN.CouplingMap.t
+  ; layouts : IDMap.t SYN.Layout.t
   ; qvars : QVMap.t qvar_binding_t
   ; cvars : CVMap.t cvar_binding_t
   ; pvars : PVMap.t pvar_binding_t
@@ -31,6 +32,7 @@ type t = {
 value mk () = {
   gates = QGMap.empty
 ; machs = IDMap.empty
+; layouts = IDMap.empty
 ; qvars = QVMap.empty
 ; cvars = CVMap.empty
 ; pvars = PVMap.empty
@@ -251,6 +253,8 @@ value rec env_item env ei = match ei with [
 | QGATE loc gitem -> gate_item loc env gitem
 | QCOUPLING_MAP loc mname cm ->
    { (env) with machs = IDMap.add mname cm env.machs }
+| QLAYOUT loc lname l ->
+   { (env) with layouts = IDMap.add lname l env.layouts }
 ] ;
 
 value env env_items =

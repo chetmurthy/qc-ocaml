@@ -182,6 +182,11 @@ value from_core_config cc =
 
 end ;
 
+module Layout = struct
+  type t = { it : list (BI.t * PQ.t) }[@@deriving (to_yojson, show, eq, ord);] ;
+  value mk l = { it = l } ;
+end ;
+
 type gate_item = [
   DEF of qgn_t and qgatelam_t
 | OPAQUE of qgn_t and qgateargs_t
@@ -191,6 +196,7 @@ type item = [
   QGATE of loc and gate_item
 | QINCLUDE of loc and file_type_t and string and env_t
 | QCOUPLING_MAP of loc and ID.t and CouplingMap.t
+| QLAYOUT of loc and ID.t and Layout.t
 ]
 and env_t = list item
 [@@deriving (to_yojson, show, eq, ord);] ;
@@ -323,6 +329,10 @@ value item pps = fun [
      Fmt.(pf pps "coupling_map %a [ %a ] ;"
             ID.pp_hum mname
          (list ~{sep=const string ", "} (pair ~{sep=const string " -> "} int int)) l.it)
+  | QLAYOUT _ mname l ->
+     Fmt.(pf pps "layout %a [ %a ] ;"
+            ID.pp_hum mname
+         (list ~{sep=const string ", "} (pair ~{sep=const string " -> "} BI.pp_hum PQ.pp_hum)) l.it)
 ] ;
 
 value newline_sep pps () = Fmt.(pf pps "@.") ;

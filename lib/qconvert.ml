@@ -502,6 +502,12 @@ value rec extract_gates env =
                ID.pp_hum mname) ;
         []
     }
+    | QLAYOUT loc mname _ -> do {
+        Fmt.(pf stderr "%a: ToQasm2.extract_gates: layout %a skipped@.%!"
+               Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc
+               ID.pp_hum mname) ;
+        []
+    }
     ])
 ;
 (*
@@ -515,6 +521,12 @@ value env_item gates it = match it with [
 | QGATE _ (OPAQUE (QG _ gn) _) when ID.unmk gn = "CX" -> []
 | QCOUPLING_MAP loc mname _ -> do {
     Fmt.(pf stderr "%a: ToQasm2.env_item: coupling map %a skipped@.%!"
+           Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc
+           ID.pp_hum mname) ;
+    []
+  }
+| QLAYOUT loc mname _ -> do {
+    Fmt.(pf stderr "%a: ToQasm2.env_item: layout %a skipped@.%!"
            Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc
            ID.pp_hum mname) ;
     []
