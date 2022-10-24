@@ -5,6 +5,7 @@ open Pa_ppx_base ;
 open Ppxutil ;
 open Qc_misc ;
 open Qlam_syntax ;
+open Qlam_env ;
 
 open SYN ;
 
@@ -887,13 +888,14 @@ value add_transitive_closure ?{reflexive=False} g0 =
     add_transitive_closure ~{reflexive=reflexive} g0
 ;
 
+type t = G.t ;
+
 value to_graph cm = 
   let l = cm.it in
   List.fold_left (fun g (i,j) ->
       G.(add_edge_e g (E.create i 1 j)))
   G.empty l
 ;
-
 
 value dot ?{terse=True} g =
   let open Odot in
@@ -954,23 +956,4 @@ module LO = struct
     let m = M.insert logical_j phys_i m in
     { (l) with layout = m }
   ;
-end ;
-
-module BasicLayout = struct
-(** BasicLayout: given a circuit a layout, and a coupling-map, verify
-    that the circuit can be executed with that layout.
-
-    This module doesn't insert swaps; it merely checks that whatever
-    gates have been inserted, can be executed on the hardware
-
-    Method:
-
-
-    Abstract interpretation: interpret the circuit, maintaining the
-    environment mapping qvars to logical qubits, and separately a
-    logical->physical layout.
-
- *)
-
-
 end ;

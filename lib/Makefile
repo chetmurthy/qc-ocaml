@@ -20,10 +20,10 @@ OML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml \
 	qlam_migrate.ml
-RML = qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml
+RML = qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qlam_analyze.ml qconvert.ml
 ML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
-	qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_migrate.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml \
+	qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_migrate.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qlam_analyze.ml qconvert.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
 
@@ -84,6 +84,12 @@ qlam_ops.cmo:  qlam_ops.ml
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
 qlam_ops.cmx:  qlam_ops.ml
+	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qlam_analyze.cmo:  qlam_analyze.ml
+	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qlam_analyze.cmx:  qlam_analyze.ml
 	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
 qlam_tychk.cmo:  qlam_tychk.ml
