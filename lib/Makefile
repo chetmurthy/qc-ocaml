@@ -15,13 +15,13 @@ MKCAMLP5=$(LAUNCH) mkcamlp5
 PACKAGES := $(PACKAGES),vector,bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.sexp,pa_ppx.deriving_plugins.yojson,pcre,ocamlgraph,dot,yojson,inifiles,pa_ppx.deriving_plugins.std,camlp-streams,camlp5.extend,pa_ppx.runtime_fat
 
 TARGET := qc_ocaml.cma
-OML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
+OML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml \
 	qlam_migrate.ml
 RML = qlam_misc.ml qlam_syntax.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml
-ML= misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
+ML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qlam_misc.ml qlam_syntax.ml qlam_migrate.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \

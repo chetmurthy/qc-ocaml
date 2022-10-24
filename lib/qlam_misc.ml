@@ -1,10 +1,15 @@
 open Qc_misc ;
+open Pa_ppx_base ;
+open Ppxutil ;
 
-module type VARSIG = sig
+module type ENTITY_SIG = sig
   type t = 'a[@@deriving (eq, ord, show);];
+  value pp_hum : Fmt.t t ;
+end ;
+module type VARSIG = sig
+  include ENTITY_SIG ;
   value toID : t -> ID.t ;
   value ofID : ID.t -> t ;
-  value pp_hum : Fmt.t t ;
 end ;
 module type FVSIG = sig
   module M : VARSIG ;
@@ -67,6 +72,56 @@ module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
   value pp pps l = pp__t pps (toList l) ;
   value show l = show__t (toList l) ;
   value pp_hum pps l = Fmt.(pf pps "%a" (brackets (list ~{sep=const string "; "} M.pp_hum)) (toList l)) ;
+end ;
+
+module type BIJSIG = sig
+  module DOM : ENTITY_SIG ;
+  module RNG : ENTITY_SIG ;
+  module DOMMap : (Map.S with type key = DOM.t) ;
+  module RNGMap : (Map.S with type key = RNG.t) ;
+
+  include (Misc_map.MonoMapS with type key = DOM.t and type rng = RNG.t) ;
+
+  value insert : DOM.t -> RNG.t -> t -> t ;
+
+  value find_rng : RNG.t -> t -> DOM.t ;
+  value mem_rng : RNG.t -> t -> bool ;
+
+  value pp_hum : Fmt.t t ;
+end ;
+
+module Bijection(M1 : ENTITY_SIG) (M2 : ENTITY_SIG) : (BIJSIG with module DOM = M1 and module RNG = M2) = struct
+  module DOM = M1 ;
+  module RNG = M2 ;
+  module DOMMap = Map.Make(M1) ;
+  module RNGMap = Map.Make(M2) ;
+  type key = DOM.t ;
+  type rng = RNG.t ;
+  type t = (DOMMap.t RNG.t * RNGMap.t DOM.t);
+
+  value empty    = (DOMMap.empty,RNGMap.empty) ;
+  value is_empty (l, _)   = DOMMap.is_empty l;
+  value mem x (l, _)   = DOMMap.mem x l;
+  value mem_rng x (_, r)   = RNGMap.mem x r;
+  value insert x y ((l,r) as m) = do {
+    if mem x m then
+      Fmt.(failwithf "Bijection.insert: %a already in domain" DOM.pp_hum x)
+    else if mem_rng y m then
+      Fmt.(failwithf "Bijection.insert: %a already in range" RNG.pp_hum y)
+    else
+      (DOMMap.add x y l,  RNGMap.add y x r)
+  } ;
+  value remove x (l,r) =
+    let y = DOMMap.find x l in
+    (DOMMap.remove x l, RNGMap.remove y r)
+  ;
+  value bindings (l, _) = DOMMap.bindings l ;
+  value find x (l, _) = DOMMap.find x l ;
+  value find_rng y (_, r) = RNGMap.find y r ;
+
+  value pp_hum pps (l,_) =
+    Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} DOM.pp_hum RNG.pp_hum))) (DOMMap.bindings l))
+  ;
 end ;
 
 module IDMap = VarMap(ID) ;

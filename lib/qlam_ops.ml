@@ -856,10 +856,6 @@ end ;
 (* a functional/persistent graph *)
 module G = Graph.Persistent.Digraph.ConcreteLabeled(Node)(Edge) ;
 
-(* more modules available, e.g. graph traversal with depth-first-search *)
-module D = Graph.Traverse.Dfs(G) ;
-
-
 value distance g v1 v2 =
     match G.find_edge g v1 v2 with [
         exception Not_found -> max_int

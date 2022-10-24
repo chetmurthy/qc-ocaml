@@ -195,9 +195,9 @@ let q1 = h q1 in
 
 let e0 = TYCHK.env env0 ;;
 let cm = TYCHK.Env.find_mach e0 (ID.mk"li_example_1");;
-open SabreSwap ;;
-let g0 = (to_graph cm) ;;
-let g_to_list g = SYN.CouplingMap.(G.fold_edges_e (fun e acc -> e::acc) g []) ;;
+module Ops = Qlam_ops ;;
+let g0 = Ops.CM.(to_graph cm) ;;
+let g_to_list g = Ops.CM.(G.fold_edges_e (fun e acc -> e::acc) g []) ;;
 
 (* Local Variables: *)
 (* mode: tuareg *)

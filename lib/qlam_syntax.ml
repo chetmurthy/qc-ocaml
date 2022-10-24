@@ -103,7 +103,15 @@ module BIMap = struct
     Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} BI.pp_hum ppval))) (bindings l))
   ;
 end ;
+module PQ = struct
+  type t = [Physical of int] [@@deriving (to_yojson, show, eq, ord);] ;
+  value pp_hum pps = fun [
+    Physical n -> Fmt.(pf pps "<physical %d>" n)
+  ] ;
+end ;
 module BitIdent = BI ;
+module PhysicalQubit = PQ ;
+module BI_Phys_BIJ = Bijection(BI)(PQ) ;
 type qgatelam_t = (qgateargs_t * qcirc_t)
 and qgateargs_t = (list pvar_t * list qvar_t * list cvar_t)
 
