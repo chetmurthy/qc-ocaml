@@ -103,12 +103,14 @@ module BIMap = struct
     Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} BI.pp_hum ppval))) (bindings l))
   ;
 end ;
+module BISet = EntitySet(BI) ;
 module PQ = struct
   type t = [Physical of int] [@@deriving (to_yojson, show, eq, ord);] ;
   value pp_hum pps = fun [
     Physical n -> Fmt.(pf pps "<physical %d>" n)
   ] ;
 end ;
+module PQSet = EntitySet(PQ) ;
 module BitIdent = BI ;
 module PhysicalQubit = PQ ;
 module BI_Phys_BIJ = Bijection(BI)(PQ) ;
