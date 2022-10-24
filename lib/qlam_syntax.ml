@@ -32,7 +32,7 @@ module PV = struct
 end ;
 
 module PVMap = VarMap(PV) ;
-module PVFVS = FreeVarSet(PV) ;
+module PVFVS = VarSet(PV) ;
 
 
 type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
@@ -45,7 +45,7 @@ module QV = struct
   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
 end ;
 module QVMap = VarMap(QV) ;
-module QVFVS = FreeVarSet(QV) ;
+module QVFVS = VarSet(QV) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module CV = struct
@@ -57,7 +57,7 @@ module CV = struct
   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
 end ;
 module CVMap = VarMap(CV) ;
-module CVFVS = FreeVarSet(CV) ;
+module CVFVS = VarSet(CV) ;
 
 type qgn_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module QG = struct
@@ -69,7 +69,7 @@ module QG = struct
   value pp_hum pps x = Fmt.(pf pps "%a" qgn x) ;
 end ;
 module QGMap = VarMap(QG) ;
-module QGFVS = FreeVarSet(QG) ;
+module QGFVS = VarSet(QG) ;
 
 type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, show, eq, ord);] ;
 type unop_t = [ UMINUS ][@@deriving (to_yojson, show, eq, ord);] ;

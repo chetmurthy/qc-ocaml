@@ -932,3 +932,30 @@ value dot ?{terse=True} g =
 ;
 end ;
 module CouplingMap = CM ;
+
+module LO = struct
+  module M = BI_Phys_BIJ ;
+  type t = M.t ;
+  value empty = M.empty ;
+  value assign m (k,v) = M.insert k v m ;
+  value mk l = List.fold_left assign M.empty l.Layout.it ;
+
+  value swap m (logical_i,logical_j) =
+    let phys_i = M.find logical_i m in
+    let phys_j = M.find logical_j m in
+    let m = M.remove logical_i m in
+    let m = M.remove logical_j m in
+    let m = assign m (logical_i,phys_j) in
+    let m = assign m (logical_j,phys_i) in
+    m
+  ;
+end ;
+
+module BasicLayout = struct
+(** BasicLayout: given a circuit a layout, and a coupling-map, verify
+   that the circuit can be executed with that layout.
+
+    This module doesn't insert swaps; it merely checks that whatever
+   gates have been inserted, can be executed on the hardware *)
+
+end ;

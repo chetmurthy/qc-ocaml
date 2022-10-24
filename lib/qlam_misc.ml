@@ -11,9 +11,10 @@ module type VARSIG = sig
   value toID : t -> ID.t ;
   value ofID : ID.t -> t ;
 end ;
-module type FVSIG = sig
-  module M : VARSIG ;
-  type t = 'a [@@deriving (show);] ;
+module type SETSIG = sig
+  module M : ENTITY_SIG ;
+  module S : (Set.S with type elt = M.t) ;
+  type t = S.t [@@deriving (show);] ;
   value mt : t ;
   value add : t -> M.t -> t ;
   value mem : t -> M.t -> bool ;
@@ -23,13 +24,17 @@ module type FVSIG = sig
   value toList : t -> list M.t ;
   value union : t -> t -> t ;
   value concat : list t -> t ;
-  value fresh : t -> M.t -> M.t ;
   value equal : t -> t -> bool ;
   value pp_hum : Fmt.t t ;
 end ;
+module type VARSETSIG = sig
+  module M : VARSIG ;
+  include (SETSIG with module M := M) ;
+  value fresh : t -> M.t -> M.t ;
+end ;
 
 module type MAPSIG = sig
-  module M : VARSIG ;
+  module M : ENTITY_SIG ;
   include Map.S with type key = M.t ;
   value pp_hum : Fmt.t 'a -> Fmt.t (t 'a) ;
 end ;
@@ -43,7 +48,7 @@ module VarMap(M : VARSIG) : (MAPSIG with module M = M) = struct
   ;
 end ;
 
-module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
+module EntitySet(M : ENTITY_SIG) : (SETSIG with module M = M) = struct
   module M = M ;
   module S = Set.Make(M) ;
   type t = S.t ;
@@ -56,6 +61,18 @@ module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
   value toList l = S.elements l ;
   value union l1 l2 = S.union l1 l2 ;
   value concat l = List.fold_left union mt l ;
+  value equal l1 l2 = S.equal l1 l2 ;
+
+  type _t = list M.t[@@deriving (show);] ;
+  value pp pps l = pp__t pps (toList l) ;
+  value show l = show__t (toList l) ;
+  value pp_hum pps l = Fmt.(pf pps "%a" (brackets (list ~{sep=const string "; "} M.pp_hum)) (toList l)) ;
+end ;
+
+module VarSet(M0 : VARSIG) : (VARSETSIG with module M = M0) = struct
+  module S0 = EntitySet(M0) ;
+  include S0 ;
+  module M = M0 ;
   value fresh l x =
     let (s,_) = M.toID x in
     let n = S.fold (fun v acc ->
@@ -65,13 +82,6 @@ module FreeVarSet(M : VARSIG) : (FVSIG with module M = M) = struct
     if n = Int.min_int then
       M.ofID (s,-1)
     else M.ofID (s, n+1) ;
-
-  value equal l1 l2 = S.equal l1 l2 ;
-
-  type _t = list M.t[@@deriving (show);] ;
-  value pp pps l = pp__t pps (toList l) ;
-  value show l = show__t (toList l) ;
-  value pp_hum pps l = Fmt.(pf pps "%a" (brackets (list ~{sep=const string "; "} M.pp_hum)) (toList l)) ;
 end ;
 
 module type BIJSIG = sig
@@ -125,4 +135,4 @@ module Bijection(M1 : ENTITY_SIG) (M2 : ENTITY_SIG) : (BIJSIG with module DOM = 
 end ;
 
 module IDMap = VarMap(ID) ;
-module IDFVS = FreeVarSet(ID) ;
+module IDFVS = VarSet(ID) ;
