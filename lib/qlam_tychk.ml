@@ -6,6 +6,7 @@ open Qc_misc ;
 open Qlam_misc ;
 open Qlam_syntax ;
 open Qlam_syntax.SYN ;
+open Qlam_env ;
 open Qlam_ops ;
 
 module Env = struct
@@ -20,32 +21,19 @@ type cvar_binding_t = option qbinding_t ;
 type pvar_binding_t = unit ;
 
 type t = {
-    gates : QGMap.t (qgateargs_t * (int * int))
-  ; machs : IDMap.t SYN.CouplingMap.t
-  ; layouts : IDMap.t SYN.Layout.t
+    genv : GEnv.t
   ; qvars : QVMap.t qvar_binding_t
   ; cvars : CVMap.t cvar_binding_t
   ; pvars : PVMap.t pvar_binding_t
   }
 ;
 
-value mk () = {
-  gates = QGMap.empty
-; machs = IDMap.empty
-; layouts = IDMap.empty
+value mk genv = {
+  genv = genv
 ; qvars = QVMap.empty
 ; cvars = CVMap.empty
 ; pvars = PVMap.empty
 } ;
-
-value mk_for_gate env = { (mk()) with gates = env.gates } ;
-
-value add_gate loc env (gid, glam) =
-  if QGMap.mem gid env.gates then
-    Fmt.(raise_failwithf loc "add_gate: gate %a already in env" QG.pp_hum gid)
-  else
-    { (env) with gates = QGMap.add gid glam env.gates }
-;
 
 value add_qvar loc env (id, qvb) =
   { (env) with qvars = QVMap.add id qvb env.qvars }
@@ -59,22 +47,13 @@ value add_pvar loc env (id, pv) =
   { (env) with pvars = PVMap.add id pv env.pvars }
 ;
 
-value has_gate loc env id = QGMap.mem id env.gates ;
+value has_gate loc env id = GEnv.has_gate loc env.genv id ;
 value has_qvar loc env id = QVMap.mem id env.qvars ;
 value has_cvar loc env id = CVMap.mem id env.cvars ;
 value has_pvar loc env id = PVMap.mem id env.pvars ;
 
-value find_mach ?{loc=Ploc.dummy} env mid = match IDMap.find mid env.machs with [
-  x -> x
-| exception Not_found ->
-   Fmt.(raise_failwithf loc "find_mach: machine %a not found" ID.pp_hum mid)
-] ;
-
-value find_gate ?{loc=Ploc.dummy} env gid = match QGMap.find gid env.gates with [
-  x -> x
-| exception Not_found ->
-   Fmt.(raise_failwithf loc "find_gate: gate %a not found" QG.pp_hum gid)
-] ;
+value find_mach ?{loc=Ploc.dummy} env mid = GEnv.find_mach ~{loc=loc} env.genv mid ;
+value find_gate ?{loc=Ploc.dummy} env gid = GEnv.find_gate ~{loc=loc} env.genv gid ;
 
 value find_qvar ?{loc=Ploc.dummy} env qid = match QVMap.find qid env.qvars with [
   x -> x
@@ -217,7 +196,7 @@ value top_circuit env qc = do {
     circuit env qc
 }
 ;
-value gate_item loc env gitem = match gitem with [
+value gate_item loc genv gitem = match gitem with [
   DEF gn (((pvl, qvl, cvl) as glam), qc) -> do {
     let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
     let fv_pvs = PVFVS.subtract fv_pvs (PVFVS.ofList pvl) in
@@ -230,7 +209,7 @@ value gate_item loc env gitem = match gitem with [
     else if CVFVS.mt <> fv_cvs then
       Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free cvars %a" QG.pp_hum gn CVFVS.pp fv_cvs)
     else
-    let env' = Env.mk_for_gate env in
+    let env' = Env.mk genv in
     let qvbl = qvl |> List.map (fun qv -> (qv, { Env.used = False ; loc = loc ; it = None })) in
     let env' = List.fold_left (Env.add_qvar loc) env' qvbl in
     let env' = List.fold_left (fun env cv -> Env.add_cvar loc env (cv, None)) env' cvl in
@@ -239,32 +218,31 @@ value gate_item loc env gitem = match gitem with [
     if not (qvbl |> List.for_all (fun (_, qvb) -> qvb.Env.used)) then
       Fmt.(raise_failwithf loc "gate_item: not all qvars were used (failure of linearity)")
     else
-      Env.add_gate loc env (gn, (glam, ty))
+      GEnv.add_gate loc genv (gn, (glam, ty))
   }
 | OPAQUE gn ((pvl, qvl, cvl) as glam) ->
    let ty = (List.length qvl, List.length cvl) in
-   Env.add_gate loc env (gn,  (glam, ty))
+   GEnv.add_gate loc genv (gn,  (glam, ty))
 ] ;
 
 
-value rec env_item env ei = match ei with [
+value rec env_item genv ei = match ei with [
   QINCLUDE loc _ fname l ->
-   List.fold_left env_item env l
-| QGATE loc gitem -> gate_item loc env gitem
+   List.fold_left env_item genv l
+| QGATE loc gitem -> gate_item loc genv gitem
 | QCOUPLING_MAP loc mname cm ->
-   { (env) with machs = IDMap.add mname cm env.machs }
+   GEnv.add_mach loc genv (mname, cm)
 | QLAYOUT loc lname l ->
-   { (env) with layouts = IDMap.add lname l env.layouts }
+   GEnv.add_layout loc genv (lname, l)
 ] ;
 
-value env env_items =
-  let env = Env.mk () in
+value mk_genv env_items =
+  let env = GEnv.mk () in
   List.fold_left env_item env env_items
 ;
 
 value program (env_items, qc) =
-  let env = Env.mk () in
-  let env = List.fold_left env_item env env_items in
-  let ty = top_circuit env qc in
-  (env, ty)
+  let genv = mk_genv env_items in
+  let ty = top_circuit (Env.mk genv) qc in
+  (genv, ty)
 ;

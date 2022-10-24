@@ -185,12 +185,12 @@ let tychk_qelib (name, txt, expect) =
     let env = txt |> Stream.of_string |> parse_qelib in
     match expect with
       Left () ->
-       ignore (TYCHK.env (env0@env1@env))
+       ignore (TYCHK.mk_genv (env0@env1@env))
 
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> TYCHK.env (env0@env1@env))
+         (fun () -> TYCHK.mk_genv (env0@env1@env))
   )
 ;;
 let tychk_qasm2_file (name, f, expect) = 
