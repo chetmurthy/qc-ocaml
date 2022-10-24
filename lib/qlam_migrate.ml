@@ -7,8 +7,7 @@ let migration_error feature =
 let _migrate_list subrw0 __dt__ l =
   List.map (subrw0 __dt__) l
 
-type loc = [%import: Qlam_syntax.loc]
-and unique_t = [%import: Qlam_syntax.SYN.Unique.t]
+type unique_t = [%import: Qlam_syntax.SYN.Unique.t]
 and bit_ident_t = [%import: Qlam_syntax.SYN.BI.t
                   [@with Unique.t := unique_t]
                   ]
@@ -42,6 +41,7 @@ and item = [%import: Qlam_syntax.SYN.item
 and gate_item = [%import: Qlam_syntax.SYN.gate_item]
 and env_t = [%import: Qlam_syntax.SYN.env_t]
 and top = [%import: Qlam_syntax.SYN.top]
+
 [@@deriving migrate
     { dispatch_type = dispatch_table_t
     ; dispatch_table_constructor = make_dt
@@ -78,8 +78,8 @@ and top = [%import: Qlam_syntax.SYN.top]
         ; subs = [ ([%typ: 'a], [%typ: 'b]) ]
         }
       ; migrate_loc = {
-          srctype = [%typ: loc]
-        ; dsttype = [%typ: loc]
+          srctype = [%typ: Qc_misc.loc]
+        ; dsttype = [%typ: Qc_misc.loc]
         ; code = fun __dt__ x -> x
         }
       ; migrate_id = {

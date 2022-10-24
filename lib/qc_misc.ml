@@ -1,7 +1,13 @@
 
+open Pa_ppx_base.Pp_MLast
 open Pa_ppx_utils
 open Std
 open Misc_functions
+
+type loc = Ploc.t
+let loc_to_yojson (_ : loc) = `String "<loc>"
+let equal_loc _ _ = true
+let compare_loc _ _ = 0
 
 type Pa_ppx_runtime_fat.Exceptions.t +=
     SyntaxError of string[@name "SyntaxError"]
@@ -66,7 +72,7 @@ module ID = struct
 
   let pp_hum pps x = Fmt.(pf pps "%s" (unmk x))
 
-  let ofID x = x
+  let ofID ?(loc=Ploc.dummy) x = x
   let toID x = x
 end
 

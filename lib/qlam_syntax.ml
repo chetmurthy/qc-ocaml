@@ -6,11 +6,6 @@ open Pa_ppx_base.Pp_MLast ;
 open Qc_misc ;
 open Qlam_misc ;
 
-type loc = Ploc.t ;
-value loc_to_yojson (_ : loc) = `String "<loc>" ;
-value equal_loc _ _ = True ;
-value compare_loc _ _ = 0 ;
-
 module SYN = struct
 
   type const_t = [
@@ -24,7 +19,7 @@ type pvar_t = [ PV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module PV = struct
   type t = pvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ PV _ x -> x ] ;
-  value ofID x = PV Ploc.dummy x ;
+  value ofID ?{loc=Ploc.dummy} x = PV loc x ;
   value to_loc = fun [ PV loc _ -> loc ] ;
 
   value pvar pps = fun [ (PV _ id) -> ID.pp_hum pps id ] ;
@@ -39,7 +34,7 @@ type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module QV = struct
   type t = qvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ QV _ x -> x ] ;
-  value ofID x = QV Ploc.dummy x ;
+  value ofID ?{loc=Ploc.dummy} x = QV loc x ;
   value to_loc = fun [ QV loc _ -> loc ] ;
   value qvar pps = fun [ (QV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
@@ -51,7 +46,7 @@ type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module CV = struct
   type t = cvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ CV _ x -> x ] ;
-  value ofID x = CV Ploc.dummy x ;
+  value ofID ?{loc=Ploc.dummy} x = CV loc x ;
   value to_loc = fun [ CV loc _ -> loc ] ;
   value cvar pps = fun [ (CV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
@@ -59,13 +54,29 @@ end ;
 module CVMap = VarMap(CV) ;
 module CVFVS = VarSet(CV) ;
 
-type qgn_t = [ QG of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
+type qgn_t = [
+    CX of loc | U of loc | SWAP of loc
+  | GENGATE of loc and ID.t
+ ][@@deriving (to_yojson, show, eq, ord);] ;
 module QG = struct
   type t = qgn_t[@@deriving (to_yojson, show, eq, ord);];
-  value toID = fun [ QG _ x -> x ] ;
-  value ofID x = QG Ploc.dummy x ;
-  value to_loc = fun [ QG loc _ -> loc ] ;
-  value qgn pps = fun [ (QG _ id) -> ID.pp_hum pps id ] ;
+  value toID = fun [
+    CX _ -> ID.mk0 "CX" (-1)
+  | U _ -> ID.mk0 "U" (-1)
+  | SWAP _ -> ID.mk0 "SWAP" (-1)
+  | GENGATE _ x -> x
+  ] ;
+  value ofID ?{loc=Ploc.dummy} = fun [
+    ("CX",-1) -> CX loc
+  | ("U",-1) -> U loc
+  | ("SWAP",-1) -> SWAP loc
+  | x -> GENGATE loc x
+  ] ;
+  value to_loc = fun [
+    CX loc -> loc | U loc -> loc | SWAP loc -> loc
+  | GENGATE loc _ -> loc
+  ] ;
+  value qgn pps g = ID.pp_hum pps (toID g) ;
   value pp_hum pps x = Fmt.(pf pps "%a" qgn x) ;
 end ;
 module QGMap = VarMap(QG) ;

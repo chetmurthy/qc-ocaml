@@ -9,7 +9,7 @@ end ;
 module type VARSIG = sig
   include ENTITY_SIG ;
   value toID : t -> ID.t ;
-  value ofID : ID.t -> t ;
+  value ofID : ?loc:loc -> ID.t -> t ;
 end ;
 module type SETSIG = sig
   module M : ENTITY_SIG ;

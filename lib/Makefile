@@ -20,10 +20,10 @@ OML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml \
 	qlam_migrate.ml
-RML = qlam_misc.ml qlam_syntax.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml
+RML = qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml
 ML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
-	qlam_misc.ml qlam_syntax.ml qlam_migrate.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml \
+	qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_migrate.ml qlam_parser.ml qlam_ops.ml qlam_tychk.ml qconvert.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
 
@@ -74,7 +74,7 @@ qlam_syntax.cmx:  qlam_syntax.ml
 
 IMPORT_CFLAGS=-ppopt -pa_import-I -ppopt .
 qlam_migrate.cmo:  qlam_migrate.ml
-#	$(NOT_OCAMLFIND) preprocess $(OCAMLCFLAGS) -package $(PACKAGES),$(PRPACKAGE),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax $(SYNTAX) $< > $*_ppo.ml
+	$(NOT_OCAMLFIND) preprocess $(OCAMLCFLAGS) -package $(PACKAGES),$(PRPACKAGE),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax $(SYNTAX) $< > $*_ppo.ml
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax camlp5o -c $<
 
 qlam_migrate.cmx:  qlam_migrate.ml
@@ -86,11 +86,16 @@ qlam_ops.cmo:  qlam_ops.ml
 qlam_ops.cmx:  qlam_ops.ml
 	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
-
 qlam_tychk.cmo:  qlam_tychk.ml
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
 qlam_tychk.cmx:  qlam_tychk.ml
+	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qlam_env.cmo:  qlam_env.ml
+	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
+
+qlam_env.cmx:  qlam_env.ml
 	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
 
 

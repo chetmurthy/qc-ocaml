@@ -177,7 +177,7 @@ EXTEND
   paramvar: [ [ x = ident -> PV loc x ] ] ;
   qvar: [ [ x = ident -> QV loc x ] ] ;
   cvar: [ [ x = ident -> CV loc x ] ] ;
-  qgatename: [ [ x = ident -> QG loc x ] ] ;
+  qgatename: [ [ x = ident -> QG.ofID ~{loc=loc} x ] ] ;
 
   top_eoi: [ [ x = top ; EOI -> x ] ] ;
   qcirc_eoi: [ [ x = qcirc ; EOI -> x ] ] ;
