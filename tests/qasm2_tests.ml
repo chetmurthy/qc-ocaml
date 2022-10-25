@@ -254,6 +254,8 @@ include "oneline.inc";
 include "oneline.inc";
 |}) ;
     test_roundtrip_main_file ("example", "testdata/example.qasm", file_contents "testdata/example.qasm-result") ;
+    test_roundtrip_main_file ("bell2.qasm", "testdata/bell2.qasm", file_contents "testdata/bell2.qasm") ;
+    test_roundtrip_main_file ("zulehner_4a.qasm", "testdata/zulehner_4a.qasm", file_contents "testdata/zulehner_4a.qasm") ;
     "fail">:: (fun ctxt ->
       assert_raises ~msg:"should raise SyntaxError(lexing)"
         (SyntaxError "lexing: failed in file \"testdata/example_fail.qasm\" at char 9")
@@ -362,12 +364,22 @@ let open AST in
        ("example", "testdata/example.qasm",
         None,
        None) ;
+       ("bell2", "testdata/bell2.qasm",
+        None,
+       None) ;
+       ("zulehner_4a", "testdata/zulehner_4a.qasm",
+        None,
+       None) ;
      ]
   ) @
   (List.map test_typecheck_fail [
        ("qreg fail", "qreg q[1]; qreg q[1];",
         "should have caught repeated qreg declaration",
         "TypeError.*true.*q already declared") ;
+
+       ("qreg dimension fail", "qreg q[1]; CX q[0], q[1];",
+        "should have caught qubit out of dimension",
+        "TypeError.*true.*bit.*out of dimension") ;
 
        ("CX fail", "qreg q[1]; qreg r[2]; CX q, r;",
         "should have caught mismatched args to CX",
