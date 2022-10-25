@@ -372,6 +372,12 @@ let open AST in
        ("zulehner_4a", "testdata/zulehner_4a.qasm",
         None,
        None) ;
+       ("zulehner_4a_naive", "testdata/zulehner_4a_naive.qasm",
+        None,
+       None) ;
+       ("zulehner_4a_proposed", "testdata/zulehner_4a_proposed.qasm",
+        None,
+       None) ;
      ]
   ) @
   (List.map test_typecheck_fail [
