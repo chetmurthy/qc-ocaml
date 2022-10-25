@@ -346,7 +346,7 @@ value item pps = fun [
      Fmt.(pf pps "coupling_map %a [ %a ; %a ] ;"
             ID.pp_hum mname
          (list (pair ~{sep=const string " -> "} int int)) edges
-          (list (pair ~{sep=const string "@"} int (parens (pair ~{sep=const string ","} int int)))) positions
+          (list ~{sep=const string " "} (pair ~{sep=const string "@"} int (parens (pair ~{sep=const string ","} int int)))) positions
      )
   | QLAYOUT _ mname l ->
      Fmt.(pf pps "layout %a [ %a ] ;"
