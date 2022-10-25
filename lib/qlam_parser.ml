@@ -65,7 +65,7 @@ EXTEND
        else
          Fmt.(raise_failwithf loc "QLAM parser only accepts QLAM (.qli) includes")
     | "coupling_map" ; mname = ident ; "[" ;
-      l = LIST1 [ n = INT ; bidi=[ "->" -> False | "<->" -> True ] ; m = INT -> (int_of_string n,bidi,int_of_string m) ] SEP "," ;
+      l = LIST1 [ n = INT ; bidi=[ "->" -> False | "<->" -> True ] ; m = INT -> (int_of_string n,bidi,int_of_string m) ] ;
       "]" ; ";" -> QCOUPLING_MAP loc mname (CouplingMap.mk l)
     | "layout" ; mname = ident ; "[" ;
       l = LIST1 layout_item SEP "," ;
