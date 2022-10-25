@@ -65,13 +65,16 @@ EXTEND
        else
          Fmt.(raise_failwithf loc "QLAM parser only accepts QLAM (.qli) includes")
     | "coupling_map" ; mname = ident ; "[" ;
-      l = LIST1 [ n = INT ; bidi=[ "->" -> False | "<->" -> True ] ; m = INT -> (int_of_string n,bidi,int_of_string m) ] ;
-      "]" ; ";" -> QCOUPLING_MAP loc mname (CouplingMap.mk l)
+      edges = LIST1 [ n = INT ; bidi=[ "->" -> False | "<->" -> True ] ; m = INT -> (int_of_string n,bidi,int_of_string m) ] ;
+      positions = [ ";" ; l = LIST1 position -> l | -> [] ] ;
+      "]" ; ";" -> QCOUPLING_MAP loc mname (CouplingMap.mk edges positions)
     | "layout" ; mname = ident ; "[" ;
       l = LIST1 layout_item SEP "," ;
       "]" ; ";" -> QLAYOUT loc mname (Layout.mk l)
   ] ]
   ;
+  position: [ [ n=INT ; "@" ; "(" ; x=signed_int; ","; y=signed_int ; ")" -> (int_of_string n, (x,y)) ] ] ;
+  signed_int: [ [ n= INT -> int_of_string n  | "-" ; n=INT -> - (int_of_string n) ] ] ;
   layout_item: [ [
         OPT "logical" ; lbit = explicit_bit ; ":"  ; pbit = physical_bit -> (lbit, pbit)
       | pbit = physical_bit ; ":" ; OPT "logical" ; lbit = explicit_bit -> (lbit, pbit)

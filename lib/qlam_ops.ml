@@ -4,6 +4,7 @@ open Pa_ppx_utils ;
 open Pa_ppx_base ;
 open Ppxutil ;
 open Qc_misc ;
+open Qlam_misc ;
 open Qlam_syntax ;
 open Qlam_env ;
 
@@ -888,32 +889,40 @@ value add_transitive_closure ?{reflexive=False} g0 =
     add_transitive_closure ~{reflexive=reflexive} g0
 ;
 
-type t = { cm : G.t ; tclosure : G.t } ;
+type t = { cm : G.t ; tclosure : G.t; positions : IntMap.t (int * int) } ;
 
-value to_graph cm = 
-  let l = cm.it in
+value to_graph edges = 
   List.fold_left (fun g (i,j) ->
       G.(add_edge_e g (E.create i 1 j)))
-  G.empty l
+  G.empty edges
 ;
 
-value mk cm =
-  let cm = to_graph cm in
-  { cm = cm ; tclosure = transitive_closure cm } ;
+value mk (edges, positions) =
+  let cm = to_graph edges in
+  let positions = IntMap.ofList positions in
+  { cm = cm ; tclosure = transitive_closure cm ; positions = positions } ;
 
 value has_pair it v1 v2 = G.mem_edge it.cm v1 v2 ;
 
-value dot ?{terse=True} g =
+value dot ?{terse=True} ?{tclos=False} cm =
+  let g = if tclos then cm.tclosure else cm.cm in
+  let positions = cm.positions in
   let open Odot in
   let dot_vertex_0 v acc =
     let color = "lightblue" in
     let label = string_of_int v in
-    ([(Stmt_node (Simple_id (string_of_int v), None)
-         [(Simple_id "color", Some (Simple_id "black"));
-          (Simple_id "fillcolor", Some (Simple_id color));
-          (Simple_id "label", Some (Double_quoted_id label));
-          (Simple_id "style", Some (Simple_id "filled"))
-      ]) :: acc]) in
+    let attrs = [(Simple_id "color", Some (Simple_id "black"));
+                 (Simple_id "fillcolor", Some (Simple_id color));
+                 (Simple_id "label", Some (Double_quoted_id label));
+                 (Simple_id "style", Some (Simple_id "filled"))
+                ] in
+    let attrs = match IntMap.find v positions with [
+          exception Not_found -> attrs
+        | (x,y) -> 
+           let pos = Fmt.(str "%d,%d!" x y) in
+           attrs@[(Simple_id "pos", Some (Double_quoted_id pos))]
+        ] in
+    ([(Stmt_node (Simple_id (string_of_int v), None) attrs) :: acc]) in
     let dot_edge_0 (s, label, d) acc =
       ([(Stmt_edge
         (Edge_node_id (Simple_id (string_of_int s), None),
@@ -935,8 +944,9 @@ value dot ?{terse=True} g =
     {strict = False; kind = Digraph; id = Some (Simple_id "G");
      stmt_list = l }
 ;
-  value dot_to_file fname p =
-    Std.apply_to_out_channel (fun oc -> Odot.print oc p) fname
+
+value dot_to_file fname p =
+  Std.apply_to_out_channel (fun oc -> Odot.print oc p) fname
 ;
 end ;
 module CouplingMap = CM ;

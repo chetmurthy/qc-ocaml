@@ -26,7 +26,7 @@ module PV = struct
   value pp_hum pps x = Fmt.(pf pps "%a" pvar x) ;
 end ;
 
-module PVMap = VarMap(PV) ;
+module PVMap = EntityMap(PV) ;
 module PVFVS = VarSet(PV) ;
 
 
@@ -39,7 +39,7 @@ module QV = struct
   value qvar pps = fun [ (QV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
 end ;
-module QVMap = VarMap(QV) ;
+module QVMap = EntityMap(QV) ;
 module QVFVS = VarSet(QV) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
@@ -51,7 +51,7 @@ module CV = struct
   value cvar pps = fun [ (CV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
 end ;
-module CVMap = VarMap(CV) ;
+module CVMap = EntityMap(CV) ;
 module CVFVS = VarSet(CV) ;
 
 type qgn_t = [
@@ -79,7 +79,7 @@ module QG = struct
   value qgn pps g = ID.pp_hum pps (toID g) ;
   value pp_hum pps x = Fmt.(pf pps "%a" qgn x) ;
 end ;
-module QGMap = VarMap(QG) ;
+module QGMap = EntityMap(QG) ;
 module QGFVS = VarSet(QG) ;
 
 type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, show, eq, ord);] ;
@@ -170,15 +170,15 @@ value to_letlist qc =
 ;
 
 module CouplingMap = struct
-type t =
-  { it : list (int * int) } [@@deriving (to_yojson, show, eq, ord);]
+type t = (list (int * int) * list (int * (int * int)))
+  [@@deriving (to_yojson, show, eq, ord);]
 ;
-value mk l =
-  let l = l |> List.concat_map (fun [
+value mk edges positions =
+  let edges = edges |> List.concat_map (fun [
           (n,False,m) -> [(n,m)]
         | (n,True,m) -> [(n,m); (m,n)]
         ]) in
-  { it = l } ;
+  (edges, positions) ;
 
 value from_core_config cc =
   let open Qrpc_types.CoreConfig in
@@ -186,12 +186,12 @@ value from_core_config cc =
         None -> Fmt.(failwithf "CouplingMap.from_core_config: CoreConfig did not contain coupling map")
       | Some m -> m
       ] in
-  let l = m |> List.map (fun [
+  let edges = m |> List.map (fun [
               [n;m] -> (n,m)
             | l -> Fmt.(failwithf "CouplingMap.from_core_config: invalid edge spec %a"
                           (brackets (list ~{sep=const string "; "} int)) l)
             ]) in
-  { it = l } ;
+  (edges, []) ;
 
 end ;
 
@@ -338,10 +338,16 @@ value item pps = fun [
     QGATE _ gitem -> gate_item pps gitem
   | QINCLUDE _ _ s _ ->
      Fmt.(pf pps "include %a ;" (quote string) s)
-  | QCOUPLING_MAP _ mname l ->
+  | QCOUPLING_MAP _ mname (edges, []) ->
      Fmt.(pf pps "coupling_map %a [ %a ] ;"
             ID.pp_hum mname
-         (list (pair ~{sep=const string " -> "} int int)) l.it)
+         (list (pair ~{sep=const string " -> "} int int)) edges)
+  | QCOUPLING_MAP _ mname (edges, positions) ->
+     Fmt.(pf pps "coupling_map %a [ %a ; %a ] ;"
+            ID.pp_hum mname
+         (list (pair ~{sep=const string " -> "} int int)) edges
+          (list (pair ~{sep=const string "@"} int (parens (pair ~{sep=const string ","} int int)))) positions
+     )
   | QLAYOUT _ mname l ->
      Fmt.(pf pps "layout %a [ %a ] ;"
             ID.pp_hum mname

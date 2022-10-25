@@ -196,9 +196,10 @@ let q1 = h q1 in
 
 module TYCHK = Qlam_tychk ;;
 let ge0 = TYCHK.mk_genv env0 ;;
-let cm = TYCHK.Env.(find_mach (mk ge0) (ID.mk"li_example_1"));;
+let cm0 = TYCHK.Env.(find_mach (mk ge0) (ID.mk"ibm_qx2"));;
 module Ops = Qlam_ops ;;
-let g0 = Ops.CM.(to_graph cm) ;;
+let cm = Ops.CM.mk cm0 ;;
+
 let g_to_list g = Ops.CM.(G.fold_edges_e (fun e acc -> e::acc) g []) ;;
 
 (* Local Variables: *)

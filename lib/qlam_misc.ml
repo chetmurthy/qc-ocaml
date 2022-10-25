@@ -37,15 +37,20 @@ module type MAPSIG = sig
   module M : ENTITY_SIG ;
   include Map.S with type key = M.t ;
   value pp_hum : Fmt.t 'a -> Fmt.t (t 'a) ;
+  value ofList : list (M.t * 'a) -> t 'a ;
+  value toList : t 'a -> list (M.t * 'a) ;
 end ;
 
-module VarMap(M : VARSIG) : (MAPSIG with module M = M) = struct
+module EntityMap(M : ENTITY_SIG) : (MAPSIG with module M = M) = struct
   module M = M ;
   module IT = Map.Make(M) ;
   include IT ;
   value pp_hum ppval pps l =
     Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} M.pp_hum ppval))) (bindings l))
   ;
+  value toList = bindings ;
+  value ofList l =
+    List.fold_left (fun m (k,v) -> add k v m) empty l ;
 end ;
 
 module EntitySet(M : ENTITY_SIG) : (SETSIG with module M = M) = struct
@@ -134,5 +139,9 @@ module Bijection(M1 : ENTITY_SIG) (M2 : ENTITY_SIG) : (BIJSIG with module DOM = 
   ;
 end ;
 
-module IDMap = VarMap(ID) ;
+module IDMap = EntityMap(ID) ;
 module IDFVS = VarSet(ID) ;
+module IntMap = EntityMap(struct
+  type t = int[@@deriving (to_yojson, show, eq, ord);] ;
+  value pp_hum = pp ;
+end) ;
