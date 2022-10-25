@@ -888,7 +888,7 @@ value add_transitive_closure ?{reflexive=False} g0 =
     add_transitive_closure ~{reflexive=reflexive} g0
 ;
 
-type t = G.t ;
+type t = { cm : G.t ; tclosure : G.t } ;
 
 value to_graph cm = 
   let l = cm.it in
@@ -896,6 +896,12 @@ value to_graph cm =
       G.(add_edge_e g (E.create i 1 j)))
   G.empty l
 ;
+
+value mk cm =
+  let cm = to_graph cm in
+  { cm = cm ; tclosure = transitive_closure cm } ;
+
+value has_pair it v1 v2 = G.mem_edge it.cm v1 v2 ;
 
 value dot ?{terse=True} g =
   let open Odot in
@@ -945,6 +951,9 @@ module LO = struct
     ; physical = PQSet.add l.physical phys
     } ;
   value mk l = List.fold_left assign empty l.Layout.it ;
+
+  value logical_to_physical l lbit = M.find lbit l.layout ;
+  value physical_to_logical l phybit = M.find_rng phybit l.layout ;
 
   value swap l (logical_i,logical_j) =
     let m = l.layout in

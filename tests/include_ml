@@ -125,6 +125,7 @@ Job.submit_job "ibmq_16_melbourne" qobj session ;;
 open Qlam_syntax ;;
 open Qlam_ops ;;
 open Qlam_parser ;;
+open Qlam_env ;;
 
 let id_pp x = Fmt.(pf stdout "<:id<%a>>" ID.pp_hum x) ;;
 #install_printer id_pp ;;
@@ -193,8 +194,9 @@ let q1 = h q1 in
 (q0, q1)
 |} |> qcircuit_from_string ;;
 
-let e0 = TYCHK.env env0 ;;
-let cm = TYCHK.Env.find_mach e0 (ID.mk"li_example_1");;
+module TYCHK = Qlam_tychk ;;
+let ge0 = TYCHK.mk_genv env0 ;;
+let cm = TYCHK.Env.(find_mach (mk ge0) (ID.mk"li_example_1"));;
 module Ops = Qlam_ops ;;
 let g0 = Ops.CM.(to_graph cm) ;;
 let g_to_list g = Ops.CM.(G.fold_edges_e (fun e acc -> e::acc) g []) ;;
