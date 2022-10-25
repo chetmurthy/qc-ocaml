@@ -196,7 +196,7 @@ let q1 = h q1 in
 
 module TYCHK = Qlam_tychk ;;
 let ge0 = TYCHK.mk_genv env0 ;;
-let cm0 = TYCHK.Env.(find_mach (mk ge0) (ID.mk"ibm_qx3"));;
+let cm0 = TYCHK.Env.(find_mach (mk ge0) (ID.mk"ibm_qx5"));;
 module Ops = Qlam_ops ;;
 let cm = Ops.CM.mk cm0 ;;
 Ops.CM.(cm |> dot |> dot_to_file "goo.dot");;

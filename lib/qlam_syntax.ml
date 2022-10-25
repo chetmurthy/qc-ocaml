@@ -170,13 +170,16 @@ value to_letlist qc =
 ;
 
 module CouplingMap = struct
+type direction_t = [ LR | RL | BIDI ] ;
+
 type t = (list (int * int) * list (int * (int * int)))
   [@@deriving (to_yojson, show, eq, ord);]
 ;
 value mk edges positions =
   let edges = edges |> List.concat_map (fun [
-          (n,False,m) -> [(n,m)]
-        | (n,True,m) -> [(n,m); (m,n)]
+          (n,LR,m) -> [(n,m)]
+        | (n,RL,m) -> [(m,n)]
+        | (n,BIDI,m) -> [(n,m); (m,n)]
         ]) in
   (edges, positions) ;
 
