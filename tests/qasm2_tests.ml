@@ -256,6 +256,8 @@ include "oneline.inc";
     test_roundtrip_main_file ("example", "testdata/example.qasm", file_contents "testdata/example.qasm-result") ;
     test_roundtrip_main_file ("bell2.qasm", "testdata/bell2.qasm", file_contents "testdata/bell2.qasm") ;
     test_roundtrip_main_file ("zulehner_4a.qasm", "testdata/zulehner_4a.qasm", file_contents "testdata/zulehner_4a.qasm") ;
+    test_roundtrip_main_file ("zulehner_4a_naive.qasm", "testdata/zulehner_4a_naive.qasm", file_contents "testdata/zulehner_4a_naive.qasm") ;
+    test_roundtrip_main_file ("zulehner_4a_proposed.qasm", "testdata/zulehner_4a_proposed.qasm", file_contents "testdata/zulehner_4a_proposed.qasm") ;
     "fail">:: (fun ctxt ->
       assert_raises ~msg:"should raise SyntaxError(lexing)"
         (SyntaxError "lexing: failed in file \"testdata/example_fail.qasm\" at char 9")
