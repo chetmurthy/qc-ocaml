@@ -181,7 +181,7 @@ value interp ~{layout=lid} ~{machine=mid} (env_items, qc) =
      let physet = PQSet.ofList (List.map (Env.logical_to_physical env) lbits) in
      (logset, physet, lbits, Env.layout env)
 
-  | QBIT loc bi ->
+  | QCREATE loc bi ->
      let phy = Env.logical_to_physical env bi in
      (BISet.ofList [bi], PQSet.ofList [phy], [bi], Env.layout env)
    

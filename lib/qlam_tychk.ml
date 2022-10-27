@@ -97,7 +97,7 @@ value rec circuit env qc = match qc with [
     (List.length qvl, List.length cvl)
   }
 
-| QBIT _ _ -> (1, 0)
+| QCREATE _ _ -> (1, 0)
 | QDISCARD loc qvl -> do {
     qvl |> List.iter (qvar_find_mark_used loc env) ;
     (0,0)
@@ -176,7 +176,7 @@ value gather_qubits qc =
   let dt = make_dt() in
   let old_migrate_qcirc_t = dt.migrate_qcirc_t in
   let migrate_qcirc_t dt qc = match qc with [
-        SYN.QBIT _ u -> do { Std.push acc u ; qc }
+        SYN.QCREATE _ u -> do { Std.push acc u ; qc }
       | _ -> old_migrate_qcirc_t dt qc
       ] in
   let dt = { (dt) with migrate_qcirc_t = migrate_qcirc_t } in do {
@@ -196,6 +196,7 @@ value top_circuit env qc = do {
     circuit env qc
 }
 ;
+
 value gate_item genv gitem = match gitem with [
   DEF loc gn (((pvl, qvl, cvl) as glam), qc) -> do {
     let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in

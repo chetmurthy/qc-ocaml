@@ -36,6 +36,7 @@ end ;
 module type MAPSIG = sig
   module M : ENTITY_SIG ;
   include Map.S with type key = M.t ;
+  value swap_find: t 'a -> key -> 'a ;
   value pp_hum : Fmt.t 'a -> Fmt.t (t 'a) ;
   value ofList : list (M.t * 'a) -> t 'a ;
   value toList : t 'a -> list (M.t * 'a) ;
@@ -48,6 +49,7 @@ module EntityMap(M : ENTITY_SIG) : (MAPSIG with module M = M) = struct
   value pp_hum ppval pps l =
     Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} M.pp_hum ppval))) (bindings l))
   ;
+  value swap_find m k = find k m ;
   value toList = bindings ;
   value ofList l =
     List.fold_left (fun m (k,v) -> add k v m) empty l ;

@@ -38,7 +38,7 @@ value circuit_freevars qc =
          let pvl = List.fold_left (fun pvl pe -> PVFVS.union pvl (pe_freevars pe)) PVFVS.mt pel in
          (pvl, QVFVS.ofList qvl, CVFVS.ofList cvl)
       | QBARRIER _ qvl  -> (PVFVS.mt,  QVFVS.ofList qvl, CVFVS.mt)
-      | QBIT _ _ -> (PVFVS.mt, QVFVS.mt, CVFVS.mt)
+      | QCREATE _ _ -> (PVFVS.mt, QVFVS.mt, CVFVS.mt)
       | QDISCARD _ qvl -> (PVFVS.mt,  QVFVS.ofList qvl,  CVFVS.mt)
       | QMEASURE _ qvl -> (PVFVS.mt, QVFVS.ofList qvl, CVFVS.mt)
       | QRESET _ qvl -> (PVFVS.mt, QVFVS.ofList qvl, CVFVS.mt)
@@ -113,7 +113,7 @@ value lower_circuit qc =
 
     | QGATEAPP loc g pel qvl cvl -> QGATEAPP loc g pel (List.map rename_qv qvl) (List.map rename_cv cvl)
     | QBARRIER loc qvl -> QBARRIER loc (List.map rename_qv qvl)
-    | QBIT loc u -> QBIT loc u
+    | QCREATE loc u -> QCREATE loc u
     | QDISCARD loc qvl -> QDISCARD loc (List.map rename_qv qvl)
     | QMEASURE loc qvl -> QMEASURE loc (List.map rename_qv qvl)
     | QRESET loc qvl -> QRESET loc (List.map rename_qv qvl)
@@ -175,7 +175,7 @@ value circuit qc1 qc2 =
      (List.length qvl1 = List.length qvl2)
     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
     
-  | (QBIT _ u1, QBIT _ u2) -> True
+  | (QCREATE _ u1, QCREATE _ u2) -> True
                       
   | (QDISCARD loc qvl1, QDISCARD _ qvl2) ->
      (List.length qvl1 = List.length qvl2)
@@ -245,7 +245,7 @@ value qcircuit ~{counter} ~{qvmap} ~{cvmap} qc =
     | QGATEAPP loc gn pel qvl cvl -> QGATEAPP loc gn pel (List.map map_qvar qvl) (List.map map_cvar cvl)
 
     | QBARRIER loc qvl -> QBARRIER loc (List.map map_qvar qvl)
-    | QBIT loc _ -> QBIT loc (UNIQUE (Unique.mk()))
+    | QCREATE loc _ -> QCREATE loc (UNIQUE (Unique.mk()))
     | QDISCARD loc qvl -> QDISCARD loc (List.map map_qvar qvl)
     | QMEASURE loc qvl -> QMEASURE loc (List.map map_qvar qvl)
     | QRESET loc qvl -> QRESET loc (List.map map_qvar qvl)
@@ -334,7 +334,7 @@ value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
   | QWIRES loc qvl cvl -> QWIRES loc (List.map subst_qvar qvl) (List.map subst_cvar cvl)
   | QGATEAPP loc gn pel qvl cvl -> QGATEAPP loc gn (List.map subst_pe pel) (List.map subst_qvar qvl) (List.map subst_cvar cvl)
   | QBARRIER loc qvl -> QBARRIER loc (List.map subst_qvar qvl)
-  | (QBIT _ _) as qc -> qc
+  | (QCREATE _ _) as qc -> qc
   | QDISCARD loc qvl -> QDISCARD loc (List.map subst_qvar qvl)
   | QMEASURE loc qvl -> QMEASURE loc (List.map subst_qvar qvl)
   | QRESET loc qvl -> QRESET loc (List.map subst_qvar qvl)
@@ -550,7 +550,7 @@ value anorm qc =
   | QWIRES _ qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
   | QGATEAPP _ _ pvl qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
   | QBARRIER _ qvl -> (qc, FVS.(of_ids (qvl, [])))
-  | QBIT _ _ -> (qc, FVS.mt)
+  | QCREATE _ _ -> (qc, FVS.mt)
   | QDISCARD _ qvl -> (qc, FVS.(of_ids (qvl, [])))
   | QMEASURE _ qvl -> (qc, FVS.(of_ids (qvl, [])))
   | QRESET _ qvl -> (qc, FVS.(of_ids (qvl, [])))
@@ -597,7 +597,7 @@ value nnorm qc =
   | QWIRES loc qvl cvl -> QWIRES loc (List.map map_qv qvl) (List.map map_cv cvl)
   | QGATEAPP loc gn pvl qvl cvl -> QGATEAPP loc gn pvl (List.map map_qv qvl) (List.map map_cv cvl)
   | QBARRIER loc qvl -> QBARRIER loc (List.map map_qv qvl)
-  | QBIT _ _ -> qc
+  | QCREATE _ _ -> qc
   | QDISCARD loc qvl -> QDISCARD loc (List.map map_qv qvl)
   | QMEASURE loc qvl -> QMEASURE loc (List.map map_qv qvl)
   | QRESET loc qvl -> QRESET loc (List.map map_qv qvl)
@@ -657,7 +657,7 @@ value unroll ?{only} ?{except} (env : SYN.env_t) qc =
   | (QGATEAPP _ _ _ _ _
      | QWIRES _ _ _
     | QBARRIER _ _
-    | QBIT _ _ | QDISCARD _ _
+    | QCREATE _ _ | QDISCARD _ _
     | QMEASURE _ _
     | QRESET _ _) -> qc
   ]
@@ -982,7 +982,7 @@ module ComputeBits = struct
 
     (1) assume the circuit is A-normalized.
 
-    (2) qubits are associated with the QBIT node, so easy to gather
+    (2) qubits are associated with the QCREATE node, so easy to gather
 
     (3) clbits are created by QMEASURE nodes *in let bindings*, so we
     must assume that all variables (well, clvars) are distinct and
@@ -998,7 +998,7 @@ value compute_bits qc =
     List.fold_left (fun (qbl, cbl) b -> match b with [
         (loc, _, cvl, QMEASURE _ _) -> (qbl, cbl@cvl)
       | (loc, _, _, QGATEAPP _ _ _ _ _) -> (qbl, cbl)
-      | (loc, _, _, QBIT _ bi) -> (qbl@[bi], cbl)
+      | (loc, _, _, QCREATE _ bi) -> (qbl@[bi], cbl)
       | (loc, _, _, (QLET _ _ _)) ->
          Fmt.(raise_failwithf loc "compute_qubits: internal error: R.H.S. of let-binding not in A-normal form")
       | _ -> ([], [])
@@ -1046,6 +1046,91 @@ value latex (genv, qc) =
   let (ll, qc) = SYN.to_letlist qc in
   let ll = ll |> List.concat_map (remove_bit_overlap (qmap, cmap)) in
   (ll, qc)
+;
+
+end ;
+
+module AssignBits = struct
+(** AssignBits computes the qubit/clbit assignment of every variable in the circuit.
+
+To do this, we must first compute this assignment for every gate --
+that is, how the gate maps the qubits assigned to its inputs, to
+qubits assigned to its outputs.
+
+
+ *)
+
+type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ] ;
+type clbit_t = [ CLBIT of CV.t ] ;
+
+value rec assign_binding genv (qvmap, cvmap) (loc, qvar_formals, cvar_formals, qc) =
+  match qc with [
+    QMEASURE _ qvar_actuals ->
+      if List.length qvar_formals <> List.length qvar_actuals then
+        Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE qvar formals/actuals length mismatch")
+      else if List.length cvar_formals <> List.length qvar_actuals then
+        Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
+      else
+        let qvar_results = qvar_actuals |> List.map (QVMap.swap_find qvmap) in
+        let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qvar_results in
+        let cvar_additional_mapping = List.map (fun cv -> (cv, CLBIT cv)) cvar_formals in
+        let qvmap = QVMap.(union (fun _ _ newval -> Some newval) qvmap (ofList qvar_additional_mapping)) in
+        let cvmap = CVMap.(union (fun _ _ newval -> Some newval) cvmap (ofList cvar_additional_mapping)) in
+        (qvmap, cvmap)
+
+  | _ ->
+     let ((qvmap, cvmap), (qrl, crl)) = assign_qcirc genv (qvmap, cvmap) qc in
+      if List.length qvar_formals <> List.length qrl then
+        Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE qvar formals/actuals length mismatch")
+      else if List.length cvar_formals <> List.length crl then
+        Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE cvar formals/actuals length mismatch")
+      else
+        let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qrl in
+        let cvar_additional_mapping = List.map2 (fun cformal cresult -> (cformal, cresult)) cvar_formals crl in
+        let qvmap = QVMap.(union (fun _ _ newval -> Some newval) qvmap (ofList qvar_additional_mapping)) in
+        let cvmap = CVMap.(union (fun _ _ newval -> Some newval) cvmap (ofList cvar_additional_mapping)) in
+        (qvmap, cvmap)
+  ]
+
+and assign_qcirc genv (qvmap, cvmap) qc =
+  let rec arec qc = match qc with [
+    QLET loc bl qc ->
+      let (qvmap, cvmap) = List.fold_left (assign_binding genv) (qvmap, cvmap) bl in
+      assign_qcirc genv (qvmap, cvmap) qc
+
+  | QWIRES _ qvl cvl ->
+     ((qvmap, cvmap), (List.map (QVMap.swap_find qvmap) qvl,List.map (CVMap.swap_find cvmap) cvl))
+
+  | QGATEAPP loc gn pel qvar_actuals cvar_actuals ->
+     let ((_, qvar_formals, cvar_formals), (gate_qresults, gate_cresults)) = GEnv.find_gate ~{loc=loc} genv gn in
+     if List.length qvar_formals <> List.length qvar_actuals then
+       Fmt.(raise_failwithf loc "assign_qcirc: internal error: qvar formals/actuals length mismatch")
+     else if cvar_formals <> [] then
+       Fmt.(raise_failwithf loc "assign_qcirc: internal error: cvar formals should be empty")
+     else if cvar_actuals <> [] then
+       Fmt.(raise_failwithf loc "assign_qcirc: internal error: cvar actuals should be empty")
+     else
+       (* (1) each actual is mapped to a bit by [qc]vmap.
+          
+          (2) gate_qresults is the list of formals in the order of results.
+          
+          (3) so to compute the result of the gate, take gate_qresults,
+          map formal->actual, then map actual->bit.
+          
+        *)
+       let q_formal2actual = Std.combine qvar_formals qvar_actuals |> QVMap.ofList in
+       let qresults = gate_qresults |> List.map (QVMap.swap_find q_formal2actual) |> List.map (QVMap.swap_find qvmap) in
+       ((qvmap, cvmap), (qresults, []))
+
+  | QCREATE _ bi -> ((qvmap, cvmap), ([QUBIT bi], []))
+  | QMEASURE loc _ ->
+     Fmt.(raise_failwithf loc "assign_qcirc: QMEASURE found in non-let-binding context")
+
+  | (QBARRIER _ _
+     | QDISCARD _ _
+    | QRESET _ _) -> ((QVMap.empty, CVMap.empty), ([], []))
+  ] in
+  arec qc
 ;
 
 end ;

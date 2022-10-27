@@ -128,7 +128,7 @@ and qcirc_t = [
 | QWIRES of loc and list qvar_t and list cvar_t
 | QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
-| QBIT of loc and BI.t | QDISCARD of loc and list qvar_t
+| QCREATE of loc and BI.t | QDISCARD of loc and list qvar_t
 | QMEASURE of loc and list qvar_t
 | QRESET of loc and list qvar_t
   ]
@@ -146,7 +146,7 @@ value loc_of_qcirc = fun [
 | QWIRES loc _ _ -> loc
 | QGATEAPP loc _ _ _ _ -> loc
 | QBARRIER loc _ -> loc
-| QBIT loc _ -> loc
+| QCREATE loc _ -> loc
 | QDISCARD loc _ -> loc
 | QMEASURE loc _ -> loc
 | QRESET loc _ -> loc
@@ -307,8 +307,8 @@ value rec qcirc pps = fun [
   | QGATEAPP _ qg pel qvl cvl ->
      Fmt.(pf  pps "%a (%a) %a" QG.pp_hum qg (list ~{sep=(const string ", ")} pexpr) pel qvars_cvars (qvl, cvl))
   | QBARRIER _ qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
-  | QBIT _ (EXPLICIT n) -> Fmt.(pf pps "qubit #%d ()" n)
-  | QBIT _ (UNIQUE _) -> Fmt.(pf pps "qubit ()")
+  | QCREATE _ (EXPLICIT n) -> Fmt.(pf pps "qubit #%d ()" n)
+  | QCREATE _ (UNIQUE _) -> Fmt.(pf pps "qubit ()")
   | QDISCARD _ qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))
   | QMEASURE _ qvl -> Fmt.(pf pps "measure %a" qvars_cvars (qvl, []))
   | QRESET _ qvl -> Fmt.(pf pps "reset %a" qvars_cvars (qvl, []))

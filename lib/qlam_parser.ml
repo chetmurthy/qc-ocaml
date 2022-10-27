@@ -97,7 +97,7 @@ EXTEND
   qcirc: [ [
       "let" ; l = LIST1 qbinding SEP "and" ; "in" ; qc = qcirc -> QLET loc l qc
     | (qvl,cvl) = paren_qvars_cvars -> QWIRES loc qvl cvl
-    | ["qubit"| "qbit"] ; u = bitid ; "(" ; ")" -> QBIT loc u
+    | ["qubit"| "qbit"] ; u = bitid ; "(" ; ")" -> QCREATE loc u
     | "qdiscard" ; qvl = ne_qvars -> QDISCARD loc qvl
     | "barrier" ; qvl = ne_qvars -> QBARRIER loc qvl
     | "measure" ; qvl = ne_qvars -> QMEASURE loc qvl

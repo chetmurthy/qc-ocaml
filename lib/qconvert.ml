@@ -242,7 +242,7 @@ value program (qasm2env, stmts) =
   let instrs = List.concat_map (expand_stmt qasm2env) instrs in
   let qc = circuit (List.map fst qubits_ids) clbits instrs in
   let qc = List.fold_right (fun (qv, id) rhs ->
-               SYN.QLET Ploc.dummy [(Ploc.dummy, [qv], [], SYN.QBIT Ploc.dummy id)] rhs)
+               SYN.QLET Ploc.dummy [(Ploc.dummy, [qv], [], SYN.QCREATE Ploc.dummy id)] rhs)
              qubits_ids qc in
   (qlam_env, qc)
 ;
@@ -392,7 +392,7 @@ value rec conv_circuit loc0 acc env = fun [
   conv_circuit Ploc.dummy acc env qc
 | QWIRES _ qvl cvl ->
    (List.map (CE.lookup_qv env) qvl, List.map (CE.lookup_cv env) cvl)
-| QBIT _ _ ->
+| QCREATE _ _ ->
    ([CE.next_qreg env], [])
 | QDISCARD _ _ -> ([], [])
 | QRESET loc qvl -> do {
