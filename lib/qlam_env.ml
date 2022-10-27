@@ -6,8 +6,8 @@ open Qlam_syntax ;
 
 module GEnv = struct
 open SYN ;
-type t = {
-    gates : QGMap.t (qgateargs_t * (int * int))
+type t 'a = {
+    gates : QGMap.t (qgateargs_t * 'a)
   ; machs : IDMap.t SYN.CouplingMap.t
   ; layouts : IDMap.t SYN.Layout.t
   }
@@ -61,5 +61,20 @@ value find_layout ?{loc=Ploc.dummy} env lid = match IDMap.find lid env.layouts w
 | exception Not_found ->
    Fmt.(raise_failwithf loc "find_layout: layoutine %a not found" ID.pp_hum lid)
 ] ;
+
+
+value mk_of_env gate_item env_items =
+  let env = mk () in
+  let rec env_item genv ei = match ei with [
+        QINCLUDE loc _ fname l ->
+        List.fold_left env_item genv l
+      | QGATE _ gitem -> gate_item genv gitem
+      | QCOUPLING_MAP loc mname cm ->
+         add_mach loc genv (mname, cm)
+      | QLAYOUT loc lname l ->
+         add_layout loc genv (lname, l)
+      ] in
+  List.fold_left env_item env env_items
+;
 
 end ;

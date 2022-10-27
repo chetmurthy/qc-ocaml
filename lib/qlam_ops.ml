@@ -627,8 +627,8 @@ value mk_env ~{only} ~{except} env =
     (match only with [ None -> True | Some l -> List.exists (QG.equal gn) l ])
     && (match except with [ None -> False | Some l -> not(List.exists (QG.equal gn) l) ]) in
   let rec flatrec m = fun [
-      QGATE _ (DEF gn x) -> if accept gn then QGMap.add gn x m else m
-    | QGATE _ (OPAQUE _ _) -> m
+      QGATE _ (DEF _ gn x) -> if accept gn then QGMap.add gn x m else m
+    | QGATE _ (OPAQUE _ _ _) -> m
     | QINCLUDE _ _ _ l ->
        List.fold_left flatrec m l
     ] in
@@ -975,4 +975,77 @@ module LO = struct
     let m = M.insert logical_j phys_i m in
     { (l) with layout = m }
   ;
+end ;
+
+module ComputeBits = struct
+(** compute the bits used by this circuit
+
+    (1) assume the circuit is A-normalized.
+
+    (2) qubits are associated with the QBIT node, so easy to gather
+
+    (3) clbits are created by QMEASURE nodes *in let bindings*, so we
+    must assume that all variables (well, clvars) are distinct and
+    what we're really gathering, is the list of clvars produced by
+    QMEASURE nodes.
+
+ *)
+
+value compute_bits qc =
+  let rec crec qc = match qc with [
+    QLET loc bl qc ->
+    let (qbl, cbl) = crec qc in
+    List.fold_left (fun (qbl, cbl) b -> match b with [
+        (loc, _, cvl, QMEASURE _ _) -> (qbl, cbl@cvl)
+      | (loc, _, _, QGATEAPP _ _ _ _ _) -> (qbl, cbl)
+      | (loc, _, _, QBIT _ bi) -> (qbl@[bi], cbl)
+      | (loc, _, _, (QLET _ _ _)) ->
+         Fmt.(raise_failwithf loc "compute_qubits: internal error: R.H.S. of let-binding not in A-normal form")
+      | _ -> ([], [])
+      ]) (qbl, cbl) bl
+
+  | (QWIRES _ _ _) -> ([], [])
+
+  | _ ->
+     Fmt.(raise_failwithf (loc_of_qcirc qc) "compute_qubits: internal error: forbidden AST node found outside of the RHS of a let-binding")
+  ] in
+  crec qc
+;
+
+end ;
+
+module Latex = struct
+(** Generate Latex for a quantum circuit.
+
+    Method:
+
+    (1) compute qubits/clbits the circuit uses
+
+    (2) map each "logical qubit" (BI.t) and clbit to a "physical line"
+    (which will be the line on the diagram)
+
+    (3) compute the "Hoist"ed version of the circuit
+
+    (4) for each layer in the hoisted circuit, break it into one or
+    more sub-layers, such that no gates in a sub-layer overlap in
+    their set of qubits.
+    
+    (5) the total # of layers to the circuit is #sub-layers
+
+
+
+ *)
+
+value remove_bit_overlap (qmap, cmap) (loc, bl) = [(loc,bl)] ;
+
+value latex (genv, qc) =
+  let (qubits, clbits) = ComputeBits.compute_bits qc in
+  let qmap = qubits |> List.mapi (fun i bi -> (bi, i)) |> SYN.BIMap.ofList in
+  let cmap = clbits |> List.mapi (fun  i cv -> (cv, i)) |> SYN.CVMap.ofList in
+  let qc = Hoist.hoist qc in
+  let (ll, qc) = SYN.to_letlist qc in
+  let ll = ll |> List.concat_map (remove_bit_overlap (qmap, cmap)) in
+  (ll, qc)
+;
+
 end ;

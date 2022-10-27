@@ -11,7 +11,6 @@ module TYCHK = Qlam_tychk ;
 
 open SYN ;
 
-
 module BasicLayout = struct
 (** BasicLayout: given a circuit a layout, and a coupling-map, verify
     that the circuit can be executed with that layout.
@@ -40,7 +39,7 @@ type cvar_binding_t = option qbinding_t ;
 type pvar_binding_t = unit ;
 
 type t = {
-    genv : GEnv.t
+    genv : GEnv.t (int * int)
   ; qvars : QVMap.t BI.t
   ; layout : LO.t
   ; coupling_map : CM.t

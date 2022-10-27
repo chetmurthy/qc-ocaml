@@ -21,7 +21,7 @@ type cvar_binding_t = option qbinding_t ;
 type pvar_binding_t = unit ;
 
 type t = {
-    genv : GEnv.t
+    genv : GEnv.t (int * int)
   ; qvars : QVMap.t qvar_binding_t
   ; cvars : CVMap.t cvar_binding_t
   ; pvars : PVMap.t pvar_binding_t
@@ -196,8 +196,8 @@ value top_circuit env qc = do {
     circuit env qc
 }
 ;
-value gate_item loc genv gitem = match gitem with [
-  DEF gn (((pvl, qvl, cvl) as glam), qc) -> do {
+value gate_item genv gitem = match gitem with [
+  DEF loc gn (((pvl, qvl, cvl) as glam), qc) -> do {
     let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
     let fv_pvs = PVFVS.subtract fv_pvs (PVFVS.ofList pvl) in
     let fv_qvs = QVFVS.subtract fv_qvs (QVFVS.ofList qvl) in
@@ -220,26 +220,12 @@ value gate_item loc genv gitem = match gitem with [
     else
       GEnv.add_gate loc genv (gn, (glam, ty))
   }
-| OPAQUE gn ((pvl, qvl, cvl) as glam) ->
+| OPAQUE loc gn ((pvl, qvl, cvl) as glam) ->
    let ty = (List.length qvl, List.length cvl) in
    GEnv.add_gate loc genv (gn,  (glam, ty))
 ] ;
 
-
-value rec env_item genv ei = match ei with [
-  QINCLUDE loc _ fname l ->
-   List.fold_left env_item genv l
-| QGATE loc gitem -> gate_item loc genv gitem
-| QCOUPLING_MAP loc mname cm ->
-   GEnv.add_mach loc genv (mname, cm)
-| QLAYOUT loc lname l ->
-   GEnv.add_layout loc genv (lname, l)
-] ;
-
-value mk_genv env_items =
-  let env = GEnv.mk () in
-  List.fold_left env_item env env_items
-;
+value mk_genv env_items = GEnv.mk_of_env gate_item env_items ;
 
 value program (env_items, qc) =
   let genv = mk_genv env_items in

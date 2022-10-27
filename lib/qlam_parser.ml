@@ -57,8 +57,8 @@ EXTEND
 
   env_item: [ [
       "gate" ; gname = qgatename ; gargs = gate_args ;
-        "=" ; qc = qcirc ; ";" -> QGATE loc (DEF gname (gargs, qc))
-    | "gate" ; gname = qgatename ; gargs = gate_args ; ";" -> QGATE loc (OPAQUE gname gargs)
+        "=" ; qc = qcirc ; ";" -> QGATE loc (DEF loc gname (gargs, qc))
+    | "gate" ; gname = qgatename ; gargs = gate_args ; ";" -> QGATE loc (OPAQUE loc gname gargs)
     | "include" ; s = STRING ; ";" ->
        if Std.ends_with ~{pat=".qli"} s then
          QINCLUDE loc QLAM s (qelib_from_file s)

@@ -114,12 +114,12 @@ value rec env_item = fun [
    let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
    let qc = gate_circuit qvl [] instrs in
-   SYN.QGATE loc (DEF (SYN.QG.ofID (ID.mk gname)) ((pvl, qvl, []), qc))
+   SYN.QGATE loc (DEF loc (SYN.QG.ofID (ID.mk gname)) ((pvl, qvl, []), qc))
 
 | (loc, STMT_OPAQUEDECL gname pvl qvl) ->
    let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
-   SYN.QGATE loc (OPAQUE (SYN.QG.ofID (ID.mk gname)) (pvl, qvl, []))
+   SYN.QGATE loc (OPAQUE loc (SYN.QG.ofID (ID.mk gname)) (pvl, qvl, []))
 
 | (loc, STMT_INCLUDE ty fname (Some l)) ->
    SYN.QINCLUDE loc ty fname (List.map env_item l)
@@ -493,8 +493,8 @@ value circuit (gates, qc) =
 value rec extract_gates env =
   env |>
     List.concat_map (fun [
-      SYN.QGATE _ (DEF qg glam) -> [(SYN.QG.toID qg, Left glam)]
-    | QGATE _ (OPAQUE qg gargs) -> [(SYN.QG.toID qg, Right gargs)]
+      SYN.QGATE _ (DEF _ qg glam) -> [(SYN.QG.toID qg, Left glam)]
+    | QGATE _ (OPAQUE _ qg gargs) -> [(SYN.QG.toID qg, Right gargs)]
     | QINCLUDE _ QASM2 _ l -> extract_gates l
     | QCOUPLING_MAP loc mname _ -> do {
         Fmt.(pf stderr "%a: ToQasm2.extract_gates: coupling map %a skipped@.%!"
@@ -517,8 +517,8 @@ value env_item gates it = match it with [
   SYN.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
 | QINCLUDE loc _ _ _ ->
    Fmt.(raise_failwithf loc "cannot convert QLAM include into QASM")
-| QGATE _ (OPAQUE (U _) _) -> [] 
-| QGATE _ (OPAQUE (CX _) _) -> []
+| QGATE _ (OPAQUE _ (U _) _) -> [] 
+| QGATE _ (OPAQUE _ (CX _) _) -> []
 | QCOUPLING_MAP loc mname _ -> do {
     Fmt.(pf stderr "%a: ToQasm2.env_item: coupling map %a skipped@.%!"
            Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc

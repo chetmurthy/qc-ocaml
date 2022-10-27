@@ -108,12 +108,7 @@ value pp_hum pps = fun [
 | EXPLICIT n -> Fmt.(pf pps "#%d" n)
 ] ;
 end ;
-module BIMap = struct
-  include Map.Make(BI) ;
-  value pp_hum ppval pps l =
-    Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} BI.pp_hum ppval))) (bindings l))
-  ;
-end ;
+module BIMap = EntityMap(BI) ;
 module BISet = EntitySet(BI) ;
 module PQ = struct
   type t = [Physical of int] [@@deriving (to_yojson, show, eq, ord);] ;
@@ -169,6 +164,9 @@ value to_letlist qc =
   (List.rev acc, qc)
 ;
 
+value of_letlist (ll, qc) =
+  List.fold_right (fun (loc, bl) qc -> QLET loc bl qc) ll qc ;
+
 module CouplingMap = struct
 type direction_t = [ LR | RL | BIDI ] ;
 
@@ -204,8 +202,8 @@ module Layout = struct
 end ;
 
 type gate_item = [
-  DEF of qgn_t and qgatelam_t
-| OPAQUE of qgn_t and qgateargs_t
+  DEF of loc and qgn_t and qgatelam_t
+| OPAQUE of loc and qgn_t and qgateargs_t
   ][@@deriving (to_yojson, show, eq, ord);] ;
 
 type item = [
@@ -324,13 +322,13 @@ and qbinding pps = fun [
 ] ;
 
 value gate_item pps = fun [
-    DEF gname ((pvl, qvl, cvl), qc) ->
+    DEF _ gname ((pvl, qvl, cvl), qc) ->
     Fmt.(pf pps "@[<v 2>gate %a (%a) %a =@ %a@]@,;"
            QG.pp_hum gname
            (list ~{sep=(const string ", ")} PV.pp_hum) pvl
            qvars_cvars (qvl, cvl)
            qcirc qc)
-  | OPAQUE gname (pvl, qvl, cvl) ->
+  | OPAQUE _ gname (pvl, qvl, cvl) ->
     Fmt.(pf pps "@[gate %a (%a) %a ;@]"
            QG.pp_hum gname
            (list ~{sep=(const string ", ")} PV.pp_hum) pvl
