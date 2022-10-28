@@ -198,7 +198,7 @@ let q1 = h q1 in
 |} |> qcircuit_from_string ;;
 
 
-module TYCHK = Qlam_tychk ;;
+module TYCHK = Ops.TYCHK ;;
 let ge0 = TYCHK.environ env0 ;;
 let cm0 = GEnv.(find_mach ge0 (ID.mk"ibm_qx5"));;
 module Ops = Qlam_ops ;;
