@@ -360,7 +360,7 @@ value qcircuit ~{counter} genv = fun [
   let cvmap = List.fold_left2 (fun cvmap cv ce -> CVMap.add cv ce cvmap) CVMap.empty cvl cel in
   subst (pvmap, qvmap, cvmap, QVFVS.ofList qel, CVFVS.ofList cel) qc
 
-| x -> Fmt.(raise_failwithf (loc_of_qcirc x) "BetaReduce: can only be applied to gate-application, not %a" PP.qcirc x)
+| x -> Fmt.(raise_failwithf (loc_of_qcirc x) "BetaReduce.qcircuit: can only be applied to gate-application, not %a" PP.qcirc x)
 ] ;
 
 end ;
