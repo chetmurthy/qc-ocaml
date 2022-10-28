@@ -136,6 +136,9 @@ let qvar_pp x = Fmt.(pf stdout "<:qvar<%a>>" SYN.QV.pp_hum x) ;;
 let cvar_pp x = Fmt.(pf stdout "<:cvar<%a>>" SYN.CV.pp_hum x) ;;
 #install_printer cvar_pp ;;
 
+let bi_pp x = Fmt.(pf stdout "<:bi< %a >>" SYN.BI.pp_hum x) ;;
+#install_printer bi_pp ;;
+
 let qgn_pp x = Fmt.(pf stdout "<:qgn<%a>>" SYN.QG.pp_hum x) ;;
 #install_printer qgn_pp ;;
 
@@ -195,8 +198,8 @@ let q1 = h q1 in
 |} |> qcircuit_from_string ;;
 
 module TYCHK = Qlam_tychk ;;
-let ge0 = TYCHK.mk_genv env0 ;;
-let cm0 = TYCHK.Env.(find_mach (mk ge0) (ID.mk"ibm_qx5"));;
+let ge0 = TYCHK.environ env0 ;;
+let cm0 = GEnv.(find_mach ge0 (ID.mk"ibm_qx5"));;
 module Ops = Qlam_ops ;;
 let cm = Ops.CM.mk cm0 ;;
 Ops.CM.(cm |> dot |> dot_to_file "goo.dot");;

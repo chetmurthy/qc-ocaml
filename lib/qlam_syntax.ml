@@ -104,7 +104,7 @@ end ;
 module BI = struct
 type t = [ UNIQUE of Unique.t | EXPLICIT of int ] [@@deriving (to_yojson, show, eq, ord);] ;
 value pp_hum pps = fun [
-  UNIQUE u -> Fmt.(pf pps "<unique %d>" u)
+  UNIQUE u -> Fmt.(pf pps "{unique %d}" u)
 | EXPLICIT n -> Fmt.(pf pps "#%d" n)
 ] ;
 end ;
@@ -113,7 +113,7 @@ module BISet = EntitySet(BI) ;
 module PQ = struct
   type t = [Physical of int] [@@deriving (to_yojson, show, eq, ord);] ;
   value pp_hum pps = fun [
-    Physical n -> Fmt.(pf pps "<physical %d>" n)
+    Physical n -> Fmt.(pf pps "{physical %d}" n)
   ] ;
 end ;
 module PQSet = EntitySet(PQ) ;
