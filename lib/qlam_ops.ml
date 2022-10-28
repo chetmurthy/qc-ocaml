@@ -1124,7 +1124,24 @@ type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ][@@deriving (to_yojson, show, eq,
 type clbit_t = [ CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 type env_gate_t = { args : qgateargs_t ; ty : (int * int) ; result : (list QV.t * list CV.t) } ;
 
-value rec assign_binding genv (qvmap, cvmap) (loc, qvar_formals, cvar_formals, qc) =
+module Env = struct
+  type t = (QVMap.t qubit_t * CVMap.t clbit_t) ;
+
+  value empty = (QVMap.empty, CVMap.empty) ;
+  value qv_swap_find (qm, _) qv = QVMap.swap_find qm qv ;
+  value cv_swap_find (_, cm) cv = CVMap.swap_find cm cv ;
+  value add_qbindings (qm, cm) l =
+    let qm = QVMap.(union (fun _ _ newval -> Some newval) qm (ofList l)) in
+    (qm, cm)
+  ;
+  value add_cbindings (qm, cm) l =
+    let cm = CVMap.(union (fun _ _ newval -> Some newval) cm (ofList l)) in
+    (qm, cm)
+  ;
+
+end ;
+
+value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
   match qc with [
     QMEASURE _ qvar_actuals ->
       if List.length qvar_formals <> List.length qvar_actuals then
@@ -1132,15 +1149,15 @@ value rec assign_binding genv (qvmap, cvmap) (loc, qvar_formals, cvar_formals, q
       else if List.length cvar_formals <> List.length qvar_actuals then
         Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
       else
-        let qvar_results = qvar_actuals |> List.map (QVMap.swap_find qvmap) in
+        let qvar_results = qvar_actuals |> List.map (Env.qv_swap_find env) in
         let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qvar_results in
         let cvar_additional_mapping = List.map (fun cv -> (cv, CVAR cv)) cvar_formals in
-        let qvmap = QVMap.(union (fun _ _ newval -> Some newval) qvmap (ofList qvar_additional_mapping)) in
-        let cvmap = CVMap.(union (fun _ _ newval -> Some newval) cvmap (ofList cvar_additional_mapping)) in
-        (qvmap, cvmap)
+        let env = Env.add_qbindings env qvar_additional_mapping in
+        let env = Env.add_cbindings env cvar_additional_mapping in
+        env
 
   | _ ->
-     let ((qvmap, cvmap), (qrl, crl)) = assign_qcirc genv (qvmap, cvmap) qc in
+     let (env, (qrl, crl)) = assign_qcirc genv env qc in
       if List.length qvar_formals <> List.length qrl then
         Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE qvar formals/actuals length mismatch")
       else if List.length cvar_formals <> List.length crl then
@@ -1148,19 +1165,19 @@ value rec assign_binding genv (qvmap, cvmap) (loc, qvar_formals, cvar_formals, q
       else
         let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qrl in
         let cvar_additional_mapping = List.map2 (fun cformal cresult -> (cformal, cresult)) cvar_formals crl in
-        let qvmap = QVMap.(union (fun _ _ newval -> Some newval) qvmap (ofList qvar_additional_mapping)) in
-        let cvmap = CVMap.(union (fun _ _ newval -> Some newval) cvmap (ofList cvar_additional_mapping)) in
-        (qvmap, cvmap)
+        let env = Env.add_qbindings env qvar_additional_mapping in
+        let env = Env.add_cbindings env cvar_additional_mapping in
+        env
   ]
 
-and assign_qcirc genv (qvmap, cvmap) qc =
+and assign_qcirc genv env qc =
   let rec arec qc = match qc with [
     QLET loc bl qc ->
-      let (qvmap, cvmap) = List.fold_left (assign_binding genv) (qvmap, cvmap) bl in
-      assign_qcirc genv (qvmap, cvmap) qc
+      let env = List.fold_left (assign_binding genv) env bl in
+      assign_qcirc genv env qc
 
   | QWIRES _ qvl cvl ->
-     ((qvmap, cvmap), (List.map (QVMap.swap_find qvmap) qvl,List.map (CVMap.swap_find cvmap) cvl))
+     (env, (List.map (Env.qv_swap_find env) qvl,List.map (Env.cv_swap_find env) cvl))
 
   | QGATEAPP loc gn pel qvar_actuals cvar_actuals ->
      let {args=(_, qvar_formals, cvar_formals); result=(gate_qresults, gate_cresults)} = GEnv.find_gate ~{loc=loc} genv gn in
@@ -1180,16 +1197,16 @@ and assign_qcirc genv (qvmap, cvmap) qc =
           
         *)
        let q_formal2actual = Std.combine qvar_formals qvar_actuals |> QVMap.ofList in
-       let qresults = gate_qresults |> List.map (QVMap.swap_find q_formal2actual) |> List.map (QVMap.swap_find qvmap) in
-       ((qvmap, cvmap), (qresults, []))
+       let qresults = gate_qresults |> List.map (QVMap.swap_find q_formal2actual) |> List.map (Env.qv_swap_find env) in
+       (env, (qresults, []))
 
-  | QCREATE _ bi -> ((qvmap, cvmap), ([QUBIT bi], []))
+  | QCREATE _ bi -> (env, ([QUBIT bi], []))
   | QMEASURE loc _ ->
      Fmt.(raise_failwithf loc "assign_qcirc: QMEASURE found in non-let-binding context")
 
   | (QBARRIER _ _
      | QDISCARD _ _
-    | QRESET _ _) -> ((QVMap.empty, CVMap.empty), ([], []))
+    | QRESET _ _) -> (Env.empty, ([], []))
   ] in
   arec qc
 ;
