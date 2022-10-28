@@ -571,7 +571,7 @@ value anormalize_let loc bl_fvs (qc, qc_fvs) = do {
     List.fold_right rebuild_letlist_fvs letbindings_fvs (qc,qc_fvs)
   } ;
 
-value anorm qc =
+value qcirc qc =
   let rec anrec qc = match qc with [
     SYN.QLET loc bl qc ->
      let bl_fvs =

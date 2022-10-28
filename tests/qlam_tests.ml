@@ -345,13 +345,13 @@ let anorm_qlam (name, txt, expect) =
     let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
     match expect with
       Left expect ->
-       let got_qc = Ops.ANorm.anorm qc in
+       let got_qc = Ops.ANorm.qcirc qc in
        let (_, expect_qc) = expect |> Stream.of_string |> parse_qcircuit in
       assert_equal ~cmp ~printer expect_qc got_qc
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> Ops.ANorm.anorm qc)
+         (fun () -> Ops.ANorm.qcirc qc)
   )
 
 let separate_let_tests = "separate_let tests" >:::
