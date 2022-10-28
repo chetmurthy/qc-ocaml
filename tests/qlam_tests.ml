@@ -338,26 +338,42 @@ let q0 = h q in
 ;;
 
 
-let anorm_qlam (name, txt, expect) = 
+let anorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
     let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
     match expect with
       Left expect ->
-       let got_qc = Ops.ANorm.qcirc qc in
+       let got_qc = Ops.ANorm.qcircuit qc in
        let (_, expect_qc) = expect |> Stream.of_string |> parse_qcircuit in
       assert_equal ~cmp ~printer expect_qc got_qc
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> Ops.ANorm.qcirc qc)
+         (fun () -> Ops.ANorm.qcircuit qc)
+  )
+
+let anorm_gate (name, txt, expect) = 
+  name >:: (fun ctxt ->
+    let cmp qelib1 qelib2 = SYN.equal_env_t qelib1 qelib2 in
+    let printer qelib = Fmt.(str "%a" PP.env qelib) in
+    let qelib = txt |> qelib_from_string in
+    match expect with
+      Left expect ->
+       let (got_qelib, _) = Ops.ANorm.program (qelib, QWIRES(Ploc.dummy, [], [])) in
+       let expect_qelib = expect |> qelib_from_string in
+      assert_equal ~cmp ~printer expect_qelib got_qelib
+    | Right exnpat ->
+       assert_raises_exn_pattern ~msg:("should match "^exnpat)
+         exnpat
+         (fun () -> Ops.ANorm.program (qelib, QWIRES(Ploc.dummy, [], [])))
   )
 
 let separate_let_tests = "separate_let tests" >:::
 (
 
-  (List.map anorm_qlam [
+  (List.map anorm_qcirc [
        ("captures", {|
 let x' = let w' = E1' in E2' and y = E3 x' and z = E4 in
     E5
@@ -375,30 +391,51 @@ let y = E3 and z = E4 in
 |})
      ]
   )
+
+  @(List.map anorm_gate [
+       ("simple gate", {|
+gate rzz(theta) a b =
+  let (a1,b1) = cx q b in
+  let b2 = let q = U(0,0,theta) b1 in q in
+  let (a3,b3) = cx a1 b2 in
+  (a3,b3)
+;
+|},
+        Left {|
+gate rzz(theta) a b =
+  let (a1,b1) = cx q b in
+  let q = U(0,0,theta) b1 in
+  let b2 = q in
+  let (a3,b3) = cx a1 b2 in
+  (a3,b3)
+;
+|})
+     ]
+  )
 )
 ;;
 
 
-let nnorm_qlam (name, txt, expect) = 
+let nnorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
     let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
     match expect with
       Left expect ->
-       let got_qc = Ops.NameNorm.qcirc qc in
+       let got_qc = Ops.NameNorm.qcircuit qc in
        let (_, expect_qc) = expect |> Stream.of_string |> parse_qcircuit in
       assert_equal ~cmp ~printer expect_qc got_qc
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> Ops.NameNorm.qcirc qc)
+         (fun () -> Ops.NameNorm.qcircuit qc)
   )
 
 
 let name_norm_tests = "name-norm tests" >:::
 (
-  (List.map nnorm_qlam [
+  (List.map nnorm_qcirc [
        ("simple", {|
 let (x,y) = (y,x) in
 (x,y)

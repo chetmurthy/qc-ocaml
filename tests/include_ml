@@ -179,8 +179,8 @@ gate tg () x = let q = h x in (q) ;
 |} |> qelib_from_string ;;
 #trace BetaReduce.qcircuit ;;
 let qc2 = Unroll.unroll e qc ;;
-let qc3 = ANorm.anorm qc2 ;;
-let qc4 = NameNorm.nnorm qc3 ;;
+let qc3 = ANorm.qcircuit qc2 ;;
+let qc4 = NameNorm.qcircuit qc3 ;;
 Fmt.(pf stdout "%a" Qasmpp.ASTPP.program (Qconvert.ToQasm2.program (env0@env1, qc4)));;
 
 let ([], qc') = {|

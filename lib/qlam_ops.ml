@@ -571,7 +571,7 @@ value anormalize_let loc bl_fvs (qc, qc_fvs) = do {
     List.fold_right rebuild_letlist_fvs letbindings_fvs (qc,qc_fvs)
   } ;
 
-value qcirc qc =
+value qcircuit qc =
   let rec anrec qc = match qc with [
     SYN.QLET loc bl qc ->
      let bl_fvs =
@@ -594,13 +594,38 @@ value qcirc qc =
   qc
 ;
 
+
+value qgatelam ((pvl, qvl, cvl), qc) =
+  let qc = qcircuit qc in
+  ((pvl, qvl, cvl), qc)
+;
+
+
+value gate_item gitem = match gitem with [
+    DEF loc gn glam -> DEF loc gn (qgatelam glam)
+  | OPAQUE loc gn gargs -> OPAQUE loc gn gargs
+  ]
+;
+
+value program ((envitems, qc) as p) =
+  let rec env_item = fun [
+      QGATE loc gitem -> QGATE loc (gate_item gitem)
+   | QINCLUDE loc fty fname l ->
+      QINCLUDE loc fty fname (List.map env_item l)
+   | QCOUPLING_MAP loc id m -> QCOUPLING_MAP loc id m
+   | QLAYOUT loc id l -> QLAYOUT loc id l
+   ] in
+  (List.map env_item envitems,
+   qcircuit qc)
+;
+
 end ;
 
 module NameNorm = struct
 
 value is_rename_binding = fun [ (_, _, _, QWIRES _ _ _) -> True | _ -> False ] ;
 
-value qcirc qc =
+value qcircuit qc =
   let rec nnrec (qvmap, cvmap) qc =
     let map_qv qv = match QVMap.find qv qvmap with [ exception Not_found -> qv | x -> x ] in 
     let map_cv cv = match CVMap.find cv cvmap with [ exception Not_found -> cv | x -> x ] in 
