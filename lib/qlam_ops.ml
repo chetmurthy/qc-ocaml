@@ -1121,7 +1121,7 @@ qubits assigned to its outputs.
  *)
 
 type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ][@@deriving (to_yojson, show, eq, ord);] ;
-type clbit_t = [ CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
+type clbit_t = [ CLBIT of CV.t | CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 type env_gate_t = { args : qgateargs_t ; ty : (int * int) ; result : (list QV.t * list CV.t) } ;
 
 module Env = struct
@@ -1164,7 +1164,7 @@ value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
       else if List.length cvar_formals <> List.length qvar_actuals then
         Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
       else
-        let cvar_results = List.map (fun cv -> CVAR cv) cvar_formals in
+        let cvar_results = List.map (fun cv -> CLBIT cv) cvar_formals in
         let qvar_results = qvar_actuals |> List.map (Env.qv_swap_find env) in
         let env = List.fold_left2 Env.add_qbinding env qvar_formals qvar_results in
         let env = List.fold_left2 Env.add_cbinding env cvar_formals cvar_results in
