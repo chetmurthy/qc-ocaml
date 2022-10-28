@@ -7,7 +7,6 @@ open Qc_misc ;
 open Qlam_syntax ;
 open Qlam_env ;
 open Qlam_ops ;
-module TYCHK = Qlam_tychk ;
 
 open SYN ;
 

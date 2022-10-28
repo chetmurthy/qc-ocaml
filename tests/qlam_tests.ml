@@ -12,7 +12,6 @@ open Qasm_io
 open Qasm2_parser
 open Qlam_syntax
 open Qlam_parser
-module TYCHK = Qlam_tychk
 module Ops = Qlam_ops
 
 let matches ~pattern text =
@@ -100,8 +99,8 @@ let testit (name, f, txt, expect_qlam, expect_qasm2) =
   )
 
 let roundtrip_tests = "roundtrip tests" >:::
-let open TYCHK.Env in
-let open TYCHK in
+let open Ops.TYCHK.Env in
+let open Ops.TYCHK in
 (
   (List.map testit [
        ("example", roundtrip_file, "testdata/example.qasm",
@@ -135,12 +134,12 @@ let tychk_qlam (name, txt, expect) =
     let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
     match expect with
       Left expect ->
-       let (_, ty) = TYCHK.program (env0@env1@env, qc) in
+       let (_, ty) = Ops.TYCHK.program ~env0:(env0@env1) (env, qc) in
       assert_equal ~printer expect ty
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> TYCHK.program (env0@env1@env, qc))
+         (fun () -> Ops.TYCHK.program ~env0:(env0@env1) (env, qc))
   )
 
 let lower_qlam (name, txt, expect) = 
@@ -185,18 +184,18 @@ let tychk_qelib (name, txt, expect) =
     let env = txt |> Stream.of_string |> parse_qelib in
     match expect with
       Left () ->
-       ignore (TYCHK.environ (env0@env1@env))
+       ignore (Ops.TYCHK.environ ~env0:(env0@env1) env)
 
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> TYCHK.environ (env0@env1@env))
+         (fun () -> Ops.TYCHK.environ ~env0:(env0@env1) env)
   )
 ;;
 let tychk_qasm2_file (name, f, expect) = 
   name >:: (fun ctxt ->
     let (env, qc) = read_tolam f in
-    let (_, ty) = TYCHK.program (env0@env, qc) in
+    let (_, ty) = Ops.TYCHK.program ~env0 (env, qc) in
     let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
     assert_equal ~printer expect ty
   )
@@ -268,8 +267,8 @@ let alpha_equality_tests = "alpha equality tests" >:::
 ;;
 
 let tychk_tests = "tychk tests" >:::
-let open TYCHK.Env in
-let open TYCHK in
+let open Ops.TYCHK.Env in
+let open Ops.TYCHK in
 (
 
   (List.map tychk_qlam [
