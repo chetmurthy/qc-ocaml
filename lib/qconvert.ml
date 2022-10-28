@@ -546,3 +546,28 @@ value program (env, qc) =
   gate_instrs @ instrs ;
 
 end ;
+
+(**
+  Convert from LQIR to qasm2:
+
+  (0) ASSUMED: TYCHK/Fresh/ANorm/NameNorm/TYCHK the env+circuit
+
+      WHY: b/c it's just easier to re-typecheck after normalizing.
+
+  (1) compute bits for env+circuit (Ops.AssignBits)
+
+  (2) to convert circuit:
+
+  (2a) map bits to qreg/creg declarations
+
+  (2b) convert instructions
+
+  (3) to convert each gate definitions:
+
+  (3a) set up vars as "bits"
+
+  (3b) convert instructions
+
+  (3c) build wrapper
+
+ *)
