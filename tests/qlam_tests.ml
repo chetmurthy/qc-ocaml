@@ -59,7 +59,7 @@ let roundtrip s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (gates, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
-  let s2 = Fmt.(str "%a" PP.top (gates, qc)) in
+  let s2 = Fmt.(str "%a" PP.program (gates, qc)) in
   let instrs' = Qconvert.ToQasm2.program (env0 @ gates, qc) in
   let s3 = Fmt.(str "%a" Qasmpp.ASTPP.main ("2.0",instrs')) in
   [s0;s1; s2; s3]
@@ -69,7 +69,7 @@ let roundtrip_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (gates, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
-  let s2 = Fmt.(str "%a" PP.top (gates, qc)) in
+  let s2 = Fmt.(str "%a" PP.program (gates, qc)) in
   let instrs' = Qconvert.ToQasm2.program (env0 @ gates, qc) in
   let s3 = Fmt.(str "%a" Qasmpp.ASTPP.main ("2.0",instrs')) in
   [s0;s1; s2; s3]
@@ -79,7 +79,7 @@ let tolam_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (gates, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
-  let s2 = Fmt.(str "%a" PP.top (gates, qc)) in
+  let s2 = Fmt.(str "%a" PP.program (gates, qc)) in
   [s0;s1; s2]
 ;;
 
@@ -185,12 +185,12 @@ let tychk_qelib (name, txt, expect) =
     let env = txt |> Stream.of_string |> parse_qelib in
     match expect with
       Left () ->
-       ignore (TYCHK.mk_genv (env0@env1@env))
+       ignore (TYCHK.environ (env0@env1@env))
 
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> TYCHK.mk_genv (env0@env1@env))
+         (fun () -> TYCHK.environ (env0@env1@env))
   )
 ;;
 let tychk_qasm2_file (name, f, expect) = 
@@ -356,8 +356,8 @@ let anorm_qcirc (name, txt, expect) =
 
 let anorm_gate (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let cmp qelib1 qelib2 = SYN.equal_env_t qelib1 qelib2 in
-    let printer qelib = Fmt.(str "%a" PP.env qelib) in
+    let cmp qelib1 qelib2 = SYN.equal_environ_t qelib1 qelib2 in
+    let printer qelib = Fmt.(str "%a" PP.environ qelib) in
     let qelib = txt |> qelib_from_string in
     match expect with
       Left expect ->

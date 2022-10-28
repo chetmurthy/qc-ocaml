@@ -99,7 +99,7 @@ end ;
 
  *)
 value interp ~{layout=lid} ~{machine=mid} (env_items, qc) =
-  let genv = TYCHK.mk_genv env_items in
+  let genv = TYCHK.environ env_items in
   let env = Env.mk genv ~{layout=lid} ~{machine=mid} in
 
   let rec irec env qc = match qc with [

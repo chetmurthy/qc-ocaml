@@ -292,7 +292,7 @@ value program p =
     x
   } in
   let dt = { (dt) with migrate_id = migrate_id } in do {
-    ignore(dt.migrate_top dt p) ;
+    ignore(dt.migrate_program_t dt p) ;
     max_id.val
   }
 ;
@@ -702,7 +702,7 @@ value mk_env ~{only} ~{except} env =
     determines what is unrolled.
  *)
 
-value unroll ?{only} ?{except} (env : SYN.env_t) qc =
+value unroll ?{only} ?{except} (env : SYN.environ_t) qc =
   let genv = mk_env ~{only=only} ~{except=except} env in
   let counter = Fresh.(mk ~{base=1 + MaxID.qcirc qc} ()) in
   let qc = Fresh.qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc in
@@ -1272,10 +1272,10 @@ value upgrade_gate_item genv ((glam, ty), gitem) =
   rv
 ;
 
-value mk_genv genv0 env_items = GEnv.upgrade_env upgrade_gate_item genv0 env_items ;
+value environ genv0 env_items = GEnv.upgrade_environ upgrade_gate_item genv0 env_items ;
 
 value program genv0 (env_items, qc) =
-  let genv = mk_genv genv0 env_items in
+  let genv = environ genv0 env_items in
   let (env, _) = assign_qcirc genv Env.empty qc in
   env
 ;

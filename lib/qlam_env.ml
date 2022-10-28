@@ -62,7 +62,7 @@ value find_layout ?{loc=Ploc.dummy} env lid = match IDMap.find lid env.layouts w
    Fmt.(raise_failwithf loc "find_layout: layoutine %a not found" ID.pp_hum lid)
 ] ;
 
-value mk_of_env gate_item env_items =
+value mk_of_environ gate_item env_items =
   let env = mk () in
   let rec env_item genv ei = match ei with [
         QINCLUDE loc _ fname l ->
@@ -79,7 +79,7 @@ value mk_of_env gate_item env_items =
   List.fold_left env_item env env_items
 ;
 
-value upgrade_env gate_item genv0 env_items =
+value upgrade_environ gate_item genv0 env_items =
   let env = mk () in
   let rec env_item genv ei = match ei with [
         QINCLUDE loc _ fname l ->

@@ -226,10 +226,10 @@ value gate_item genv gitem = match gitem with [
    (glam, ty)
 ] ;
 
-value mk_genv env_items = GEnv.mk_of_env gate_item env_items ;
+value environ env_items = GEnv.mk_of_environ gate_item env_items ;
 
 value program (env_items, qc) =
-  let genv = mk_genv env_items in
+  let genv = environ env_items in
   let ty = top_circuit (Env.mk genv) qc in
   (genv, ty)
 ;

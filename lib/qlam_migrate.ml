@@ -39,8 +39,8 @@ and item = [%import: Qlam_syntax.SYN.item
             [@with Layout.t := layout_t]
             ]
 and gate_item = [%import: Qlam_syntax.SYN.gate_item]
-and env_t = [%import: Qlam_syntax.SYN.env_t]
-and top = [%import: Qlam_syntax.SYN.top]
+and environ_t = [%import: Qlam_syntax.SYN.environ_t]
+and program_t = [%import: Qlam_syntax.SYN.program_t]
 
 [@@deriving migrate
     { dispatch_type = dispatch_table_t
@@ -65,8 +65,8 @@ and top = [%import: Qlam_syntax.SYN.top]
           ; qbinding_t
           ; item
           ; gate_item
-          ; env_t
-          ; top
+          ; environ_t
+          ; program_t
           ]
         }
       ]

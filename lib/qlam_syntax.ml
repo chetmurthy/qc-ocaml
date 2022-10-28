@@ -208,14 +208,14 @@ type gate_item = [
 
 type item = [
   QGATE of loc and gate_item
-| QINCLUDE of loc and file_type_t and string and env_t
+| QINCLUDE of loc and file_type_t and string and environ_t
 | QCOUPLING_MAP of loc and ID.t and CouplingMap.t
 | QLAYOUT of loc and ID.t and Layout.t
 ]
-and env_t = list item
+and environ_t = list item
 [@@deriving (to_yojson, show, eq, ord);] ;
 
-type top = (env_t * qcirc_t)[@@deriving (to_yojson, show, eq, ord);] ;
+type program_t = (environ_t * qcirc_t)[@@deriving (to_yojson, show, eq, ord);] ;
 
 end ;
 
@@ -357,11 +357,11 @@ value item pps = fun [
 
 value newline_sep pps () = Fmt.(pf pps "@.") ;
 
-value env pps l =
+value environ pps l =
   Fmt.(pf pps "@[<v>%a@]" (list ~{sep=newline_sep} item) l) ;
 
 
-value top pps (l, qc) =
-  Fmt.(pf pps "%a@.%a%!" env l qcirc qc) ;
+value program pps (l, qc) =
+  Fmt.(pf pps "%a@.%a%!" environ l qcirc qc) ;
 
 end ;
