@@ -1125,18 +1125,29 @@ type clbit_t = [ CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 type env_gate_t = { args : qgateargs_t ; ty : (int * int) ; result : (list QV.t * list CV.t) } ;
 
 module Env = struct
-  type t = (QVMap.t qubit_t * CVMap.t clbit_t) ;
-
-  value empty = (QVMap.empty, CVMap.empty) ;
-  value qv_swap_find (qm, _) qv = QVMap.swap_find qm qv ;
-  value cv_swap_find (_, cm) cv = CVMap.swap_find cm cv ;
-  value add_qbindings (qm, cm) l =
-    let qm = QVMap.(union (fun _ _ newval -> Some newval) qm (ofList l)) in
-    (qm, cm)
+  type t = {
+      qvmap : QVMap.t qubit_t
+    ; cvmap : CVMap.t clbit_t
+    ; qubits : list BI.t
+    ; clbits : list CV.t
+    }
   ;
-  value add_cbindings (qm, cm) l =
-    let cm = CVMap.(union (fun _ _ newval -> Some newval) cm (ofList l)) in
-    (qm, cm)
+  value empty = {
+      qvmap = QVMap.empty
+    ; cvmap = CVMap.empty
+    ; qubits = []
+    ; clbits = []
+    }
+  ;
+  value qv_swap_find it qv = QVMap.swap_find it.qvmap qv ;
+  value cv_swap_find it cv = CVMap.swap_find it.cvmap cv ;
+  value add_qbindings it l =
+    let qm = QVMap.(union (fun _ _ newval -> Some newval) it.qvmap (ofList l)) in
+    { (it) with qvmap = qm }
+  ;
+  value add_cbindings it l =
+    let cm = CVMap.(union (fun _ _ newval -> Some newval) it.cvmap (ofList l)) in
+    { (it) with cvmap = cm }
   ;
 
 end ;
@@ -1213,9 +1224,10 @@ and assign_qcirc genv env qc =
 
 value assign_gate_item genv gitem = match gitem with [
   DEF loc gn (((pvl, qvl, cvl) as glam), qc) ->
-    let qvmap = qvl |> List.map (fun qv -> (qv, QVAR qv)) |> QVMap.ofList in
-    let cvmap = cvl |> List.map (fun cv -> (cv, CVAR cv)) |> CVMap.ofList in
-    let ((qvmap, cvmap), (qrl, crl)) = assign_qcirc genv (qvmap, cvmap) qc in
+    let env = Env.empty in
+    let env = Env.add_qbindings env (qvl |> List.map (fun qv -> (qv, QVAR qv))) in
+    let env = Env.add_cbindings env (cvl |> List.map (fun cv -> (cv, CVAR cv))) in
+    let (env, (qrl, crl)) = assign_qcirc genv env qc in
     if cvl <> [] then
       Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a has input cvars %a"
              QG.pp_hum gn
@@ -1253,8 +1265,8 @@ value mk_genv genv0 env_items = GEnv.upgrade_env upgrade_gate_item genv0 env_ite
 
 value program genv0 (env_items, qc) =
   let genv = mk_genv genv0 env_items in
-  let ((qvmap, cvmap), _) = assign_qcirc genv (QVMap.empty, CVMap.empty) qc in
-  (qvmap, cvmap)
+  let (env, _) = assign_qcirc genv Env.empty qc in
+  env
 ;
 
 end ;
