@@ -1060,8 +1060,8 @@ qubits assigned to its outputs.
 
  *)
 
-type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ] ;
-type clbit_t = [ CLBIT of CV.t ] ;
+type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ][@@deriving (to_yojson, show, eq, ord);] ;
+type clbit_t = [ CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 
 value rec assign_binding genv (qvmap, cvmap) (loc, qvar_formals, cvar_formals, qc) =
   match qc with [
@@ -1073,7 +1073,7 @@ value rec assign_binding genv (qvmap, cvmap) (loc, qvar_formals, cvar_formals, q
       else
         let qvar_results = qvar_actuals |> List.map (QVMap.swap_find qvmap) in
         let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qvar_results in
-        let cvar_additional_mapping = List.map (fun cv -> (cv, CLBIT cv)) cvar_formals in
+        let cvar_additional_mapping = List.map (fun cv -> (cv, CVAR cv)) cvar_formals in
         let qvmap = QVMap.(union (fun _ _ newval -> Some newval) qvmap (ofList qvar_additional_mapping)) in
         let cvmap = CVMap.(union (fun _ _ newval -> Some newval) cvmap (ofList cvar_additional_mapping)) in
         (qvmap, cvmap)
@@ -1132,5 +1132,40 @@ and assign_qcirc genv (qvmap, cvmap) qc =
   ] in
   arec qc
 ;
+
+value assign_gate_item genv gitem = match gitem with [
+  DEF loc gn (((pvl, qvl, cvl) as glam), qc) ->
+    let qvmap = qvl |> List.map (fun qv -> (qv, QVAR qv)) |> QVMap.ofList in
+    let cvmap = cvl |> List.map (fun cv -> (cv, CVAR cv)) |> CVMap.ofList in
+    let ((qvmap, cvmap), (qrl, crl)) = assign_qcirc genv (qvmap, cvmap) qc in
+    if cvl <> [] then
+      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a has input cvars %a"
+             QG.pp_hum gn
+             (list ~{sep=const string " "} CV.pp) cvl)
+    else if crl <> [] then
+      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a has output cvars %a"
+             QG.pp_hum gn
+             (list ~{sep=const string " "} pp_clbit_t) crl)
+    else
+    let qresults = qrl |> List.map (fun [
+        QVAR qv -> qv
+      | QUBIT _ -> 
+         Fmt.(raise_failwithf loc "assign_gate_item: gate %a create qubits (forbidden)" QG.pp_hum gn)
+      ]) in
+    let rv = (qresults, []) in
+    GEnv.add_gate loc genv (gn, (glam, rv))
+
+| OPAQUE loc gn ((pvl, qvl, cvl) as glam) ->
+    if cvl <> [] then
+      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a has input cvars %a"
+             QG.pp_hum gn
+             (list ~{sep=const string " "} CV.pp) cvl)
+    else
+    let rv = (qvl, []) in
+    GEnv.add_gate loc genv (gn,  (glam, rv))
+] ;
+
+
+value mk_genv env_items = GEnv.mk_of_env assign_gate_item env_items ;
 
 end ;
