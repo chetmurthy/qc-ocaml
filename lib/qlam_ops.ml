@@ -1153,7 +1153,7 @@ value assign_gate_item genv gitem = match gitem with [
          Fmt.(raise_failwithf loc "assign_gate_item: gate %a create qubits (forbidden)" QG.pp_hum gn)
       ]) in
     let rv = (qresults, []) in
-    GEnv.add_gate loc genv (gn, (glam, rv))
+    (glam, rv)
 
 | OPAQUE loc gn ((pvl, qvl, cvl) as glam) ->
     if cvl <> [] then
@@ -1162,10 +1162,12 @@ value assign_gate_item genv gitem = match gitem with [
              (list ~{sep=const string " "} CV.pp) cvl)
     else
     let rv = (qvl, []) in
-    GEnv.add_gate loc genv (gn,  (glam, rv))
+    (glam, rv)
 ] ;
-
-
+(*
+value upgrade_gate_item genv (ty, gitem) =
+  let rv = 
+ *)
 value mk_genv env_items = GEnv.mk_of_env assign_gate_item env_items ;
 
 end ;

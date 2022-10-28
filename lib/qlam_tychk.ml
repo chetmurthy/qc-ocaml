@@ -21,7 +21,7 @@ type cvar_binding_t = option qbinding_t ;
 type pvar_binding_t = unit ;
 
 type t = {
-    genv : GEnv.t (int * int)
+    genv : GEnv.t (qgateargs_t * (int * int))
   ; qvars : QVMap.t qvar_binding_t
   ; cvars : CVMap.t cvar_binding_t
   ; pvars : PVMap.t pvar_binding_t
@@ -219,11 +219,11 @@ value gate_item genv gitem = match gitem with [
     if not (qvbl |> List.for_all (fun (_, qvb) -> qvb.Env.used)) then
       Fmt.(raise_failwithf loc "gate_item: not all qvars were used (failure of linearity)")
     else
-      GEnv.add_gate loc genv (gn, (glam, ty))
+      (glam, ty)
   }
 | OPAQUE loc gn ((pvl, qvl, cvl) as glam) ->
    let ty = (List.length qvl, List.length cvl) in
-   GEnv.add_gate loc genv (gn,  (glam, ty))
+   (glam, ty)
 ] ;
 
 value mk_genv env_items = GEnv.mk_of_env gate_item env_items ;
