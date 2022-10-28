@@ -1128,8 +1128,8 @@ module Env = struct
   type t = {
       qvmap : QVMap.t qubit_t
     ; cvmap : CVMap.t clbit_t
-    ; qubits : list BI.t
-    ; clbits : list CV.t
+    ; qubits : list qubit_t
+    ; clbits : list clbit_t
     }
   ;
   value empty = {
@@ -1141,6 +1141,8 @@ module Env = struct
   ;
   value qv_swap_find it qv = QVMap.swap_find it.qvmap qv ;
   value cv_swap_find it cv = CVMap.swap_find it.cvmap cv ;
+  value add_qbinding it qv qr = { (it) with qvmap = QVMap.add qv qr it.qvmap } ;
+  value add_cbinding it cv cr = { (it) with cvmap = CVMap.add cv cr it.cvmap } ;
   value add_qbindings it l =
     let qm = QVMap.(union (fun _ _ newval -> Some newval) it.qvmap (ofList l)) in
     { (it) with qvmap = qm }
@@ -1149,6 +1151,8 @@ module Env = struct
     let cm = CVMap.(union (fun _ _ newval -> Some newval) it.cvmap (ofList l)) in
     { (it) with cvmap = cm }
   ;
+  value add_qubit it qb = { (it) with qubits = it.qubits @ [qb] } ;
+  value add_clbit it cb = { (it) with clbits = it.clbits @ [cb] } ;
 
 end ;
 
@@ -1160,11 +1164,11 @@ value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
       else if List.length cvar_formals <> List.length qvar_actuals then
         Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
       else
+        let cvar_results = List.map (fun cv -> CVAR cv) cvar_formals in
         let qvar_results = qvar_actuals |> List.map (Env.qv_swap_find env) in
-        let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qvar_results in
-        let cvar_additional_mapping = List.map (fun cv -> (cv, CVAR cv)) cvar_formals in
-        let env = Env.add_qbindings env qvar_additional_mapping in
-        let env = Env.add_cbindings env cvar_additional_mapping in
+        let env = List.fold_left2 Env.add_qbinding env qvar_formals qvar_results in
+        let env = List.fold_left2 Env.add_cbinding env cvar_formals cvar_results in
+        let env = List.fold_left Env.add_clbit env cvar_results in
         env
 
   | _ ->
@@ -1176,8 +1180,8 @@ value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
       else
         let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qrl in
         let cvar_additional_mapping = List.map2 (fun cformal cresult -> (cformal, cresult)) cvar_formals crl in
-        let env = Env.add_qbindings env qvar_additional_mapping in
-        let env = Env.add_cbindings env cvar_additional_mapping in
+        let env = List.fold_left2 Env.add_qbinding env qvar_formals qrl in
+        let env = List.fold_left2 Env.add_cbinding env cvar_formals crl in
         env
   ]
 
@@ -1211,7 +1215,11 @@ and assign_qcirc genv env qc =
        let qresults = gate_qresults |> List.map (QVMap.swap_find q_formal2actual) |> List.map (Env.qv_swap_find env) in
        (env, (qresults, []))
 
-  | QCREATE _ bi -> (env, ([QUBIT bi], []))
+  | QCREATE _ bi ->
+     let qb = QUBIT bi in
+     let env = Env.add_qubit env qb in
+     (env, ([qb], []))
+
   | QMEASURE loc _ ->
      Fmt.(raise_failwithf loc "assign_qcirc: QMEASURE found in non-let-binding context")
 
