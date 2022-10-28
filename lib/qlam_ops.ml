@@ -269,7 +269,8 @@ value qgatelam ~{counter} ((pvl, qvl, cvl), qc) =
   ((pvl, qvl, cvl), qcircuit ~{qvmap=qvmap} ~{cvmap=cvmap} ~{counter=counter} qc)
 ;
 
-value max_id_index qc =
+module MaxID = struct
+value qcirc qc =
   let max_id = ref (-1) in
   let open Qlam_migrate in
   let dt = make_dt() in
@@ -282,6 +283,40 @@ value max_id_index qc =
     max_id.val
   }
 ;
+value program p =
+  let max_id = ref (-1) in
+  let open Qlam_migrate in
+  let dt = make_dt() in
+  let migrate_id dt ((_, n) as x) = do {
+    max_id.val := max max_id.val n ;
+    x
+  } in
+  let dt = { (dt) with migrate_id = migrate_id } in do {
+    ignore(dt.migrate_top dt p) ;
+    max_id.val
+  }
+;
+end ;
+
+value gate_item ~{counter} gitem = match gitem with [
+    DEF loc gn glam -> DEF loc gn (qgatelam ~{counter=counter} glam)
+  | OPAQUE loc gn gargs -> OPAQUE loc gn gargs
+  ]
+;
+
+value program ((envitems, qc) as p) =
+  let counter = mk ~{base=1 + MaxID.program p} () in
+  let rec env_item = fun [
+      QGATE loc gitem -> QGATE loc (gate_item ~{counter=counter} gitem)
+   | QINCLUDE loc fty fname l ->
+      QINCLUDE loc fty fname (List.map env_item l)
+   | QCOUPLING_MAP loc id m -> QCOUPLING_MAP loc id m
+   | QLAYOUT loc id l -> QLAYOUT loc id l
+   ] in
+  (List.map env_item envitems,
+   qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc)
+;
+
 end ;
 
 module BetaReduce = struct
@@ -644,7 +679,7 @@ value mk_env ~{only} ~{except} env =
 
 value unroll ?{only} ?{except} (env : SYN.env_t) qc =
   let genv = mk_env ~{only=only} ~{except=except} env in
-  let counter = Fresh.(mk ~{base=1 + max_id_index qc} ()) in
+  let counter = Fresh.(mk ~{base=1 + MaxID.qcirc qc} ()) in
   let qc = Fresh.qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc in
   let rec unrec qc = match qc with [
     QLET loc bl qc ->
