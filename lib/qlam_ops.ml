@@ -1160,9 +1160,9 @@ value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
   match qc with [
     QMEASURE _ qvar_actuals ->
       if List.length qvar_formals <> List.length qvar_actuals then
-        Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE qvar formals/actuals length mismatch")
+        Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE qvar formals/actuals length mismatch")
       else if List.length cvar_formals <> List.length qvar_actuals then
-        Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
+        Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
       else
         let cvar_results = List.map (fun cv -> CVAR cv) cvar_formals in
         let qvar_results = qvar_actuals |> List.map (Env.qv_swap_find env) in
@@ -1174,9 +1174,9 @@ value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
   | _ ->
      let (env, (qrl, crl)) = assign_qcirc genv env qc in
       if List.length qvar_formals <> List.length qrl then
-        Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE qvar formals/actuals length mismatch")
+        Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE qvar formals/actuals length mismatch")
       else if List.length cvar_formals <> List.length crl then
-        Fmt.(raise_failwithf loc "assign_qcirc: internal error: QMEASURE cvar formals/actuals length mismatch")
+        Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE cvar formals/actuals length mismatch")
       else
         let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qrl in
         let cvar_additional_mapping = List.map2 (fun cformal cresult -> (cformal, cresult)) cvar_formals crl in
@@ -1222,6 +1222,9 @@ and assign_qcirc genv env qc =
 
   | QMEASURE loc _ ->
      Fmt.(raise_failwithf loc "assign_qcirc: QMEASURE found in non-let-binding context")
+
+  | QBARRIER _ qvl ->
+     (env, (List.map (Env.qv_swap_find env) qvl,[]))
 
   | (QBARRIER _ _
      | QDISCARD _ _
