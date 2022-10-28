@@ -1062,6 +1062,7 @@ qubits assigned to its outputs.
 
 type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 type clbit_t = [ CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
+type env_gate_t = { args : qgateargs_t ; ty : (int * int) ; result : (list QV.t * list CV.t) } ;
 
 value rec assign_binding genv (qvmap, cvmap) (loc, qvar_formals, cvar_formals, qc) =
   match qc with [
@@ -1102,7 +1103,7 @@ and assign_qcirc genv (qvmap, cvmap) qc =
      ((qvmap, cvmap), (List.map (QVMap.swap_find qvmap) qvl,List.map (CVMap.swap_find cvmap) cvl))
 
   | QGATEAPP loc gn pel qvar_actuals cvar_actuals ->
-     let ((_, qvar_formals, cvar_formals), (gate_qresults, gate_cresults)) = GEnv.find_gate ~{loc=loc} genv gn in
+     let {args=(_, qvar_formals, cvar_formals); result=(gate_qresults, gate_cresults)} = GEnv.find_gate ~{loc=loc} genv gn in
      if List.length qvar_formals <> List.length qvar_actuals then
        Fmt.(raise_failwithf loc "assign_qcirc: internal error: qvar formals/actuals length mismatch")
      else if cvar_formals <> [] then
@@ -1153,7 +1154,7 @@ value assign_gate_item genv gitem = match gitem with [
          Fmt.(raise_failwithf loc "assign_gate_item: gate %a create qubits (forbidden)" QG.pp_hum gn)
       ]) in
     let rv = (qresults, []) in
-    (glam, rv)
+    rv
 
 | OPAQUE loc gn ((pvl, qvl, cvl) as glam) ->
     if cvl <> [] then
@@ -1162,12 +1163,21 @@ value assign_gate_item genv gitem = match gitem with [
              (list ~{sep=const string " "} CV.pp) cvl)
     else
     let rv = (qvl, []) in
-    (glam, rv)
+    rv
 ] ;
-(*
-value upgrade_gate_item genv (ty, gitem) =
-  let rv = 
- *)
-value mk_genv env_items = GEnv.mk_of_env assign_gate_item env_items ;
+
+value upgrade_gate_item genv ((glam, ty), gitem) =
+  let result = assign_gate_item genv gitem in
+  let rv = { args = glam ; ty = ty ; result = result } in
+  rv
+;
+
+value mk_genv genv0 env_items = GEnv.upgrade_env upgrade_gate_item genv0 env_items ;
+
+value program genv0 (env_items, qc) =
+  let genv = mk_genv genv0 env_items in
+  let ((qvmap, cvmap), _) = assign_qcirc genv (QVMap.empty, CVMap.empty) qc in
+  (qvmap, cvmap)
+;
 
 end ;
