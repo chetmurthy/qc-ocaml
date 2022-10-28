@@ -600,7 +600,7 @@ module NameNorm = struct
 
 value is_rename_binding = fun [ (_, _, _, QWIRES _ _ _) -> True | _ -> False ] ;
 
-value nnorm qc =
+value qcirc qc =
   let rec nnrec (qvmap, cvmap) qc =
     let map_qv qv = match QVMap.find qv qvmap with [ exception Not_found -> qv | x -> x ] in 
     let map_cv cv = match CVMap.find cv cvmap with [ exception Not_found -> cv | x -> x ] in 

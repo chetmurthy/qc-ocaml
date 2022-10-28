@@ -378,6 +378,40 @@ let y = E3 and z = E4 in
 )
 ;;
 
+
+let nnorm_qlam (name, txt, expect) = 
+  name >:: (fun ctxt ->
+    let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
+    let printer qc = Fmt.(str "%a" PP.qcirc qc) in
+    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    match expect with
+      Left expect ->
+       let got_qc = Ops.NameNorm.qcirc qc in
+       let (_, expect_qc) = expect |> Stream.of_string |> parse_qcircuit in
+      assert_equal ~cmp ~printer expect_qc got_qc
+    | Right exnpat ->
+       assert_raises_exn_pattern ~msg:("should match "^exnpat)
+         exnpat
+         (fun () -> Ops.NameNorm.qcirc qc)
+  )
+
+
+let name_norm_tests = "name-norm tests" >:::
+(
+  (List.map nnorm_qlam [
+       ("simple", {|
+let (x,y) = (y,x) in
+(x,y)
+|},
+        Left {|
+(y,x)
+|})
+     ]
+  )
+)
+;;
+
+
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
@@ -391,6 +425,7 @@ if not !Sys.interactive then
       ; pp_tests
       ; alpha_equality_tests
       ; separate_let_tests
+      ; name_norm_tests
       ; tychk_tests
     ])
 ;;
