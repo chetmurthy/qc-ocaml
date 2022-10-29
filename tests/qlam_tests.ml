@@ -54,7 +54,7 @@ let env0b = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "m
 let env0c = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "layouts.qli") ;;
 let env0 = env0a @ env0b @ env0c ;;
 
-let roundtrip s0 =
+let roundtrip_program s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
@@ -65,7 +65,7 @@ let roundtrip s0 =
   [s0;s1; s2; s3]
 ;;
 
-let roundtrip_file s0 =
+let roundtrip_program_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
@@ -105,10 +105,10 @@ let open Ops.TYCHK.Env in
 let open Ops.TYCHK in
 (
   (List.map testit [
-       ("example", roundtrip_file, "testdata/example.qasm",
+       ("example", roundtrip_program_file, "testdata/example.qasm",
         None,
         None)
-     ; ("bell2", roundtrip_file, "testdata/bell2.qasm",
+     ; ("bell2", roundtrip_program_file, "testdata/bell2.qasm",
         None,
         None)
      ]
