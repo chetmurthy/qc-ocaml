@@ -57,9 +57,10 @@ let env0 = env0a @ env0b @ env0c ;;
 let roundtrip s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
-  let (gates, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
-  let s2 = Fmt.(str "%a" PP.program (gates, qc)) in
-  let instrs' = Qconvert.ToQasm2.program (env0 @ gates, qc) in
+  let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
+  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
+  let instrs' = Qconvert.ToQasm2.program genv0 (env0 @ envitems, qc) in
   let s3 = Fmt.(str "%a" Qasmpp.ASTPP.main ("2.0",instrs')) in
   [s0;s1; s2; s3]
 ;;
@@ -67,9 +68,10 @@ let roundtrip s0 =
 let roundtrip_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
-  let (gates, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
-  let s2 = Fmt.(str "%a" PP.program (gates, qc)) in
-  let instrs' = Qconvert.ToQasm2.program (env0 @ gates, qc) in
+  let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
+  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
+  let instrs' = Qconvert.ToQasm2.program genv0 ~env0:env0 (envitems, qc) in
   let s3 = Fmt.(str "%a" Qasmpp.ASTPP.main ("2.0",instrs')) in
   [s0;s1; s2; s3]
 ;;
@@ -77,7 +79,7 @@ let roundtrip_file s0 =
 let tolam_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
-  let (gates, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let (gates, qc) = Qconvert.ToLam.program (env, instrs) in
   let s2 = Fmt.(str "%a" PP.program (gates, qc)) in
   [s0;s1; s2]
 ;;

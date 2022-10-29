@@ -541,8 +541,8 @@ value env gates =
   let gate_instrs = List.concat_map (env_item gates) gates in
   gate_instrs ;
 
-value program (env, qc) =
-  let gates = extract_gates env in
+value program genv0 ?{env0=[]} (env, qc) =
+  let gates = extract_gates (env0@env) in
   let gate_instrs = List.concat_map (env_item gates) env in
   let instrs = circuit (gates, qc) in
   gate_instrs @ instrs ;
