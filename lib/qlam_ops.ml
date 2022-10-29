@@ -1387,7 +1387,12 @@ qubits assigned to its outputs.
 
 type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 type clbit_t = [ CLBIT of CV.t | CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
-type env_gate_t = { args : qgateargs_t ; ty : (int * int) ; result : (list QV.t * list CV.t) } ;
+type env_gate_t = {
+    args : qgateargs_t
+  ; ty : (int * int)
+  ; gate_env : (QVMap.t qubit_t * CVMap.t clbit_t)
+  ; result : (list QV.t * list CV.t)
+ } ;
 
 module Env = struct
   type t = {
@@ -1419,6 +1424,8 @@ module Env = struct
   value add_qubit it qb = { (it) with qubits = it.qubits @ [qb] } ;
   value add_clbit it cb = { (it) with clbits = it.clbits @ [cb] } ;
 
+  value qubits env = env.qubits ;
+  value clbits env = env.clbits ;
 end ;
 
 value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
@@ -1512,6 +1519,12 @@ value assign_gate_item genv gitem = match gitem with [
       Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a has output cvars %a"
              QG.pp_hum gn
              (list ~{sep=const string " "} pp_clbit_t) crl)
+    else if Env.qubits env <> [] then
+      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a allocates qubits (forbidden)!"
+             QG.pp_hum gn)
+    else if Env.clbits env <> [] then
+      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a allocates clbits (forbidden)!"
+             QG.pp_hum gn)
     else
     let qresults = qrl |> List.map (fun [
         QVAR qv -> qv
@@ -1519,7 +1532,7 @@ value assign_gate_item genv gitem = match gitem with [
          Fmt.(raise_failwithf loc "assign_gate_item: gate %a create qubits (forbidden)" QG.pp_hum gn)
       ]) in
     let rv = (qresults, []) in
-    rv
+    ((env.Env.qvmap, env.Env.cvmap),  rv)
 
 | OPAQUE loc gn ((pvl, qvl, cvl) as glam) ->
     if cvl <> [] then
@@ -1528,13 +1541,13 @@ value assign_gate_item genv gitem = match gitem with [
              (list ~{sep=const string " "} CV.pp) cvl)
     else
     let rv = (qvl, []) in
-    rv
+    ((QVMap.empty, CVMap.empty), rv)
 ] ;
 
 value upgrade_gate_item genv (prev_gitem, gitem) =
-  let result = assign_gate_item genv gitem in
+  let (gate_env,  result) = assign_gate_item genv gitem in
   let {TYCHK.args=glam; res=res} = prev_gitem in
-  let rv = { args = glam ; ty = res ; result = result } in
+  let rv = { args = glam ; ty = res ; gate_env = gate_env ; result = result } in
   rv
 ;
 
