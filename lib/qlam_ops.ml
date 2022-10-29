@@ -1388,13 +1388,19 @@ qubits assigned to its outputs.
 type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module QUBit = struct
 type t = qubit_t[@@deriving (to_yojson, show, eq, ord);] ;
-value pp_hum = pp ;
+value pp_hum pps = fun [
+  QUBIT bi -> Fmt.(pf pps "%a" BI.pp_hum bi)
+| QVAR qv -> Fmt.(pf pps "%a" QV.pp_hum qv)
+] ;
 end  ;
 module QUBMap = EntityMap(QUBit) ;
 type clbit_t = [ CLBIT of CV.t | CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module CLBit = struct
 type t = clbit_t[@@deriving (to_yojson, show, eq, ord);] ;
-value pp_hum = pp ;
+value pp_hum pps = fun [
+  CLBIT cv -> Fmt.(pf pps "{clbit %a}" CV.pp_hum cv)
+| CVAR cv -> Fmt.(pf pps "%a" CV.pp_hum cv)
+] ;
 end ;
 module CLBMap = EntityMap(CLBit) ;
 type env_gate_t = {

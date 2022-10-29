@@ -251,7 +251,7 @@ value program (qasm2env, stmts) =
 
 end ;
 
-module ToQasm2 = struct
+module ToQasm2_RETIRED = struct
 open Qasm2syntax.AST ;
 
 module BC = struct
@@ -549,6 +549,8 @@ value program genv0 ?{env0=[]} (env, qc) =
 
 end ;
 
+module ToQasm2 = struct
+
 (**
   Convert from LQIR to qasm2:
 
@@ -574,7 +576,6 @@ end ;
 
  *)
 
-module ToQasm2' = struct
 open Qasm2syntax.AST ;
 module AB = Qlam_ops.AssignBits ;
 module CE = struct
@@ -634,6 +635,51 @@ value lookup_clbit ?{loc=Ploc.dummy} ce x =
 ;
 end ;
 
+value make_uop loc gn pel qrl =
+  let gn = gn |> SYN.QG.toID |> ID.unmk in
+  match (gn, pel, qrl) with [
+      ("U", pel, [qr]) -> U pel qr
+    | ("CX", [], [qr1; qr2]) -> CX qr1 qr2
+    | ("U", _, _) ->
+       Fmt.(raise_failwithf loc "make_uop: malformed args to U")
+    | ("CX", _, _) ->
+       Fmt.(raise_failwithf loc "make_uop: malformed args to CX")
+    | (gn, pel, qrl) ->
+       COMPOSITE_GATE gn pel qrl
+    ]
+;
+
+value conv_paramconst = fun [
+  SYN.REAL r -> REAL r
+| NNINT n -> NNINT n
+| PI -> PI
+] ;
+
+value conv_empty pv : expr empty_t = match pv with [
+  SYN.PV loc _ -> Fmt.(raise_failwithf loc "conv_param: variables forbidden here")
+] ;
+value conv_cparamvar pv = ID (SYN.PV.toID pv) ;
+
+value conv_param conv_paramvar e =
+  let rec crec = fun [
+        SYN.ID _ pv -> conv_paramvar pv
+      | CONST _ pc -> conv_paramconst pc
+      | BINOP _ ADD pe1 pe2 -> ADD (crec pe1) (crec pe2)
+      | BINOP _ SUB pe1 pe2 -> SUB (crec pe1) (crec pe2)
+      | BINOP _ MUL pe1 pe2 -> MUL (crec pe1) (crec pe2)
+      | BINOP _ DIV pe1 pe2 -> DIV (crec pe1) (crec pe2)
+      | BINOP _ POW pe1 pe2 -> POW (crec pe1) (crec pe2)
+      | UNOP _ UMINUS pe -> UMINUS (crec pe)
+      | UFUN _ SIN pe -> SIN (crec pe)
+      | UFUN _ COS pe -> COS (crec pe)
+      | UFUN _ TAN pe -> TAN (crec pe)
+      | UFUN _ EXP pe -> EXP (crec pe)
+      | UFUN _ LN pe -> LN (crec pe)
+      | UFUN _ SQRT pe -> SQRT (crec pe)
+      ] in
+  crec e
+;
+
 value qcircuit aenv env qc =
   let rec qbrec env (loc, qformals, cformals, qc) = match qc with [
     SYN.QWIRES loc qvl cvl ->
@@ -656,8 +702,8 @@ value qcircuit aenv env qc =
        Fmt.(raise_failwithf loc "qcircuit: cannot convert LQIR gate to qasm that reorders clbits in output")
      else
      let insn = 
-       let pel = List.map ToQasm2.(conv_param conv_empty) pactuals in
-       (loc, STMT_QOP (UOP (ToQasm2.make_uop loc gn pel qrl))) in
+       let pel = List.map (conv_param conv_empty) pactuals in
+       (loc, STMT_QOP (UOP (make_uop loc gn pel qrl))) in
      ((Std.combine qformals qrl, Std.combine cformals crl), [insn])
 
   | QBARRIER _ qactuals ->
@@ -734,7 +780,7 @@ value env_item aenv it = match it with [
     []
   }
 
-| _ -> Fmt.(failwithf "Qconvert.ToQasm2'.env_item: unexpected declaration %a" PP.item it)
+| _ -> Fmt.(failwithf "Qconvert.ToQasm2.env_item: unexpected declaration %a" PP.item it)
 ] ;
 
 value environ aenv gates =
@@ -744,7 +790,33 @@ value environ aenv gates =
 value program genv0 ?{env0=[]} (envitems, qc) =
   let (gate_assign_env, qc_assign_env) = AssignBits.program genv0 ~{env0=env0} (envitems, qc) in
   let env_insns = environ gate_assign_env envitems in
-  let (_, qc_insns) = qcircuit gate_assign_env CE.empty qc in
+
+  let qc_qubits = AB.Env.qubits qc_assign_env in
+  let qreg_size = List.length qc_qubits in
+  let qreg_name = "q" in
+  let qreg_insns =
+    if qreg_size <> 0 then
+      [(Ploc.dummy, STMT_QREG qreg_name qreg_size)]
+    else [] in
+  let qubit2reg =
+    qc_qubits
+    |> List.mapi (fun n qb -> (qb, INDEXED (QREG qreg_name) n))
+    |> AB.QUBMap.ofList in
+
+  let qc_clbits = AB.Env.clbits qc_assign_env in
+  let creg_size = List.length qc_clbits in
+  let creg_name = "c" in
+  let creg_insns =
+    if creg_size <> 0 then
+      [(Ploc.dummy, STMT_CREG creg_name creg_size)]
+    else [] in
+  let clbit2reg =
+    qc_clbits
+    |> List.mapi (fun n cb -> (cb, INDEXED (CREG creg_name) n))
+    |> AB.CLBMap.ofList in
+  
+  let env = { (CE.empty) with CE.qubit2reg = qubit2reg; CE.clbit2reg = clbit2reg } in
+  let (_, qc_insns) = qcircuit gate_assign_env env qc in
   env_insns @ qc_insns
 ;
 end ;
