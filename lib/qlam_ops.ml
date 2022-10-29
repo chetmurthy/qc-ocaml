@@ -1386,7 +1386,17 @@ qubits assigned to its outputs.
  *)
 
 type qubit_t = [ QUBIT of BI.t | QVAR of QV.t ][@@deriving (to_yojson, show, eq, ord);] ;
+module QUBit = struct
+type t = qubit_t[@@deriving (to_yojson, show, eq, ord);] ;
+value pp_hum = pp ;
+end  ;
+module QUBMap = EntityMap(QUBit) ;
 type clbit_t = [ CLBIT of CV.t | CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
+module CLBit = struct
+type t = clbit_t[@@deriving (to_yojson, show, eq, ord);] ;
+value pp_hum = pp ;
+end ;
+module CLBMap = EntityMap(CLBit) ;
 type env_gate_t = {
     args : qgateargs_t
   ; ty : (int * int)
@@ -1428,13 +1438,13 @@ module Env = struct
   value clbits env = env.clbits ;
 end ;
 
-value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
+value rec binding genv env (loc, qvar_formals, cvar_formals, qc) =
   match qc with [
     QMEASURE _ qvar_actuals ->
       if List.length qvar_formals <> List.length qvar_actuals then
-        Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE qvar formals/actuals length mismatch")
+        Fmt.(raise_failwithf loc "AssignBits.binding: internal error: QMEASURE qvar formals/actuals length mismatch")
       else if List.length cvar_formals <> List.length qvar_actuals then
-        Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
+        Fmt.(raise_failwithf loc "AssignBits.binding: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
       else
         let cvar_results = List.map (fun cv -> CLBIT cv) cvar_formals in
         let qvar_results = qvar_actuals |> List.map (Env.qv_swap_find env) in
@@ -1444,11 +1454,11 @@ value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
         env
 
   | _ ->
-     let (env, (qrl, crl)) = assign_qcirc genv env qc in
+     let (env, (qrl, crl)) = qcircuit genv env qc in
       if List.length qvar_formals <> List.length qrl then
-        Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE qvar formals/actuals length mismatch")
+        Fmt.(raise_failwithf loc "AssignBits.binding: internal error: QMEASURE qvar formals/actuals length mismatch")
       else if List.length cvar_formals <> List.length crl then
-        Fmt.(raise_failwithf loc "assign_binding: internal error: QMEASURE cvar formals/actuals length mismatch")
+        Fmt.(raise_failwithf loc "AssignBits.binding: internal error: QMEASURE cvar formals/actuals length mismatch")
       else
         let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qrl in
         let cvar_additional_mapping = List.map2 (fun cformal cresult -> (cformal, cresult)) cvar_formals crl in
@@ -1457,11 +1467,11 @@ value rec assign_binding genv env (loc, qvar_formals, cvar_formals, qc) =
         env
   ]
 
-and assign_qcirc genv env qc =
+and qcircuit genv env qc =
   let rec arec qc = match qc with [
     QLET loc bl qc ->
-      let env = List.fold_left (assign_binding genv) env bl in
-      assign_qcirc genv env qc
+      let env = List.fold_left (binding genv) env bl in
+      qcircuit genv env qc
 
   | QWIRES _ qvl cvl ->
      (env, (List.map (Env.qv_swap_find env) qvl,List.map (Env.cv_swap_find env) cvl))
@@ -1469,11 +1479,11 @@ and assign_qcirc genv env qc =
   | QGATEAPP loc gn pel qvar_actuals cvar_actuals ->
      let {args=(_, qvar_formals, cvar_formals); result=(gate_qresults, gate_cresults)} = GEnv.find_gate ~{loc=loc} genv gn in
      if List.length qvar_formals <> List.length qvar_actuals then
-       Fmt.(raise_failwithf loc "assign_qcirc: internal error: qvar formals/actuals length mismatch")
+       Fmt.(raise_failwithf loc "AssignBits.qcircuit: internal error: qvar formals/actuals length mismatch")
      else if cvar_formals <> [] then
-       Fmt.(raise_failwithf loc "assign_qcirc: internal error: cvar formals should be empty")
+       Fmt.(raise_failwithf loc "AssignBits.qcircuit: internal error: cvar formals should be empty")
      else if cvar_actuals <> [] then
-       Fmt.(raise_failwithf loc "assign_qcirc: internal error: cvar actuals should be empty")
+       Fmt.(raise_failwithf loc "AssignBits.qcircuit: internal error: cvar actuals should be empty")
      else
        (* (1) each actual is mapped to a bit by [qc]vmap.
           
@@ -1493,7 +1503,7 @@ and assign_qcirc genv env qc =
      (env, ([qb], []))
 
   | QMEASURE loc _ ->
-     Fmt.(raise_failwithf loc "assign_qcirc: QMEASURE found in non-let-binding context")
+     Fmt.(raise_failwithf loc "AssignBits.qcircuit: QMEASURE found in non-let-binding context")
 
   | QBARRIER _ qvl ->
      (env, (List.map (Env.qv_swap_find env) qvl,[]))
@@ -1505,38 +1515,38 @@ and assign_qcirc genv env qc =
   arec qc
 ;
 
-value assign_gate_item genv gitem = match gitem with [
+value gate_item genv gitem = match gitem with [
   DEF loc gn (((pvl, qvl, cvl) as glam), qc) ->
     let env = Env.empty in
     let env = Env.add_qbindings env (qvl |> List.map (fun qv -> (qv, QVAR qv))) in
     let env = Env.add_cbindings env (cvl |> List.map (fun cv -> (cv, CVAR cv))) in
-    let (env, (qrl, crl)) = assign_qcirc genv env qc in
+    let (env, (qrl, crl)) = qcircuit genv env qc in
     if cvl <> [] then
-      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a has input cvars %a"
+      Fmt.(raise_failwithf loc "AssignBits.gate_item: internal error gate %a has input cvars %a"
              QG.pp_hum gn
              (list ~{sep=const string " "} CV.pp) cvl)
     else if crl <> [] then
-      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a has output cvars %a"
+      Fmt.(raise_failwithf loc "AssignBits.gate_item: internal error gate %a has output cvars %a"
              QG.pp_hum gn
              (list ~{sep=const string " "} pp_clbit_t) crl)
     else if Env.qubits env <> [] then
-      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a allocates qubits (forbidden)!"
+      Fmt.(raise_failwithf loc "AssignBits.gate_item: internal error gate %a allocates qubits (forbidden)!"
              QG.pp_hum gn)
     else if Env.clbits env <> [] then
-      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a allocates clbits (forbidden)!"
+      Fmt.(raise_failwithf loc "AssignBits.gate_item: internal error gate %a allocates clbits (forbidden)!"
              QG.pp_hum gn)
     else
     let qresults = qrl |> List.map (fun [
         QVAR qv -> qv
       | QUBIT _ -> 
-         Fmt.(raise_failwithf loc "assign_gate_item: gate %a create qubits (forbidden)" QG.pp_hum gn)
+         Fmt.(raise_failwithf loc "AssignBits.gate_item: gate %a create qubits (forbidden)" QG.pp_hum gn)
       ]) in
     let rv = (qresults, []) in
     ((env.Env.qvmap, env.Env.cvmap),  rv)
 
 | OPAQUE loc gn ((pvl, qvl, cvl) as glam) ->
     if cvl <> [] then
-      Fmt.(raise_failwithf loc "assign_gate_item: internal error gate %a has input cvars %a"
+      Fmt.(raise_failwithf loc "AssignBits.gate_item: internal error gate %a has input cvars %a"
              QG.pp_hum gn
              (list ~{sep=const string " "} CV.pp) cvl)
     else
@@ -1545,18 +1555,18 @@ value assign_gate_item genv gitem = match gitem with [
 ] ;
 
 value upgrade_gate_item genv (prev_gitem, gitem) =
-  let (gate_env,  result) = assign_gate_item genv gitem in
+  let (gate_env,  result) = gate_item genv gitem in
   let {TYCHK.args=glam; res=res} = prev_gitem in
   let rv = { args = glam ; ty = res ; gate_env = gate_env ; result = result } in
   rv
 ;
 
-value environ genv0 env_items = GEnv.upgrade_environ upgrade_gate_item genv0 env_items ;
+value environ genv0 ?{env0=[]} env_items = GEnv.upgrade_environ upgrade_gate_item genv0 (env0@env_items) ;
 
-value program genv0 (env_items, qc) =
-  let genv = environ genv0 env_items in
-  let (env, _) = assign_qcirc genv Env.empty qc in
-  env
+value program genv0 ?{env0=[]} (env_items, qc) =
+  let genv = environ genv0 ~{env0=env0} env_items in
+  let (env, _) = qcircuit genv Env.empty qc in
+  (genv, env)
 ;
 
 end ;

@@ -157,11 +157,13 @@ yojson_helpers.cmo :
 yojson_helpers.cmx :
 qconvert.cmo : \
     qlam_syntax.cmo \
+    qlam_ops.cmo \
     qc_misc.cmo \
     qasm2syntax.cmo \
     misc_functions.cmo
 qconvert.cmx : \
     qlam_syntax.cmx \
+    qlam_ops.cmx \
     qc_misc.cmx \
     qasm2syntax.cmx \
     misc_functions.cmx

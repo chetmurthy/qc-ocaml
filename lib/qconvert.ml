@@ -6,6 +6,8 @@ open Ppxutil ;
 
 open Qc_misc ;
 open Qlam_syntax ;
+open Qlam_ops ;
+open Qlam_env ;
 
 module ToLam = struct
 open Qasm2syntax.AST ;
@@ -574,5 +576,175 @@ end ;
 
 module ToQasm2' = struct
 open Qasm2syntax.AST ;
+module AB = Qlam_ops.AssignBits ;
+module CE = struct
+type t = {
+    quenv : SYN.QVMap.t (or_indexed qreg_t)
+  ; clenv : SYN.CVMap.t (or_indexed creg_t)
+  ; qubit2reg : AB.QUBMap.t (or_indexed qreg_t)
+  ; clbit2reg : AB.CLBMap.t (or_indexed creg_t)
+  } ;
 
+value empty =
+  {
+    quenv = SYN.QVMap.empty
+  ; clenv = SYN.CVMap.empty
+  ; qubit2reg = AB.QUBMap.empty
+  ; clbit2reg = AB.CLBMap.empty
+  } ;
+
+value lookup_qv ?{loc=Ploc.dummy} ce x =
+  let open SYN in let open QV in
+  match QVMap.find x ce.quenv with [
+      exception Not_found ->
+                Fmt.(raise_failwithf loc "lookup_qv: cannot find %a" pp_hum x)
+    | x -> x
+    ]
+;
+
+value lookup_cv ?{loc=Ploc.dummy} ce x =
+  let open SYN in let open CV in
+  match CVMap.find x ce.clenv with [
+      exception Not_found ->
+                Fmt.(raise_failwithf loc "lookup_cv: cannot find %a" pp_hum x)
+    | x -> x
+    ]
+;
+
+value upsert_qv ce (qv, qr) =
+  { (ce) with quenv = SYN.QVMap.add qv qr ce.quenv } ;
+
+value upsert_cv ce (cv, cr) =
+  { (ce) with clenv = SYN.CVMap.add cv cr ce.clenv } ;
+
+value lookup_qubit ?{loc=Ploc.dummy} ce x =
+  match AB.QUBMap.find x ce.qubit2reg with [
+      exception Not_found ->
+                Fmt.(raise_failwithf loc "lookup_qubit: cannot find %a" AB.QUBit.pp_hum x)
+    | x -> x
+    ]
+;
+
+value lookup_clbit ?{loc=Ploc.dummy} ce x =
+  match AB.CLBMap.find x ce.clbit2reg with [
+      exception Not_found ->
+                Fmt.(raise_failwithf loc "lookup_clbit: cannot find %a" AB.CLBit.pp_hum x)
+    | x -> x
+    ]
+;
+end ;
+
+value qcircuit aenv env qc =
+  let rec qbrec env (loc, qformals, cformals, qc) = match qc with [
+    SYN.QWIRES loc qvl cvl ->
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qvl in
+     let crl = List.map (CE.lookup_cv ~{loc=loc} env) cvl in
+     ((Std.combine qformals qrl, Std.combine cformals crl), [])
+
+  | QGATEAPP loc gn pactuals qactuals cactuals ->
+     if cactuals <> [] then
+       Fmt.(raise_failwithf loc "qcircuit: unimplemented error: gates cannot take classical bits in qasm2 YET")
+     else
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qactuals in
+     let crl = List.map (CE.lookup_cv ~{loc=loc} env) cactuals in
+     let gate_result = GEnv.find_gate ~{loc=loc} aenv gn in
+     let (gate_qresults, gate_cresults) = gate_result.AB.result in
+     let (_, gate_qformals, gate_cformals) = gate_result.AB.args in
+     if not (List.for_all2 SYN.QV.equal gate_qresults gate_qformals) then
+       Fmt.(raise_failwithf loc "qcircuit: cannot convert LQIR gate to qasm that reorders qubits in output")
+     else if not (List.for_all2 SYN.CV.equal gate_cresults gate_cformals) then
+       Fmt.(raise_failwithf loc "qcircuit: cannot convert LQIR gate to qasm that reorders clbits in output")
+     else
+     let insn = 
+       let pel = List.map ToQasm2.(conv_param conv_empty) pactuals in
+       (loc, STMT_QOP (UOP (ToQasm2.make_uop loc gn pel qrl))) in
+     ((Std.combine qformals qrl, Std.combine cformals crl), [insn])
+
+  | QBARRIER _ qactuals ->
+     let _ = assert (cformals = []) in
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qactuals in
+     let insn = (loc, STMT_BARRIER qrl) in
+     ((Std.combine qformals qrl, []), [insn])
+
+  | QCREATE _ bi ->
+     let _ = assert (List.length qformals = 1) in
+     let _ = assert (cformals = []) in
+     let qr = CE.lookup_qubit ~{loc=loc} env (AB.QUBIT bi) in
+     ((Std.combine qformals [qr], []), [])
+
+  | QDISCARD _ _ -> (([], []), [])
+  | QMEASURE loc qactuals ->
+     let _ = assert (List.length qactuals = List.length qformals) in
+     let _ = assert (List.length qactuals = List.length cformals) in
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qactuals in
+     let crl = List.map (fun cv -> CE.lookup_clbit ~{loc=loc} env (AB.CLBIT cv)) cformals in
+     let insns =
+       (Std.combine qrl crl)
+       |> List.map (fun (qr, cr) -> (loc, STMT_QOP (MEASURE qr cr))) in
+     ((Std.combine qformals qrl, Std.combine cformals crl), insns)
+
+  | QRESET _ qvl ->
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qformals in
+     let _ = assert (cformals = []) in
+     let insns = 
+       qrl |> List.map (fun qr -> (loc, STMT_QOP (RESET qr))) in
+     ((Std.combine qformals qrl, []),  insns)
+
+      ]
+  and qcrec env qc = match qc with [
+    SYN.QLET _ bl qc ->
+    let bl = List.map (qbrec env) bl in
+    let _ = assert (Std.distinct (bl |> List.concat_map (fun ((ql, _), _) -> List.map fst ql))) in
+    let _ = assert (Std.distinct (bl |> List.concat_map (fun ((_, cl), _) -> List.map fst cl))) in
+    let env = List.fold_left (fun env ((ql, cl), _) ->
+                  let env = List.fold_left CE.upsert_qv env ql in
+                  let env = List.fold_left CE.upsert_cv env cl in
+                  env)
+                env bl in
+    let bl_insns = List.concat_map snd bl in
+    let (res, insns) = qcrec env qc in
+    (res, bl_insns @ insns)
+
+  | QWIRES loc qvl cvl ->
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qvl in
+     let crl = List.map (CE.lookup_cv ~{loc=loc} env) cvl in
+     ((qrl, crl), [])
+
+  | _ -> Fmt.(raise_failwithf (SYN.loc_of_qcirc qc) "circuit not in normal form")
+  ] in
+  qcrec env qc
+;
+
+value env_item aenv it = match it with [
+  SYN.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
+| QINCLUDE loc _ _ _ ->
+   Fmt.(raise_failwithf loc "cannot convert QLAM include into QASM")
+| QGATE _ (OPAQUE _ (U _) _) -> [] 
+| QGATE _ (OPAQUE _ (CX _) _) -> []
+| QCOUPLING_MAP loc mname _ -> do {
+    Fmt.(pf stderr "%a: ToQasm2.env_item: coupling map %a skipped@.%!"
+           Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc
+           ID.pp_hum mname) ;
+    []
+  }
+| QLAYOUT loc mname _ -> do {
+    Fmt.(pf stderr "%a: ToQasm2.env_item: layout %a skipped@.%!"
+           Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc
+           ID.pp_hum mname) ;
+    []
+  }
+
+| _ -> Fmt.(failwithf "Qconvert.ToQasm2'.env_item: unexpected declaration %a" PP.item it)
+] ;
+
+value environ aenv gates =
+  let gate_instrs = List.concat_map (env_item aenv) gates in
+  gate_instrs ;
+
+value program genv0 ?{env0=[]} (envitems, qc) =
+  let (gate_assign_env, qc_assign_env) = AssignBits.program genv0 ~{env0=env0} (envitems, qc) in
+  let env_insns = environ gate_assign_env envitems in
+  let (_, qc_insns) = qcircuit gate_assign_env CE.empty qc in
+  env_insns @ qc_insns
+;
 end ;
