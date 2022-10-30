@@ -1068,43 +1068,6 @@ module LO = struct
   ;
 end ;
 
-module ComputeBits = struct
-(** compute the bits used by this circuit
-
-    (1) assume the circuit is A-normalized.
-
-    (2) qubits are associated with the QCREATE node, so easy to gather
-
-    (3) clbits are created by QMEASURE nodes *in let bindings*, so we
-    must assume that all variables (well, clvars) are distinct and
-    what we're really gathering, is the list of clvars produced by
-    QMEASURE nodes.
-
- *)
-
-value compute_bits qc =
-  let rec crec qc = match qc with [
-    QLET loc bl qc ->
-    let (qbl, cbl) = crec qc in
-    List.fold_left (fun (qbl, cbl) b -> match b with [
-        (loc, _, cvl, QMEASURE _ _) -> (qbl, cbl@cvl)
-      | (loc, _, _, QGATEAPP _ _ _ _ _) -> (qbl, cbl)
-      | (loc, _, _, QCREATE _ bi) -> (qbl@[bi], cbl)
-      | (loc, _, _, (QLET _ _ _)) ->
-         Fmt.(raise_failwithf loc "compute_qubits: internal error: R.H.S. of let-binding not in A-normal form")
-      | _ -> ([], [])
-      ]) (qbl, cbl) bl
-
-  | (QWIRES _ _ _) -> ([], [])
-
-  | _ ->
-     Fmt.(raise_failwithf (loc_of_qcirc qc) "compute_qubits: internal error: forbidden AST node found outside of the RHS of a let-binding")
-  ] in
-  crec qc
-;
-
-end ;
-
 module TYCHK = struct
 
 type env_gate_t = {
@@ -1575,15 +1538,71 @@ module Latex = struct
 
  *)
 
-value remove_bit_overlap (qmap, cmap) (loc, bl) = [(loc,bl)] ;
+module AB = AssignBits ;
 
-value latex (genv, qc) =
-  let (qubits, clbits) = ComputeBits.compute_bits qc in
-  let qmap = qubits |> List.mapi (fun i bi -> (bi, i)) |> SYN.BIMap.ofList in
-  let cmap = clbits |> List.mapi (fun  i cv -> (cv, i)) |> SYN.CVMap.ofList in
+value binding_wire_range aenv (qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
+  let (_, qvfvs, cvfvs) = circuit_freevars qc in
+  let qvl = QVFVS.(toList (union qvfvs (ofList qvl))) in
+  let cvl = CVFVS.(toList (union cvfvs (ofList cvl))) in
+  let qubits = List.map (AB.Env.qv_swap_find aenv) qvl in
+  let clbits = List.map (AB.Env.cv_swap_find aenv) cvl in
+  let qwires = List.map (AB.QUBMap.swap_find qubit2wire) qubits in
+  let cwires = List.map (AB.CLBMap.swap_find clbit2wire) clbits in
+  let all_wires = qwires@cwires in
+  let min_wire = List.fold_left min max_int all_wires in
+  let max_wire = List.fold_left max min_int all_wires in
+  (min_wire, max_wire)
+;
+
+value rec layers sbr = match sbr with [
+  [] -> []
+| [b :: t] ->
+   let rec sepchain (rev_chain, rev_rest) = fun [
+         [] -> (List.rev rev_chain, List.rev rev_rest)
+       | [b1::t] ->
+          let b0 = List.hd rev_chain in
+          let ((_, b0_max), _) = b0 in
+          let ((b1_min, _), _) = b1 in
+          if b0_max < b1_min then sepchain ([b1::rev_chain], rev_rest) t
+          else sepchain (rev_chain,  [b1::rev_rest]) t
+       ] in
+   let (chain, rest) = sepchain ([b], []) t in
+         [chain:: layers rest]
+] ;
+
+(** remove_bit_overlap:
+
+    (1) for eaching binding, compute [min,max] wire-numbers
+    (2) sort by min-wire-number
+    (3) repeatedly, until the list is empty:
+        (4) select first binding, and find the next non-overlapping binding, keep going, removing all these bindings
+        (5) this removed list of non-overlapping bindings is a new layer
+        (6) and the remaining bindings are the list that needs to be further processed.
+ *)
+value remove_bit_overlap aenv (qubit2wire, clbit2wire) (loc, bl) =
+  let bl_ranges = List.map (fun b -> (binding_wire_range aenv (qubit2wire, clbit2wire) b, b)) bl in
+  let sorted_bl_ranges = List.sort (fun ((a, _), _) ((b, _), _) -> Stdlib.compare a b) bl_ranges in
+  layers sorted_bl_ranges
+;
+
+value latex genv0 ?{env0=[]} (envitems, qc) =
+  let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
+  let qubits = AB.Env.qubits qc_assign_env in
+  let num_qubits = List.length qubits in
+  let qubit2wire =
+    qubits
+    |> List.mapi (fun i qb -> (qb,i))
+    |> AB.QUBMap.ofList in
+  let clbits = AB.Env.clbits qc_assign_env in
+  let num_clbits = List.length clbits in
+  let clbit2wire =
+    clbits
+    |> List.mapi (fun i cb -> (cb,i+num_qubits))
+    |> AB.CLBMap.ofList in
+  let num_bits = num_qubits + num_clbits in
   let qc = Hoist.hoist qc in
   let (ll, qc) = SYN.to_letlist qc in
-  let ll = ll |> List.concat_map (remove_bit_overlap (qmap, cmap)) in
+  let ll = ll |> List.concat_map (remove_bit_overlap qc_assign_env (qubit2wire, clbit2wire)) in
   (ll, qc)
 ;
 
