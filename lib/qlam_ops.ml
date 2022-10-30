@@ -1105,42 +1105,6 @@ value compute_bits qc =
 
 end ;
 
-module Latex = struct
-(** Generate Latex for a quantum circuit.
-
-    Method:
-
-    (1) compute qubits/clbits the circuit uses
-
-    (2) map each "logical qubit" (BI.t) and clbit to a "physical line"
-    (which will be the line on the diagram)
-
-    (3) compute the "Hoist"ed version of the circuit
-
-    (4) for each layer in the hoisted circuit, break it into one or
-    more sub-layers, such that no gates in a sub-layer overlap in
-    their set of qubits.
-    
-    (5) the total # of layers to the circuit is #sub-layers
-
-
-
- *)
-
-value remove_bit_overlap (qmap, cmap) (loc, bl) = [(loc,bl)] ;
-
-value latex (genv, qc) =
-  let (qubits, clbits) = ComputeBits.compute_bits qc in
-  let qmap = qubits |> List.mapi (fun i bi -> (bi, i)) |> SYN.BIMap.ofList in
-  let cmap = clbits |> List.mapi (fun  i cv -> (cv, i)) |> SYN.CVMap.ofList in
-  let qc = Hoist.hoist qc in
-  let (ll, qc) = SYN.to_letlist qc in
-  let ll = ll |> List.concat_map (remove_bit_overlap (qmap, cmap)) in
-  (ll, qc)
-;
-
-end ;
-
 module TYCHK = struct
 
 type env_gate_t = {
@@ -1585,6 +1549,42 @@ value program ?{env0=[]} (environ, qc) =
   let p = NameNorm.program p in
   let (genv, ty) = TYCHK.program ~{env0=env0} p in
   (genv, p)
+;
+
+end ;
+
+module Latex = struct
+(** Generate Latex for a quantum circuit.
+
+    Method:
+
+    (1) compute qubits/clbits the circuit uses
+
+    (2) map each "logical qubit" (BI.t) and clbit to a "physical line"
+    (which will be the line on the diagram)
+
+    (3) compute the "Hoist"ed version of the circuit
+
+    (4) for each layer in the hoisted circuit, break it into one or
+    more sub-layers, such that no gates in a sub-layer overlap in
+    their set of qubits.
+    
+    (5) the total # of layers to the circuit is #sub-layers
+
+
+
+ *)
+
+value remove_bit_overlap (qmap, cmap) (loc, bl) = [(loc,bl)] ;
+
+value latex (genv, qc) =
+  let (qubits, clbits) = ComputeBits.compute_bits qc in
+  let qmap = qubits |> List.mapi (fun i bi -> (bi, i)) |> SYN.BIMap.ofList in
+  let cmap = clbits |> List.mapi (fun  i cv -> (cv, i)) |> SYN.CVMap.ofList in
+  let qc = Hoist.hoist qc in
+  let (ll, qc) = SYN.to_letlist qc in
+  let ll = ll |> List.concat_map (remove_bit_overlap (qmap, cmap)) in
+  (ll, qc)
 ;
 
 end ;
