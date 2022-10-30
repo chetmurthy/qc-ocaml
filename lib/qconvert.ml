@@ -579,11 +579,11 @@ module ToQasm2 = struct
 open Qasm2syntax.AST ;
 module AB = Qlam_ops.AssignBits ;
 module CE = struct
-type t = {
-    quenv : SYN.QVMap.t (or_indexed qreg_t)
-  ; clenv : SYN.CVMap.t (or_indexed creg_t)
-  ; qubit2reg : AB.QUBMap.t (or_indexed qreg_t)
-  ; clbit2reg : AB.CLBMap.t (or_indexed creg_t)
+type t 'a 'b = {
+    quenv : SYN.QVMap.t 'a
+  ; clenv : SYN.CVMap.t 'b
+  ; qubit2reg : AB.QUBMap.t 'a
+  ; clbit2reg : AB.CLBMap.t 'b
   } ;
 
 value empty =
@@ -658,7 +658,7 @@ value conv_paramconst = fun [
 value conv_empty pv : expr empty_t = match pv with [
   SYN.PV loc _ -> Fmt.(raise_failwithf loc "conv_param: variables forbidden here")
 ] ;
-value conv_cparamvar pv = ID (SYN.PV.toID pv) ;
+value conv_cparamvar pv = ID (CPARAMVAR (pv |> SYN.PV.toID |> ID.unmk)) ;
 
 value conv_param conv_paramvar e =
   let rec crec = fun [
@@ -761,12 +761,97 @@ value qcircuit aenv env qc =
   qcrec env qc
 ;
 
+value gate_qcircuit aenv env qc =
+  let rec qbrec env (loc, qformals, cformals, qc) = match qc with [
+    SYN.QWIRES loc qvl cvl ->
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qvl in
+     let crl = List.map (CE.lookup_cv ~{loc=loc} env) cvl in
+     ((Std.combine qformals qrl, Std.combine cformals crl), [])
+
+  | QGATEAPP loc gn pactuals qactuals cactuals ->
+     if cactuals <> [] then
+       Fmt.(raise_failwithf loc "qcircuit: unimplemented error: gates cannot take classical bits in qasm2 YET")
+     else
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qactuals in
+     let crl = List.map (CE.lookup_cv ~{loc=loc} env) cactuals in
+     let gate_result = GEnv.find_gate ~{loc=loc} aenv gn in
+     let (gate_qresults, gate_cresults) = gate_result.AB.result in
+     let (_, gate_qformals, gate_cformals) = gate_result.AB.args in
+     if not (List.for_all2 SYN.QV.equal gate_qresults gate_qformals) then
+       Fmt.(raise_failwithf loc "qcircuit: cannot convert LQIR gate to qasm that reorders qubits in output")
+     else if not (List.for_all2 SYN.CV.equal gate_cresults gate_cformals) then
+       Fmt.(raise_failwithf loc "qcircuit: cannot convert LQIR gate to qasm that reorders clbits in output")
+     else
+     let insn : gate_op_t loc = 
+       let pel : list (expr cparamvar_t) = List.map (conv_param conv_cparamvar) pactuals in
+       (loc, GATE_UOP (make_uop loc gn pel qrl)) in
+     ((Std.combine qformals qrl, Std.combine cformals crl), [insn])
+
+  | QBARRIER _ qactuals ->
+     let _ = assert (cformals = []) in
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qactuals in
+     let insn = (loc, GATE_BARRIER qrl) in
+     ((Std.combine qformals qrl, []), [insn])
+
+  ]
+  and qcrec env qc = match qc with [
+    SYN.QLET _ bl qc ->
+    let bl = List.map (qbrec env) bl in
+    let _ = assert (Std.distinct (bl |> List.concat_map (fun ((ql, _), _) -> List.map fst ql))) in
+    let _ = assert (Std.distinct (bl |> List.concat_map (fun ((_, cl), _) -> List.map fst cl))) in
+    let env = List.fold_left (fun env ((ql, cl), _) ->
+                  let env = List.fold_left CE.upsert_qv env ql in
+                  let env = List.fold_left CE.upsert_cv env cl in
+                  env)
+                env bl in
+    let bl_insns = List.concat_map snd bl in
+    let (res, insns) = qcrec env qc in
+    (res, bl_insns @ insns)
+
+  | QWIRES loc qvl cvl ->
+     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qvl in
+     let crl = List.map (CE.lookup_cv ~{loc=loc} env) cvl in
+     ((qrl, crl), [])
+
+  | _ -> Fmt.(raise_failwithf (SYN.loc_of_qcirc qc) "circuit not in normal form")
+  ] in
+  qcrec env qc
+;
+
 value env_item aenv it = match it with [
   SYN.QINCLUDE loc QASM2 fn _ -> [(loc, STMT_INCLUDE QASM2 fn None)]
 | QINCLUDE loc _ _ _ ->
    Fmt.(raise_failwithf loc "cannot convert QLAM include into QASM")
 | QGATE _ (OPAQUE _ (U _) _) -> [] 
 | QGATE _ (OPAQUE _ (CX _) _) -> []
+| QGATE loc (DEF _ gn (_, qc)) ->
+   let gate_result = GEnv.find_gate ~{loc=loc} aenv gn in
+   let (gate_qresults, gate_cresults) = gate_result.AB.result in
+   let (gate_pformals, gate_qformals, gate_cformals) = gate_result.AB.args in
+   let _ = assert (gate_cformals = []) in
+   let _ = assert (gate_cresults = []) in
+   if not (List.for_all2 SYN.QV.equal gate_qresults gate_qformals) then
+     Fmt.(raise_failwithf loc "qcircuit: cannot convert LQIR gate to qasm that reorders qubits in output")
+   else if not (List.for_all2 SYN.CV.equal gate_cresults gate_cformals) then
+     Fmt.(raise_failwithf loc "qcircuit: cannot convert LQIR gate to qasm that reorders clbits in output")
+   else
+   let env = CE.empty in
+(*
+   let qubit2reg =
+     gate_qformals
+     |>  List.map (fun qv -> (AB.QVAR qv, QUBIT (qv |> SYN.QV.toID |> ID.unmk)))
+     |> AB.QUBMap.ofList in
+   let clbit2reg = AB.CLBMap.empty in
+   let env = { (env) with CE.qubit2reg = qubit2reg ; clbit2reg = clbit2reg } in
+ *)
+   let env = List.fold_left (fun  env qv -> CE.upsert_qv env (qv, QUBIT (qv |> SYN.QV.toID |> ID.unmk))) env gate_qformals in
+   let (_, qc_insns) = gate_qcircuit aenv env qc in
+   let pformals = gate_pformals |> List.map SYN.PV.toID |> List.map ID.unmk in
+   let qformals = gate_qformals |> List.map SYN.QV.toID |> List.map ID.unmk in
+   let qformals = gate_qformals |> List.map SYN.QV.toID |> List.map ID.unmk in
+   [(loc, STMT_GATEDECL (gn |> SYN.QG.toID |> ID.unmk, pformals, qformals, qc_insns))]
+
+
 | QCOUPLING_MAP loc mname _ -> do {
     Fmt.(pf stderr "%a: ToQasm2.env_item: coupling map %a skipped@.%!"
            Pa_ppx_runtime_fat.Exceptions.Ploc.pp loc
@@ -815,7 +900,7 @@ value program genv0 ?{env0=[]} (envitems, qc) =
     |> List.mapi (fun n cb -> (cb, INDEXED (CREG creg_name) n))
     |> AB.CLBMap.ofList in
   
-  let env = { (CE.empty) with CE.qubit2reg = qubit2reg; CE.clbit2reg = clbit2reg } in
+  let env = { (CE.empty) with CE.qubit2reg = qubit2reg; clbit2reg = clbit2reg } in
   let (_, qc_insns) = qcircuit gate_assign_env env qc in
   env_insns @ qc_insns
 ;
