@@ -1641,7 +1641,7 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
            AB.CLBSet.pp_hum (AB.CLBSet.ofList clbits) AB.CLBSet.pp_hum (AB.CLBMap.dom clbit2wire))
   else
   let wires = (AB.QUBMap.rng qubit2wire)@(AB.CLBMap.rng clbit2wire) in
-  if wires <> [] then
+  if wires = [] then
     Fmt.(failwithf "Latex.latex: no wires specified")
   else if not (Std.distinct wires) then
     Fmt.(failwithf "Latex.latex: repeated wires are forbidden: %a"

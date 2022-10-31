@@ -32,7 +32,7 @@ let comment_regexp = "//" [^ '\r' '\n']* newline
 
 rule header =
   parse
-| "OPENQASM" white { grab_real lexbuf }
+| (comment_regexp | white | newline)* "OPENQASM" white { grab_real lexbuf }
 
 and grab_real =
   parse

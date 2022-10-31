@@ -81,6 +81,14 @@ module Matrix = struct
     else if j < 0 then set m i (j+m.cols) v
     else m.it.(i).(j) <- v
 
+
+let pp pps m =
+  let a = m.it in
+  let ll = a |> Array.to_list |> List.map Array.to_list in
+  Fmt.(pf pps "%a"
+         (list ~sep:(const string " \\\\\n") (list ~sep:(const string " & ") ME.tolatex)) ll
+  )
+
 let prolog = {|
 \documentclass[border=2px]{standalone}
 
@@ -98,13 +106,7 @@ let epilog = {|
 |}
 
 let tolatex m =
-  let a = m.it in
-  let ll = a |> Array.to_list |> List.map Array.to_list in
-  Fmt.(str "%s%a%s"
-         prolog
-       (list ~sep:(const string {| \\
-|}) (list ~sep:(const string " & ") ME.tolatex)) ll
-       epilog)
+  Fmt.(str "%s%a%s" prolog pp m epilog)
 
 end
 

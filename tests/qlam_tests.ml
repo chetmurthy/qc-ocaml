@@ -133,7 +133,7 @@ let read_tolam s0 =
 let tychk_qlam (name, txt, expect) = 
   name >:: (fun ctxt ->
     let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
-    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    let (env, qc) = txt |> qcircuit_from_string in
     match expect with
       Left expect ->
        let (_, ty) = Ops.TYCHK.program ~env0:(env0@env1) (env, qc) in
@@ -146,7 +146,7 @@ let tychk_qlam (name, txt, expect) =
 
 let lower_qlam (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    let (env, qc) = txt |> qcircuit_from_string in
     match expect with
       Left expect ->
        let qc' = Ops.lower_circuit qc in
@@ -173,7 +173,7 @@ let pp_tolam (name, qasm, qlam) =
 
 let pp_qlam (name, txt) = 
   name >:: (fun ctxt ->
-    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    let (env, qc) = txt |> qcircuit_from_string in
     let got = Fmt.(str "%a" PP.qcirc qc) in
     let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
     let printer = (fun x -> "<<"^x^">>") in
@@ -243,8 +243,8 @@ let (q0, q1) = cx q0 q1 in
 
 let alpha_equality (name, txt1, txt2, expect) = 
   name >:: (fun ctxt ->
-    let (env, qc1) = txt1 |> Stream.of_string |> parse_qcircuit in
-    let (env, qc2) = txt2 |> Stream.of_string |> parse_qcircuit in
+    let (env, qc1) = txt1 |> qcircuit_from_string in
+    let (env, qc2) = txt2 |> qcircuit_from_string in
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
     if expect then
@@ -343,11 +343,11 @@ let anorm_qcirc (name, txt, expect) =
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
-    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    let (env, qc) = txt |> qcircuit_from_string in
     match expect with
       Left expect ->
        let got_qc = Ops.ANorm.qcircuit qc in
-       let (_, expect_qc) = expect |> Stream.of_string |> parse_qcircuit in
+       let (_, expect_qc) = expect |> qcircuit_from_string in
       assert_equal ~cmp ~printer expect_qc got_qc
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
@@ -421,11 +421,11 @@ let nnorm_qcirc (name, txt, expect) =
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
-    let (env, qc) = txt |> Stream.of_string |> parse_qcircuit in
+    let (env, qc) = txt |> qcircuit_from_string in
     match expect with
       Left expect ->
        let got_qc = Ops.NameNorm.qcircuit qc in
-       let (_, expect_qc) = expect |> Stream.of_string |> parse_qcircuit in
+       let (_, expect_qc) = expect |> qcircuit_from_string in
       assert_equal ~cmp ~printer expect_qc got_qc
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
@@ -447,6 +447,21 @@ let (x,y) = (y,x) in
      ]
   )
 )
+;;
+let latex_program s0 =
+  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
+  let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
+  let (ll, qc) = Ops.Latex.latex genv0 ~env0 (envitems, qc) in
+  (ll, qc)
+;;
+
+let latex_program_file s0 =
+  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
+  let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
+  let (ll, qc) = Ops.Latex.latex genv0 ~env0 (envitems, qc) in
+  (ll, qc)
 ;;
 
 
