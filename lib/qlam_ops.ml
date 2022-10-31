@@ -1591,12 +1591,13 @@ value remove_bit_overlap aenv (qubit2wire, clbit2wire) (loc, bl) =
 
     For this mapping to be valid:
 
-    (1) the bits need to be equal to those in the circuit (as found by AssignBits).
+    (1) bits found in the circuit (as found by AssignBits) must be in the maps.
     (2) the wire-numbers need to be all distinct.
-    (3) the wire-numbers must all be in the range [0, #bits) where #bits is the number of qubits+clbits
+    (3) the sorted set of wire-numbers must fill some interval starting at zero.
 
-    NOTE that this implies that the wire-numbers completely fill the range [0, #bits)
+    NOTE WELL: that this means there might be more wires than actually-used bits.
 
+    wire-labels will be the pp_hum of bits.
 
     Next, we build the "layers" of the circuit (using Hoist), and then
     further partition those layers so that each layer contains only
@@ -1632,17 +1633,27 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
          |> List.mapi (fun i cb -> (cb,i+num_qubits))
          |> AB.CLBMap.ofList
       ] in
-  if not AB.(QUBSet.(equal (ofList qubits) (QUBMap.dom qubit2wire))) then
-    Fmt.(failwithf "Latex.latex: provided qubit2wire has different qubits than circuit: %a != %a"
+  if not AB.(QUBSet.(subset (ofList qubits) (QUBMap.dom qubit2wire))) then
+    Fmt.(failwithf "Latex.latex: qubits of circuit not subset of provided qubit2wire : %a != %a"
            AB.QUBSet.pp_hum (AB.QUBSet.ofList qubits) AB.QUBSet.pp_hum (AB.QUBMap.dom qubit2wire))
-  else if not AB.(CLBSet.(equal (ofList clbits) (CLBMap.dom clbit2wire))) then
-    Fmt.(failwithf "Latex.latex: provided clbit2wire has different clbits than circuit: %a != %a"
+  else if not AB.(CLBSet.(subset (ofList clbits) (CLBMap.dom clbit2wire))) then
+    Fmt.(failwithf "Latex.latex: clbits of circuit not subset of provided clbit2wire : %a != %a"
            AB.CLBSet.pp_hum (AB.CLBSet.ofList clbits) AB.CLBSet.pp_hum (AB.CLBMap.dom clbit2wire))
   else
   let wires = (AB.QUBMap.rng qubit2wire)@(AB.CLBMap.rng clbit2wire) in
-  if not (Std.distinct wires) then
+  if wires <> [] then
+    Fmt.(failwithf "Latex.latex: no wires specified")
+  else if not (Std.distinct wires) then
     Fmt.(failwithf "Latex.latex: repeated wires are forbidden: %a"
            (list ~{sep=const string " "} int) (Std2.hash_list_repeats wires))
+  else
+  let sorted_wires = List.sort Stdlib.compare wires in
+  let (max_wire, _) = Std.sep_last sorted_wires in
+  if 0 <> List.hd sorted_wires then
+    Fmt.(failwithf "lowest-numbered wire must be 0")
+  else if sorted_wires <> Std.interval 0 max_wire then
+    Fmt.(failwithf "wires do not fill the interval [0,%d]: %a" max_wire
+           (list ~{sep=const string " "} int) sorted_wires)
   else
   let out_of_range = wires |> List.filter (fun n -> not (0 <= n && n < num_bits)) in
   if out_of_range <> [] then

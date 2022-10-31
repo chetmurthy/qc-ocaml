@@ -23,6 +23,7 @@ module type SETSIG = sig
   value ofList : list M.t -> t ;
   value toList : t -> list M.t ;
   value union : t -> t -> t ;
+  value subset : t -> t -> bool ;
   value concat : list t -> t ;
   value equal : t -> t -> bool ;
   value pp_hum : Fmt.t t ;
@@ -73,6 +74,7 @@ module EntitySet(M : ENTITY_SIG) : (SETSIG with module M = M) = struct
   value ofList l = S.of_list l ;
   value toList l = S.elements l ;
   value union l1 l2 = S.union l1 l2 ;
+  value subset l1 l2 = S.subset l1 l2 ;
   value concat l = List.fold_left union mt l ;
   value equal l1 l2 = S.equal l1 l2 ;
 
