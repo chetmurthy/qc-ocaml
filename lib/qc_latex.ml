@@ -21,6 +21,7 @@ type t =
 | CTRL of int
 | TARG
 | METER
+| CWIDTH of int
 | L of t list
 [@@deriving to_yojson, show, eq, ord]
 
@@ -47,6 +48,7 @@ let rec tolatex pps me =
     | CTRL n -> Fmt.(str {|\ctrl{%d}|} n)
     | TARG -> {|\targ|}
     | METER -> {|\meter|} 
+    | CWIDTH n -> Fmt.(str {|\lstick{/_{_{%d}}} \cw |} n)
     | L l -> Fmt.(str "%a" (list ~sep:(const string " ") tolatex) l) in
   Fmt.(pf pps "%s" s)
 end

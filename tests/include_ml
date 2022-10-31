@@ -240,7 +240,7 @@ let m =
   Matrix.ofList
 [[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
  [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
- [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});L[LSTICK(Some "/_{_{2}}");CW];DSTICK("0", -2);DSTICK("1", -1);CW;CW]]
+ [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 2;DSTICK("0", -2);DSTICK("1", -1);CW;CW]]
 ;;
 
 
@@ -251,8 +251,8 @@ let m =
   Matrix.ofList
 [[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
  [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
- [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});L[LSTICK(Some "/_{_{1}}");CW];DSTICK("0", -2);CW;CW;CW];
- [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});L[LSTICK(Some "/_{_{1}}");CW];CW;DSTICK("1", -2);CW;CW]]
+ [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 1;DSTICK("0", -2);CW;CW;CW];
+ [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 1;CW;DSTICK("1", -2);CW;CW]]
 ;;
 
 
