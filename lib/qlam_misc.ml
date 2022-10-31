@@ -35,15 +35,19 @@ end ;
 
 module type MAPSIG = sig
   module M : ENTITY_SIG ;
+  module S : (SETSIG with module M = M) ;
   include Map.S with type key = M.t ;
   value swap_find: t 'a -> key -> 'a ;
   value pp_hum : Fmt.t 'a -> Fmt.t (t 'a) ;
   value ofList : list (M.t * 'a) -> t 'a ;
   value toList : t 'a -> list (M.t * 'a) ;
+  value dom : t 'a -> S.t ;
+  value rng : t 'a -> list 'a ;
 end ;
 
-module EntityMap(M : ENTITY_SIG) : (MAPSIG with module M = M) = struct
+module EntityMap(M : ENTITY_SIG)(S : SETSIG with module M = M) : (MAPSIG with module M = M and module S = S) = struct
   module M = M ;
+  module S = S ;
   module IT = Map.Make(M) ;
   include IT ;
   value pp_hum ppval pps l =
@@ -53,6 +57,8 @@ module EntityMap(M : ENTITY_SIG) : (MAPSIG with module M = M) = struct
   value toList = bindings ;
   value ofList l =
     List.fold_left (fun m (k,v) -> add k v m) empty l ;
+  value dom m = m |> toList |> List.map fst |> S.ofList ;
+  value rng m = m |> toList |> List.map snd ;
 end ;
 
 module EntitySet(M : ENTITY_SIG) : (SETSIG with module M = M) = struct
@@ -141,9 +147,11 @@ module Bijection(M1 : ENTITY_SIG) (M2 : ENTITY_SIG) : (BIJSIG with module DOM = 
   ;
 end ;
 
-module IDMap = EntityMap(ID) ;
 module IDFVS = VarSet(ID) ;
-module IntMap = EntityMap(struct
+module IDMap = EntityMap(ID)(IDFVS) ;
+module IntEntity = struct
   type t = int[@@deriving (to_yojson, show, eq, ord);] ;
   value pp_hum = pp ;
-end) ;
+end ;
+module IntSet = EntitySet(IntEntity) ;
+module IntMap = EntityMap(IntEntity)(IntSet) ;

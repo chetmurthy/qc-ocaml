@@ -76,8 +76,6 @@ module ID = struct
   let toID x = x
 end
 
-module IDMap = Map.Make(ID)
-
 let find_file_from ~path fname =
   try
     try_find (fun dir ->

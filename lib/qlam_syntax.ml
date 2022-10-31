@@ -26,9 +26,8 @@ module PV = struct
   value pp_hum pps x = Fmt.(pf pps "%a" pvar x) ;
 end ;
 
-module PVMap = EntityMap(PV) ;
 module PVFVS = VarSet(PV) ;
-
+module PVMap = EntityMap(PV)(PVFVS) ;
 
 type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module QV = struct
@@ -39,8 +38,8 @@ module QV = struct
   value qvar pps = fun [ (QV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
 end ;
-module QVMap = EntityMap(QV) ;
 module QVFVS = VarSet(QV) ;
+module QVMap = EntityMap(QV)(QVFVS) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module CV = struct
@@ -51,8 +50,8 @@ module CV = struct
   value cvar pps = fun [ (CV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
 end ;
-module CVMap = EntityMap(CV) ;
 module CVFVS = VarSet(CV) ;
+module CVMap = EntityMap(CV)(CVFVS) ;
 
 type qgn_t = [
     CX of loc | U of loc | SWAP of loc
@@ -79,8 +78,8 @@ module QG = struct
   value qgn pps g = ID.pp_hum pps (toID g) ;
   value pp_hum pps x = Fmt.(pf pps "%a" qgn x) ;
 end ;
-module QGMap = EntityMap(QG) ;
 module QGFVS = VarSet(QG) ;
+module QGMap = EntityMap(QG)(QGFVS) ;
 
 type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, show, eq, ord);] ;
 type unop_t = [ UMINUS ][@@deriving (to_yojson, show, eq, ord);] ;
@@ -108,8 +107,8 @@ value pp_hum pps = fun [
 | EXPLICIT n -> Fmt.(pf pps "#%d" n)
 ] ;
 end ;
-module BIMap = EntityMap(BI) ;
 module BISet = EntitySet(BI) ;
+module BIMap = EntityMap(BI)(BISet) ;
 module PQ = struct
   type t = [Physical of int] [@@deriving (to_yojson, show, eq, ord);] ;
   value pp_hum pps = fun [

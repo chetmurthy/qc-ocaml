@@ -1320,7 +1320,8 @@ value pp_hum pps = fun [
 | QVAR qv -> Fmt.(pf pps "%a" QV.pp_hum qv)
 ] ;
 end  ;
-module QUBMap = EntityMap(QUBit) ;
+module QUBSet = EntitySet(QUBit) ;
+module QUBMap = EntityMap(QUBit)(QUBSet) ;
 type clbit_t = [ CLBIT of CV.t | CVAR of CV.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module CLBit = struct
 type t = clbit_t[@@deriving (to_yojson, show, eq, ord);] ;
@@ -1329,7 +1330,8 @@ value pp_hum pps = fun [
 | CVAR cv -> Fmt.(pf pps "%a" CV.pp_hum cv)
 ] ;
 end ;
-module CLBMap = EntityMap(CLBit) ;
+module CLBSet = EntitySet(CLBit) ;
+module CLBMap = EntityMap(CLBit)(CLBSet) ;
 type env_gate_t = {
     args : qgateargs_t
   ; ty : (int * int)
@@ -1585,21 +1587,68 @@ value remove_bit_overlap aenv (qubit2wire, clbit2wire) (loc, bl) =
   layers sorted_bl_ranges
 ;
 
-value latex genv0 ?{env0=[]} (envitems, qc) =
+(** latex is given a circuit and possibly a mapping from qubits/clbits to wire-numbers.
+
+    For this mapping to be valid:
+
+    (1) the bits need to be equal to those in the circuit (as found by AssignBits).
+    (2) the wire-numbers need to be all distinct.
+    (3) the wire-numbers must all be in the range [0, #bits) where #bits is the number of qubits+clbits
+
+    NOTE that this implies that the wire-numbers completely fill the range [0, #bits)
+
+
+    Next, we build the "layers" of the circuit (using Hoist), and then
+    further partition those layers so that each layer contains only
+    non-overlapping gates/operations.
+
+    Each binding applies to some wires, and the qwires are of course
+    present as both inputs and outputs.  Classical wires will only be
+    present as outputs.
+
+    So for each layer, decide what each wire's slot will have as a
+    value: the default being a bare wire.
+
+ *)
+
+value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
   let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
   let qubits = AB.Env.qubits qc_assign_env in
   let num_qubits = List.length qubits in
-  let qubit2wire =
-    qubits
-    |> List.mapi (fun i qb -> (qb,i))
-    |> AB.QUBMap.ofList in
   let clbits = AB.Env.clbits qc_assign_env in
   let num_clbits = List.length clbits in
-  let clbit2wire =
-    clbits
-    |> List.mapi (fun i cb -> (cb,i+num_qubits))
-    |> AB.CLBMap.ofList in
   let num_bits = num_qubits + num_clbits in
+  let qubit2wire = match qubit2wire with [
+        Some m -> m
+      | None ->
+         qubits
+         |> List.mapi (fun i qb -> (qb,i))
+         |> AB.QUBMap.ofList
+      ] in
+  let clbit2wire = match clbit2wire with [
+        Some m -> m
+      | None ->
+         clbits
+         |> List.mapi (fun i cb -> (cb,i+num_qubits))
+         |> AB.CLBMap.ofList
+      ] in
+  if not AB.(QUBSet.(equal (ofList qubits) (QUBMap.dom qubit2wire))) then
+    Fmt.(failwithf "Latex.latex: provided qubit2wire has different qubits than circuit: %a != %a"
+           AB.QUBSet.pp_hum (AB.QUBSet.ofList qubits) AB.QUBSet.pp_hum (AB.QUBMap.dom qubit2wire))
+  else if not AB.(CLBSet.(equal (ofList clbits) (CLBMap.dom clbit2wire))) then
+    Fmt.(failwithf "Latex.latex: provided clbit2wire has different clbits than circuit: %a != %a"
+           AB.CLBSet.pp_hum (AB.CLBSet.ofList clbits) AB.CLBSet.pp_hum (AB.CLBMap.dom clbit2wire))
+  else
+  let wires = (AB.QUBMap.rng qubit2wire)@(AB.CLBMap.rng clbit2wire) in
+  if not (Std.distinct wires) then
+    Fmt.(failwithf "Latex.latex: repeated wires are forbidden: %a"
+           (list ~{sep=const string " "} int) (Std2.hash_list_repeats wires))
+  else
+  let out_of_range = wires |> List.filter (fun n -> not (0 <= n && n < num_bits)) in
+  if out_of_range <> [] then
+    Fmt.(failwithf "Latex.latex: wires out of range [0,%d): %a" num_bits
+           (list ~{sep=const string " "} int) out_of_range)
+  else
   let qc = Hoist.hoist qc in
   let (ll, qc) = SYN.to_letlist qc in
   let ll = ll |> List.concat_map (remove_bit_overlap qc_assign_env (qubit2wire, clbit2wire)) in

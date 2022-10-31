@@ -5,6 +5,7 @@ open Pa_ppx_base ;
 open Ppxutil ;
 
 open Qc_misc ;
+open Qlam_misc ;
 open Qlam_syntax ;
 open Qlam_ops ;
 open Qlam_env ;
