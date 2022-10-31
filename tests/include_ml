@@ -126,6 +126,7 @@ open Qlam_syntax ;;
 open Qlam_ops ;;
 open Qlam_parser ;;
 open Qlam_env ;;
+open Qc_latex ;;
 
 let id_pp x = Fmt.(pf stdout "<:id<%a>>" ID.pp_hum x) ;;
 #install_printer id_pp ;;
@@ -209,6 +210,14 @@ let p1 = with_include_path ~path:["testdata"] full_to_ast_from_file "testdata/ex
 let p2 = p1 |>  Qconvert.ToLam.program ;;
 let (genv0,_) = TYCHK.program (env0@(fst p2), snd p2) ;;
 Ops.AssignBits.program genv0 (env0@(fst p2), snd p2) ;;
+
+let m = Matrix.mk 3 3 ;;
+for i = 0 to 2 do
+Matrix.(set m i 1 (ME.LSTICK (Some Fmt.(str "q_%d" i)))) ;
+Matrix.(set m i 0 (ME.NGHOST Fmt.(str "q_%d" i)))
+done ;;
+
+Exec.latex (Matrix.tolatex m) ;;
 
 (* Local Variables: *)
 (* mode: tuareg *)

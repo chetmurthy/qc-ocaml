@@ -1,3 +1,5 @@
+open Pa_ppx_base
+open Ppxutil
 
 module ME = struct
 
@@ -12,11 +14,121 @@ type t =
 | RSTICK of string option
 | DSTICK of string * int
 | CGHOST of string
+| NGHOST of string
 | GHOST of string * int option
+| GATE of string
 | MULTIGATE of int * string * int option
 | CTRL of int
 | TARG
 | METER
 [@@deriving to_yojson, show, eq, ord]
+
+let tolatex pps me =
+  let s = match me with
+      QW -> {|\qw|}
+    | QWA  -> {|\qwa|}
+    | QWX n -> Fmt.(str {|\qw[%d]|} n)
+    | CW -> {|\cw|}
+    | CWA -> {|\cwa|}
+    | CDOTS -> {|\cdots|}
+    | LSTICK None -> {|\lstick{}|}
+    | LSTICK (Some s) -> Fmt.(str {|\lstick{%s}|} s)
+    | RSTICK None -> {|\rstick{}|}
+    | RSTICK (Some s) -> {|\rstick{%s}|}
+    | DSTICK (s,n) -> Fmt.(str {|\dstick{_{_{\hspace{0.0em}%s}}} \cw \ar @{<=} [%d,0]|} s n)
+    | CGHOST s -> Fmt.(str {|\cghost{%s}|} s)
+    | NGHOST s -> Fmt.(str {|\nghost{%s}|} s)
+    | GHOST (s, None) -> Fmt.(str {|\ghost{%s}|} s)
+    | GHOST (s, Some n) -> Fmt.(str {|\ghost{%s}_<<<{%d} |} s n)
+    | GATE s -> Fmt.(str {|\gate{%s}|} s)
+    | MULTIGATE (n, s, None) -> Fmt.(str {|\multigate{%d}{%s}|} n s)
+    | MULTIGATE (n, s, Some m) -> Fmt.(str {|\multigate{%d}{%s}_<<<{%d}|} n s m)
+    | CTRL n -> Fmt.(str {|\ctrl{%d}|} n)
+    | TARG -> {|\targ|}
+    | METER -> {|\meter|} in
+  Fmt.(pf pps "%s" s)
 end
+
 module MatrixElement = ME
+
+module Matrix = struct
+  type t = { it : ME.t array array ; rows : int ; cols : int }
+  let mk rows cols =
+    if not (rows > 0) then
+      Fmt.(failwithf "Matrix.mk: rows must be > 0")
+    else if not (cols > 0) then
+      Fmt.(failwithf "Matrix.mk: cols must be > 0")
+    else
+    { it = Array.make_matrix rows cols ME.QW ; rows ; cols }
+
+  let rec set m i j v =
+    if i < 0 then set m (i+m.rows) j v
+    else if j < 0 then set m i (j+m.cols) v
+    else m.it.(i).(j) <- v
+
+let prolog = {|
+\documentclass[border=2px]{standalone}
+
+\usepackage[braket, qm]{qcircuit}
+\usepackage{graphicx}
+
+\begin{document}
+\scalebox{1.0}{
+\Qcircuit @C=1.0em @R=0.2em @!R { \\
+|}
+
+let epilog = {|
+\\ }}
+\end{document}
+|}
+
+let tolatex m =
+  let a = m.it in
+  let ll = a |> Array.to_list |> List.map Array.to_list in
+  Fmt.(str "%s%a%s"
+         prolog
+       (list ~sep:(const string {| \\
+|}) (list ~sep:(const string " & ") ME.tolatex)) ll
+       epilog)
+
+end
+
+module Exec = struct
+  open Rresult
+  open Bos
+  let (let*) x f = Rresult.(>>=) x f
+
+let latex2png_cmd = Cmd.v "latex2png"
+let latex2png f =
+  let doit = Cmd.(latex2png_cmd % (Fpath.to_string f)) in
+  OS.Cmd.(run_out doit |> to_string)
+
+let imv_cmd = Cmd.v "imv-x11"
+let imv f =
+  let doit = Cmd.(imv_cmd % (Fpath.to_string f)) in
+  OS.Cmd.(run_out doit |> to_string)
+
+  let dolatex dir txt =
+    let texf = Fpath.(dir // v "circuit.tex") in
+    let pngf = Fpath.(dir // v "circuit.png") in
+    let* () = OS.File.write texf txt in
+    let* txt = latex2png texf in
+    let* _ = imv pngf in
+    Ok ()
+
+  let latex ?(preserve=false) txt =
+    if preserve then
+      let* dir = OS.Dir.tmp ~mode:0o755 "latex%s" in
+      let* r = dolatex dir txt in
+      Ok (Some dir)
+    else
+      let* r = OS.Dir.with_tmp ~mode:0o755 "latex%s"
+                 dolatex txt in
+      let* dir = r in
+      Ok None
+
+  let latex_file ?(preserve=false) texf =
+    let* txt = OS.File.read texf in
+    latex ~preserve txt
+
+end
