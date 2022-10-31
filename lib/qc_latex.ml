@@ -61,6 +61,21 @@ module Matrix = struct
     else
     { it = Array.make_matrix rows cols ME.QW ; rows ; cols }
 
+  let ofList ll =
+    let rows = List.length ll in
+    if rows = 0 then
+      Fmt.(failwithf "Matrix.ofList: rows must be > 0")
+    else
+    let la = List.map Array.of_list ll in
+    let cols = Array.length (List.hd la) in
+    if cols = 0 then
+      Fmt.(failwithf "Matrix.ofList: cols must be > 0")
+    else if not (la |> List.for_all (fun a -> cols = Array.length a)) then
+      Fmt.(failwithf "Matrix.ofList: all rows must have same length (# cols)")
+    else
+    let it = Array.of_list la in
+    { it ; rows ; cols }
+
   let rec set m i j v =
     if i < 0 then set m (i+m.rows) j v
     else if j < 0 then set m i (j+m.cols) v
@@ -113,22 +128,33 @@ let imv f =
     let pngf = Fpath.(dir // v "circuit.png") in
     let* () = OS.File.write texf txt in
     let* txt = latex2png texf in
+    Ok pngf
+
+  let display pngf =
     let* _ = imv pngf in
     Ok ()
 
-  let latex ?(preserve=false) txt =
+  let in_tmp_dir ?(preserve=false) f arg =
     if preserve then
       let* dir = OS.Dir.tmp ~mode:0o755 "latex%s" in
-      let* r = dolatex dir txt in
+      let* r = f dir arg in
       Ok (Some dir)
     else
       let* r = OS.Dir.with_tmp ~mode:0o755 "latex%s"
-                 dolatex txt in
+                 f arg in
       let* dir = r in
       Ok None
 
-  let latex_file ?(preserve=false) texf =
+  let dolatex_and_display dir txt =
+    let* texf = dolatex dir txt in
+    let* () = display texf in
+    Ok texf
+
+  let latex ?(preserve=false) ?(display=true) txt =
+    in_tmp_dir ~preserve (if display then dolatex_and_display else dolatex) txt
+
+  let latex_file ?(preserve=false) ?(display=true) texf =
     let* txt = OS.File.read texf in
-    latex ~preserve txt
+    latex ~preserve ~display txt
 
 end

@@ -219,6 +219,16 @@ done ;;
 
 Exec.latex (Matrix.tolatex m) ;;
 
+let m =
+  let open Qc_latex.ME in
+  Matrix.ofList
+    [[NGHOST "q_0"; LSTICK (Some "q_0"); QW];
+     [NGHOST "q_1"; LSTICK (Some "q_1"); QW];
+     [NGHOST "q_2"; LSTICK (Some "q_2"); QW]]
+;;
+
+Exec.latex (Matrix.tolatex m) ;;
+
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)
