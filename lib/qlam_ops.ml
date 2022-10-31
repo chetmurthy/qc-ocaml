@@ -1547,8 +1547,8 @@ value binding_wire_range aenv (qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
   let cvl = CVFVS.(toList (union cvfvs (ofList cvl))) in
   let qubits = List.map (AB.Env.qv_swap_find aenv) qvl in
   let clbits = List.map (AB.Env.cv_swap_find aenv) cvl in
-  let qwires = List.map (AB.QUBMap.swap_find qubit2wire) qubits in
-  let cwires = List.map (AB.CLBMap.swap_find clbit2wire) clbits in
+  let qwires = qubits |> List.map (AB.QUBMap.swap_find qubit2wire) |> List.map snd in
+  let cwires = clbits |> List.map (AB.CLBMap.swap_find clbit2wire) |> List.map snd in
   let all_wires = qwires@cwires in
   let min_wire = List.fold_left min max_int all_wires in
   let max_wire = List.fold_left max min_int all_wires in
@@ -1571,32 +1571,39 @@ value rec layers sbr = match sbr with [
          [chain:: layers rest]
 ] ;
 
-value render_binding  m (qc_assign_env, qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
-(*
+value render_binding m (qc_assign_env, qubit2wire, clbit2wire) col (loc, qvl, cvl, qc) =
   match qc with [
       QCREATE loc _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QCREATE should never occur here")
-    | QWIRES loc _ _ _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QWIRES should never occur here")
+    | QWIRES loc _ _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QWIRES should never occur here")
     | QLET loc _ _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QLET should never occur here")
     | QMEASURE loc _ ->
-       let qubits = (AB.Env.qv_swap_find qc_assign_env) qvl in
-       let clbits = (AB.Env.cv_swap_find qc_assign_env) cvl in
-       
-
-of loc and list qvar_t
+(*
+       let qv = List.hd qvl in
+       let cv = List.hd cvl in
+       let qubit = AB.Env.qv_swap_find qc_assign_env qv in
+       let clbit = AB.Env.cv_swap_find qc_assign_env cv in
+       let quwire = AB.QUBMap.swap_find qubit2wire qubit in
+       let clwire = AB.CLBMap.swap_find clbit2wire clbit in
+       let cdstick =
+         let cwire_s = Fmt.(str "%d" (clwire - num_qubits))
+         if clwire > quwire then
+           DSTICK("0", -2)
+ do {
+        Matrix.set m qwire col METER ;
+        Matrix.set m cwire col cdstick 
+      }
 
 | QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
 | QRESET of loc and list qvar_t
-
-    | 
-    ]
  *)
-()
+       ()
+    ]
 ;
 value render_bindings m (qc_assign_env, qubit2wire, clbit2wire) bl =
   List.iteri (fun layernum bl ->
       let bl = List.map snd bl in
-      List.iter (render_binding m (qc_assign_env, qubit2wire, clbit2wire)) bl)
+      List.iter (render_binding m (qc_assign_env, qubit2wire, clbit2wire) (2+layernum)) bl)
 ;
 
 (** remove_bit_overlap:
@@ -1649,7 +1656,7 @@ value generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit
   }
 ;
 
-(** latex is given a circuit and possibly a mapping from qubits/clbits to wire-numbers.
+(** latex is given a circuit and possibly a mapping from qubits/clbits to wire-names/numbers.
 
     For this mapping to be valid:
 
@@ -1703,14 +1710,14 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
         Some m -> m
       | None ->
          qubits
-         |> List.mapi (fun i qb -> (qb,i))
+         |> List.mapi (fun i qb -> (qb,(Fmt.(str "q_%d" i), i)))
          |> AB.QUBMap.ofList
       ] in
   let clbit2wire = match clbit2wire with [
         Some m -> m
       | None ->
          clbits
-         |> List.mapi (fun i cb -> (cb,i+num_qubits))
+         |> List.mapi (fun i cb -> (cb,(Fmt.(str "c_%d" i), i+num_qubits)))
          |> AB.CLBMap.ofList
       ] in
   if not AB.(QUBSet.(subset (ofList qubits) (QUBMap.dom qubit2wire))) then
@@ -1720,22 +1727,23 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
     Fmt.(failwithf "Latex.latex: clbits of circuit not subset of provided clbit2wire : %a != %a"
            AB.CLBSet.pp_hum (AB.CLBSet.ofList clbits) AB.CLBSet.pp_hum (AB.CLBMap.dom clbit2wire))
   else
-  let wires = (AB.QUBMap.rng qubit2wire)@(AB.CLBMap.rng clbit2wire) in
-  if wires = [] then
+  let wirenames_nums = (AB.QUBMap.rng qubit2wire)@(AB.CLBMap.rng clbit2wire) in
+  let wirenums = List.map snd wirenames_nums in
+  if wirenums = [] then
     Fmt.(failwithf "Latex.latex: no wires specified")
-  else if not (Std.distinct wires) then
+  else if not (Std.distinct wirenums) then
     Fmt.(failwithf "Latex.latex: repeated wires are forbidden: %a"
-           (list ~{sep=const string " "} int) (Std2.hash_list_repeats wires))
+           (list ~{sep=const string " "} int) (Std2.hash_list_repeats wirenums))
   else
-  let sorted_wires = List.sort Stdlib.compare wires in
-  let (max_wire, _) = Std.sep_last sorted_wires in
-  if 0 <> List.hd sorted_wires then
+  let sorted_wirenums = List.sort Stdlib.compare wirenums in
+  let (max_wirenum, _) = Std.sep_last sorted_wirenums in
+  if 0 <> List.hd sorted_wirenums then
     Fmt.(failwithf "lowest-numbered wire must be 0")
-  else if sorted_wires <> Std.interval 0 max_wire then
-    Fmt.(failwithf "wires do not fill the interval [0,%d]: %a" max_wire
-           (list ~{sep=const string " "} int) sorted_wires)
+  else if sorted_wirenums <> Std.interval 0 max_wirenum then
+    Fmt.(failwithf "wires do not fill the interval [0,%d]: %a" max_wirenum
+           (list ~{sep=const string " "} int) sorted_wirenums)
   else
-  let out_of_range = wires |> List.filter (fun n -> not (0 <= n && n < num_bits)) in
+  let out_of_range = wirenums |> List.filter (fun n -> not (0 <= n && n < num_bits)) in
   if out_of_range <> [] then
     Fmt.(failwithf "Latex.latex: wires out of range [0,%d): %a" num_bits
            (list ~{sep=const string " "} int) out_of_range)
