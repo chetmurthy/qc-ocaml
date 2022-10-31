@@ -21,9 +21,10 @@ type t =
 | CTRL of int
 | TARG
 | METER
+| L of t list
 [@@deriving to_yojson, show, eq, ord]
 
-let tolatex pps me =
+let rec tolatex pps me =
   let s = match me with
       QW -> {|\qw|}
     | QWA  -> {|\qwa|}
@@ -35,7 +36,7 @@ let tolatex pps me =
     | LSTICK (Some s) -> Fmt.(str {|\lstick{%s}|} s)
     | RSTICK None -> {|\rstick{}|}
     | RSTICK (Some s) -> {|\rstick{%s}|}
-    | DSTICK (s,n) -> Fmt.(str {|\dstick{_{_{\hspace{0.0em}%s}}} \cw \ar @{<=} [%d,0]|} s n)
+    | DSTICK (s,n) -> Fmt.(str {|\dstick{_{_{\hspace{0.0em}%s}}} \cw \ar @@{<=} [%d,0]|} s n)
     | CGHOST s -> Fmt.(str {|\cghost{%s}|} s)
     | NGHOST s -> Fmt.(str {|\nghost{%s}|} s)
     | GHOST (s, None) -> Fmt.(str {|\ghost{%s}|} s)
@@ -45,7 +46,8 @@ let tolatex pps me =
     | MULTIGATE (n, s, Some m) -> Fmt.(str {|\multigate{%d}{%s}_<<<{%d}|} n s m)
     | CTRL n -> Fmt.(str {|\ctrl{%d}|} n)
     | TARG -> {|\targ|}
-    | METER -> {|\meter|} in
+    | METER -> {|\meter|} 
+    | L l -> Fmt.(str "%a" (list ~sep:(const string " ") tolatex) l) in
   Fmt.(pf pps "%s" s)
 end
 

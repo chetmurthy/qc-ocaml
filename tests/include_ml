@@ -222,10 +222,39 @@ Exec.latex (Matrix.tolatex m) ;;
 let m =
   let open Qc_latex.ME in
   Matrix.ofList
-    [[NGHOST "q_0"; LSTICK (Some "q_0"); QW];
-     [NGHOST "q_1"; LSTICK (Some "q_1"); QW];
-     [NGHOST "q_2"; LSTICK (Some "q_2"); QW]]
+    [[NGHOST "q_0"; LSTICK (Some "q_0"); QW; QW];
+     [NGHOST "q_1"; LSTICK (Some "q_1"); QW; QW];
+     [NGHOST "q_2"; LSTICK (Some "q_2"); QW; QW]]
 ;;
+
+Exec.latex (Matrix.tolatex m) ;;
+
+(*
+qreg q[2];
+creg c[2];
+measure q -> c ;
+ *)
+
+let m =
+  let open Qc_latex.ME in
+  Matrix.ofList
+[[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
+ [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
+ [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});L[LSTICK(Some "/_{_{2}}");CW];DSTICK("0", -2);DSTICK("1", -1);CW;CW]]
+;;
+
+
+Exec.latex (Matrix.tolatex m) ;;
+
+let m =
+  let open Qc_latex.ME in
+  Matrix.ofList
+[[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
+ [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
+ [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});L[LSTICK(Some "/_{_{1}}");CW];DSTICK("0", -2);CW;CW;CW];
+ [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});L[LSTICK(Some "/_{_{1}}");CW];CW;DSTICK("1", -2);CW;CW]]
+;;
+
 
 Exec.latex (Matrix.tolatex m) ;;
 
