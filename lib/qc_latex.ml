@@ -85,6 +85,12 @@ module Matrix = struct
     else if j < 0 then set m i (j+m.cols) v
     else m.it.(i).(j) <- v
 
+  let rec set_row m i v =
+    if i < 0 then set_row m (i+m.rows) v
+    else
+    for j = 0 to m.cols - 1 do
+      set m i j v
+    done
 
 let pp pps m =
   let a = m.it in

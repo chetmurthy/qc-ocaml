@@ -1572,6 +1572,15 @@ value rec layers sbr = match sbr with [
          [chain:: layers rest]
 ] ;
 
+value render_binding  m (qc_assign_env, qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
+  ()
+;
+value render_bindings m (qc_assign_env, qubit2wire, clbit2wire) bl =
+  List.iteri (fun layernum bl ->
+      let bl = List.map snd bl in
+      List.iter (render_binding m (qc_assign_env, qubit2wire, clbit2wire)) bl)
+;
+
 (** remove_bit_overlap:
 
     (1) for eaching binding, compute [min,max] wire-numbers
@@ -1587,6 +1596,41 @@ value remove_bit_overlap aenv (qubit2wire, clbit2wire) (loc, bl) =
   layers sorted_bl_ranges
 ;
 
+(** generate_matrix
+
+    Generates the Matrix.t from this circuit.
+
+    (1) set up all left-hand-side labels
+
+    (2) set up classical wires
+
+    (3) check that first layer is all qubits (what else could it be?)
+
+    (4) Then for every ith-numbered layer, render each binding
+
+ *)
+value generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit2wire) (ll, qc) =
+  let open Qc_latex in
+  let num_bits = num_qubits + num_clbits in
+  let m = Matrix.mk num_bits (2 + (List.length ll) + 2) in do {
+  for i = 0 to num_qubits-1 do {
+      Matrix.set m i 0 (NGHOST (Fmt.str "q_%d" i)) ;
+      Matrix.set m i 1 (LSTICK(Some(Fmt.str "q_%d" i))) ;
+    } ;
+  for i = num_qubits to (num_bits-1) do {
+      Matrix.set_row m i CW ;
+      Matrix.set m i 0 (NGHOST (Fmt.str {x|\mathrm{{c_%d} :  }|x} i)) ;
+      Matrix.set m i 1 (LSTICK (Some (Fmt.str {x|\mathrm{{c_%d} :  }|x} i))) ;
+      Matrix.set m i 2 (CWIDTH 1) ;
+    } ;
+  assert (
+      let bl = List.map snd (List.hd ll) in
+      bl |> List.for_all (fun [ (_, _, _, SYN.QCREATE _ _) -> True | _ -> False ])) ;
+  render_bindings m (qc_assign_env, qubit2wire, clbit2wire) ll ;
+  m
+  }
+;
+
 (** latex is given a circuit and possibly a mapping from qubits/clbits to wire-numbers.
 
     For this mapping to be valid:
@@ -1596,6 +1640,16 @@ value remove_bit_overlap aenv (qubit2wire, clbit2wire) (loc, bl) =
     (3) the sorted set of wire-numbers must fill some interval starting at zero.
 
     NOTE WELL: that this means there might be more wires than actually-used bits.
+
+    (4) All gates must have the property that the result-qubits are in
+    the same order as the argument qubits, and there are no
+    result-clbits (of course).
+
+    --> This is necessary to be able to draw them *at all*, and simply
+    derives from the gates being defined in QASM.
+
+    --> it also follows that all gate-instances in the circuit have
+    the same property.
 
     wire-labels will be the pp_hum of bits.
 
@@ -1612,8 +1666,17 @@ value remove_bit_overlap aenv (qubit2wire, clbit2wire) (loc, bl) =
 
  *)
 
+value latexable_gate gn ge =
+  let module AB = AssignBits in
+  let (_,  qvl, _) = ge.AB.args in
+  let (qrl, crl) = ge.AB.result in
+  crl = [] &&
+    List.for_all2 QV.equal qvl qrl
+;
+
 value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
   let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
+  let _ = assert (QGMap.for_all latexable_gate gate_assign_env.GEnv.gates) in
   let qubits = AB.Env.qubits qc_assign_env in
   let num_qubits = List.length qubits in
   let clbits = AB.Env.clbits qc_assign_env in
@@ -1663,7 +1726,7 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
   let qc = Hoist.hoist qc in
   let (ll, qc) = SYN.to_letlist qc in
   let ll = ll |> List.concat_map (remove_bit_overlap qc_assign_env (qubit2wire, clbit2wire)) in
-  (ll, qc)
+  ((ll,qc),  generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit2wire) (ll, qc))
 ;
 
 end ;

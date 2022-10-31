@@ -452,16 +452,14 @@ let latex_qasm s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] program_to_ast s0 in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
-  let (ll, qc) = Ops.Latex.latex genv0 ~env0 (envitems, qc) in
-  (ll, qc)
+  Ops.Latex.latex genv0 ~env0 (envitems, qc)
 ;;
 
 let latex_qasm_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
-  let (ll, qc) = Ops.Latex.latex genv0 ~env0 (envitems, qc) in
-  (ll, qc)
+  Ops.Latex.latex genv0 ~env0 (envitems, qc)
 ;;
 
 
