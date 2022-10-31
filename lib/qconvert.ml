@@ -97,11 +97,11 @@ value wrap_stmt conv_pv ins rhs =
       SYN.QLET loc [(Ploc.dummy, qvl, [], SYN.QBARRIER Ploc.dummy qvl)] rhs
     | (loc, STMT_QOP(RESET q)) ->
       let qv = to_qvar q in
-      SYN.QLET loc [(Ploc.dummy, [qv], [], SYN.QRESET Ploc.dummy [qv])] rhs
+      SYN.QLET loc [(Ploc.dummy, [qv], [], SYN.QRESET Ploc.dummy qv)] rhs
     | (loc, STMT_QOP(MEASURE q c)) ->
       let qv = to_qvar q in
       let cv = to_cvar c in
-      SYN.QLET loc [(Ploc.dummy, [qv], [cv], SYN.QMEASURE Ploc.dummy [qv])] rhs
+      SYN.QLET loc [(Ploc.dummy, [qv], [cv], SYN.QMEASURE Ploc.dummy qv)] rhs
     | (loc, STMT_QOP(UOP uop)) ->
        wrap_uop loc conv_pv conv_qreg_or_indexed uop rhs
     ]
@@ -398,13 +398,12 @@ value rec conv_circuit loc0 acc env = fun [
 | QCREATE _ _ ->
    ([CE.next_qreg env], [])
 | QDISCARD _ _ -> ([], [])
-| QRESET loc qvl -> do {
+| QRESET loc qv -> do {
     let loc = ploc_encl_with_comments loc0 loc in
-    let qrl = List.map (CE.lookup_qv env) qvl in
+    let qr = CE.lookup_qv env qv in
     CE.if_emit env (fun () ->
-        qrl |> List.iter (fun qr ->
-                   Std.push acc (loc, STMT_QOP (RESET qr)))) ;
-    (qrl, [])
+        Std.push acc (loc, STMT_QOP (RESET qr))) ;
+    ([qr], [])
   }
 | QBARRIER loc qvl -> do {
     let loc = ploc_encl_with_comments loc0 loc in
@@ -412,18 +411,12 @@ value rec conv_circuit loc0 acc env = fun [
     CE.if_emit env (fun () -> Std.push acc (loc, STMT_BARRIER qrl)) ;
     (qrl, [])
   }
-| QMEASURE loc qvl -> do {
+| QMEASURE loc qv -> do {
     let loc = ploc_encl_with_comments loc0 loc in
-    let qrl = List.map (CE.lookup_qv env) qvl in
-    let crl = List.map (fun _ -> CE.next_creg env) qrl in
-    if List.length qrl <> List.length crl then
-      Fmt.(raise_failwithf loc "conv_circuit: length mismatch in qreg/creg args to measure")
-    else () ;
-    (Std.combine qrl crl)
-    |> List.iter (fun (qr, cr) ->
-           CE.if_emit env (fun () -> Std.push acc (loc, STMT_QOP (MEASURE qr cr)))
-         ) ;
-    (qrl, crl)
+    let qr = CE.lookup_qv env qv in
+    let cr = CE.next_creg env in
+    CE.if_emit env (fun () -> Std.push acc (loc, STMT_QOP (MEASURE qr cr))) ;
+    ([qr], [cr])
   }
 | QGATEAPP loc gn pel qvl cvl ->
     let loc = ploc_encl_with_comments loc0 loc in
@@ -720,22 +713,23 @@ value qcircuit aenv env qc =
      ((Std.combine qformals [qr], []), [])
 
   | QDISCARD _ _ -> (([], []), [])
-  | QMEASURE loc qactuals ->
-     let _ = assert (List.length qactuals = List.length qformals) in
-     let _ = assert (List.length qactuals = List.length cformals) in
-     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qactuals in
-     let crl = List.map (fun cv -> CE.lookup_clbit ~{loc=loc} env (AB.CLBIT cv)) cformals in
-     let insns =
-       (Std.combine qrl crl)
-       |> List.map (fun (qr, cr) -> (loc, STMT_QOP (MEASURE qr cr))) in
-     ((Std.combine qformals qrl, Std.combine cformals crl), insns)
+  | QMEASURE loc qactual ->
+     let _ = assert (1 = List.length qformals) in
+     let _ = assert (1 = List.length cformals) in
+     let qformal = List.hd qformals in
+     let cformal = List.hd cformals in
+     let qr = CE.lookup_qv ~{loc=loc} env qactual in
+     let cr = CE.lookup_clbit ~{loc=loc} env (AB.CLBIT cformal) in
+     let insns = [(loc, STMT_QOP (MEASURE qr cr))] in
+     (([(qformal,qr)], [(cformal,cr)]), insns)
 
-  | QRESET _ qvl ->
-     let qrl = List.map (CE.lookup_qv ~{loc=loc} env) qformals in
+  | QRESET _ qv ->
+     let _ = assert (1 = List.length qformals) in
      let _ = assert (cformals = []) in
-     let insns = 
-       qrl |> List.map (fun qr -> (loc, STMT_QOP (RESET qr))) in
-     ((Std.combine qformals qrl, []),  insns)
+     let qformal = List.hd qformals in
+     let qr = CE.lookup_qv ~{loc=loc} env qformal in
+     let insns = [(loc, STMT_QOP (RESET qr))] in
+     (([(qformal,qr)], []),  insns)
 
       ]
   and qcrec env qc = match qc with [

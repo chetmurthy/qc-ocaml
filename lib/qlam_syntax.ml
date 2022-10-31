@@ -127,10 +127,11 @@ and qcirc_t = [
 | QWIRES of loc and list qvar_t and list cvar_t
 | QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
-| QCREATE of loc and BI.t | QDISCARD of loc and list qvar_t
-| QMEASURE of loc and list qvar_t
-| QRESET of loc and list qvar_t
-  ]
+| QCREATE of loc and BI.t
+| QDISCARD of loc and qvar_t
+| QMEASURE of loc and qvar_t
+| QRESET of loc and qvar_t
+]
 and qbinding_t =
   (loc * list qvar_t * list cvar_t * qcirc_t)
 [@@deriving (to_yojson, show, eq, ord);] ;
@@ -308,9 +309,9 @@ value rec qcirc pps = fun [
   | QBARRIER _ qvl -> Fmt.(pf pps "barrier %a" qvars_cvars (qvl, []))
   | QCREATE _ (EXPLICIT n) -> Fmt.(pf pps "qubit #%d ()" n)
   | QCREATE _ (UNIQUE _) -> Fmt.(pf pps "qubit ()")
-  | QDISCARD _ qvl -> Fmt.(pf pps "qdiscard %a" qvars_cvars (qvl, []))
-  | QMEASURE _ qvl -> Fmt.(pf pps "measure %a" qvars_cvars (qvl, []))
-  | QRESET _ qvl -> Fmt.(pf pps "reset %a" qvars_cvars (qvl, []))
+  | QDISCARD _ qv -> Fmt.(pf pps "qdiscard %a" QV.pp_hum qv)
+  | QMEASURE _ qv -> Fmt.(pf pps "measure %a" QV.pp_hum qv)
+  | QRESET _ qv -> Fmt.(pf pps "reset %a" QV.pp_hum qv)
 ]
 
 and qbinding pps = fun [

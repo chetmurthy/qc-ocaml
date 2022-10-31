@@ -39,9 +39,9 @@ value circuit_freevars qc =
          (pvl, QVFVS.ofList qvl, CVFVS.ofList cvl)
       | QBARRIER _ qvl  -> (PVFVS.mt,  QVFVS.ofList qvl, CVFVS.mt)
       | QCREATE _ _ -> (PVFVS.mt, QVFVS.mt, CVFVS.mt)
-      | QDISCARD _ qvl -> (PVFVS.mt,  QVFVS.ofList qvl,  CVFVS.mt)
-      | QMEASURE _ qvl -> (PVFVS.mt, QVFVS.ofList qvl, CVFVS.mt)
-      | QRESET _ qvl -> (PVFVS.mt, QVFVS.ofList qvl, CVFVS.mt)
+      | QDISCARD _ qv -> (PVFVS.mt,  QVFVS.ofList [qv],  CVFVS.mt)
+      | QMEASURE _ qv -> (PVFVS.mt, QVFVS.ofList [qv], CVFVS.mt)
+      | QRESET _ qv -> (PVFVS.mt, QVFVS.ofList [qv], CVFVS.mt)
   ] in
   fvrec qc
 ;
@@ -114,9 +114,9 @@ value lower_circuit qc =
     | QGATEAPP loc g pel qvl cvl -> QGATEAPP loc g pel (List.map rename_qv qvl) (List.map rename_cv cvl)
     | QBARRIER loc qvl -> QBARRIER loc (List.map rename_qv qvl)
     | QCREATE loc u -> QCREATE loc u
-    | QDISCARD loc qvl -> QDISCARD loc (List.map rename_qv qvl)
-    | QMEASURE loc qvl -> QMEASURE loc (List.map rename_qv qvl)
-    | QRESET loc qvl -> QRESET loc (List.map rename_qv qvl)
+    | QDISCARD loc qv -> QDISCARD loc (rename_qv qv)
+    | QMEASURE loc qv -> QMEASURE loc (rename_qv qv)
+    | QRESET loc qv -> QRESET loc (rename_qv qv)
     ] in
   lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
 ;
@@ -177,17 +177,14 @@ value circuit qc1 qc2 =
     
   | (QCREATE _ u1, QCREATE _ u2) -> True
                       
-  | (QDISCARD loc qvl1, QDISCARD _ qvl2) ->
-     (List.length qvl1 = List.length qvl2)
-     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+  | (QDISCARD loc qv1, QDISCARD _ qv2) ->
+     check_qv_corr loc qv_lr qv_rl qv1 qv2
     
-  | (QMEASURE loc qvl1, QMEASURE _ qvl2) ->
-     (List.length qvl1 = List.length qvl2)
-     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+  | (QMEASURE loc qv1, QMEASURE _ qv2) ->
+     check_qv_corr loc qv_lr qv_rl qv1 qv2
     
-  | (QRESET loc qvl1, QRESET _ qvl2) ->
-     (List.length qvl1 = List.length qvl2)
-     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
+  | (QRESET loc qv1, QRESET _ qv2) ->
+     check_qv_corr loc qv_lr qv_rl qv1 qv2
     
   | _ -> False
   ] in
@@ -246,9 +243,9 @@ value qcircuit ~{counter} ~{qvmap} ~{cvmap} qc =
 
     | QBARRIER loc qvl -> QBARRIER loc (List.map map_qvar qvl)
     | QCREATE loc _ -> QCREATE loc (UNIQUE (Unique.mk()))
-    | QDISCARD loc qvl -> QDISCARD loc (List.map map_qvar qvl)
-    | QMEASURE loc qvl -> QMEASURE loc (List.map map_qvar qvl)
-    | QRESET loc qvl -> QRESET loc (List.map map_qvar qvl)
+    | QDISCARD loc qv -> QDISCARD loc (map_qvar qv)
+    | QMEASURE loc qv -> QMEASURE loc (map_qvar qv)
+    | QRESET loc qv -> QRESET loc (map_qvar qv)
     ] in
   freshrec (qvmap, cvmap) qc
 ;
@@ -370,9 +367,9 @@ value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
   | QGATEAPP loc gn pel qvl cvl -> QGATEAPP loc gn (List.map subst_pe pel) (List.map subst_qvar qvl) (List.map subst_cvar cvl)
   | QBARRIER loc qvl -> QBARRIER loc (List.map subst_qvar qvl)
   | (QCREATE _ _) as qc -> qc
-  | QDISCARD loc qvl -> QDISCARD loc (List.map subst_qvar qvl)
-  | QMEASURE loc qvl -> QMEASURE loc (List.map subst_qvar qvl)
-  | QRESET loc qvl -> QRESET loc (List.map subst_qvar qvl)
+  | QDISCARD loc qv -> QDISCARD loc (subst_qvar qv)
+  | QMEASURE loc qv -> QMEASURE loc (subst_qvar qv)
+  | QRESET loc qv -> QRESET loc (subst_qvar qv)
   ] in
   substrec qc
 ;
@@ -586,9 +583,9 @@ value qcircuit qc =
   | QGATEAPP _ _ pvl qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
   | QBARRIER _ qvl -> (qc, FVS.(of_ids (qvl, [])))
   | QCREATE _ _ -> (qc, FVS.mt)
-  | QDISCARD _ qvl -> (qc, FVS.(of_ids (qvl, [])))
-  | QMEASURE _ qvl -> (qc, FVS.(of_ids (qvl, [])))
-  | QRESET _ qvl -> (qc, FVS.(of_ids (qvl, [])))
+  | QDISCARD _ qv -> (qc, FVS.(of_ids ([qv], [])))
+  | QMEASURE _ qv -> (qc, FVS.(of_ids ([qv], [])))
+  | QRESET _ qv -> (qc, FVS.(of_ids ([qv], [])))
   ] in
   let (qc, _) = anrec qc in
   qc
@@ -661,9 +658,9 @@ value qcircuit qc =
   | QGATEAPP loc gn pvl qvl cvl -> QGATEAPP loc gn pvl (List.map map_qv qvl) (List.map map_cv cvl)
   | QBARRIER loc qvl -> QBARRIER loc (List.map map_qv qvl)
   | QCREATE _ _ -> qc
-  | QDISCARD loc qvl -> QDISCARD loc (List.map map_qv qvl)
-  | QMEASURE loc qvl -> QMEASURE loc (List.map map_qv qvl)
-  | QRESET loc qvl -> QRESET loc (List.map map_qv qvl)
+  | QDISCARD loc qv -> QDISCARD loc (map_qv qv)
+  | QMEASURE loc qv -> QMEASURE loc (map_qv qv)
+  | QRESET loc qv -> QRESET loc (map_qv qv)
   ] in
   nnrec (QVMap.empty, CVMap.empty) qc
 ;
@@ -1164,21 +1161,21 @@ value rec circuit env qc = match qc with [
   }
 
 | QCREATE _ _ -> (1, 0)
-| QDISCARD loc qvl -> do {
-    qvl |> List.iter (qvar_find_mark_used loc env) ;
+| QDISCARD loc qv -> do {
+    qvar_find_mark_used loc env qv ;
     (0,0)
   }
 | QBARRIER loc qvl -> do {
     qvl |> List.iter (qvar_find_mark_used loc env) ;
     (List.length qvl,0)
   }
-| QRESET loc qvl -> do {
-    qvl |> List.iter (qvar_find_mark_used loc env) ;
-    (List.length qvl,0)
+| QRESET loc qv -> do {
+    qvar_find_mark_used loc env qv ;
+    (1,0)
   }
-| QMEASURE loc qvl -> do {
-    qvl |> List.iter (qvar_find_mark_used loc env) ;
-    (List.length qvl,List.length qvl)
+| QMEASURE loc qv -> do {
+    qvar_find_mark_used loc env qv ;
+    (1,1)
   }
 | QGATEAPP loc gn pal qal cal ->
    let {args=(pfl, qfl, cfl); res=res} =
@@ -1375,17 +1372,19 @@ end ;
 
 value rec binding genv env (loc, qvar_formals, cvar_formals, qc) =
   match qc with [
-    QMEASURE _ qvar_actuals ->
-      if List.length qvar_formals <> List.length qvar_actuals then
+    QMEASURE _ qvar_actual ->
+      if List.length qvar_formals <> 1 then
         Fmt.(raise_failwithf loc "AssignBits.binding: internal error: QMEASURE qvar formals/actuals length mismatch")
-      else if List.length cvar_formals <> List.length qvar_actuals then
+      else if List.length cvar_formals <> 1 then
         Fmt.(raise_failwithf loc "AssignBits.binding: internal error: QMEASURE cvar formals/qvar actuals length mismatch")
       else
-        let cvar_results = List.map (fun cv -> CLBIT cv) cvar_formals in
-        let qvar_results = qvar_actuals |> List.map (Env.qv_swap_find env) in
-        let env = List.fold_left2 Env.add_qbinding env qvar_formals qvar_results in
-        let env = List.fold_left2 Env.add_cbinding env cvar_formals cvar_results in
-        let env = List.fold_left Env.add_clbit env cvar_results in
+        let qvar_formal = List.hd qvar_formals in
+        let cvar_formal = List.hd cvar_formals in
+        let cvar_result = CLBIT cvar_formal in
+        let qvar_result = Env.qv_swap_find env qvar_actual in
+        let env = Env.add_qbinding env qvar_formal qvar_result in
+        let env = Env.add_cbinding env cvar_formal cvar_result in
+        let env = Env.add_clbit env cvar_result in
         env
 
   | _ ->
@@ -1573,7 +1572,26 @@ value rec layers sbr = match sbr with [
 ] ;
 
 value render_binding  m (qc_assign_env, qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
-  ()
+(*
+  match qc with [
+      QCREATE loc _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QCREATE should never occur here")
+    | QWIRES loc _ _ _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QWIRES should never occur here")
+    | QLET loc _ _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QLET should never occur here")
+    | QMEASURE loc _ ->
+       let qubits = (AB.Env.qv_swap_find qc_assign_env) qvl in
+       let clbits = (AB.Env.cv_swap_find qc_assign_env) cvl in
+       
+
+of loc and list qvar_t
+
+| QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
+| QBARRIER of loc and list qvar_t
+| QRESET of loc and list qvar_t
+
+    | 
+    ]
+ *)
+()
 ;
 value render_bindings m (qc_assign_env, qubit2wire, clbit2wire) bl =
   List.iteri (fun layernum bl ->
@@ -1667,7 +1685,6 @@ value generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit
  *)
 
 value latexable_gate gn ge =
-  let module AB = AssignBits in
   let (_,  qvl, _) = ge.AB.args in
   let (qrl, crl) = ge.AB.result in
   crl = [] &&

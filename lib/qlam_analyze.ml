@@ -172,10 +172,15 @@ value interp ~{layout=lid} ~{machine=mid} (env_items, qc) =
      Fmt.(raise_failwithf loc "BasicLayout.interp: internal error: only one-qvar general gates are supported")
 
   | (QWIRES loc qvl _
-    | QBARRIER loc qvl
-    | QMEASURE loc qvl
-    | QRESET loc  qvl) ->
+    | QBARRIER loc qvl) ->
      let lbits = List.map (Env.find_qvar env) qvl in
+     let logset = BISet.ofList lbits in
+     let physet = PQSet.ofList (List.map (Env.logical_to_physical env) lbits) in
+     (logset, physet, lbits, Env.layout env)
+
+  | (QMEASURE loc qv
+    | QRESET loc  qv) ->
+     let lbits = List.map (Env.find_qvar env) [qv] in
      let logset = BISet.ofList lbits in
      let physet = PQSet.ofList (List.map (Env.logical_to_physical env) lbits) in
      (logset, physet, lbits, Env.layout env)
@@ -184,8 +189,8 @@ value interp ~{layout=lid} ~{machine=mid} (env_items, qc) =
      let phy = Env.logical_to_physical env bi in
      (BISet.ofList [bi], PQSet.ofList [phy], [bi], Env.layout env)
    
-  | QDISCARD _ qvl ->
-     let lbits = List.map (Env.find_qvar env) qvl in
+  | QDISCARD _ qv ->
+     let lbits = List.map (Env.find_qvar env) [qv] in
      let logset = BISet.ofList lbits in
      let physet = PQSet.ofList (List.map (Env.logical_to_physical env) lbits) in
      (logset, physet, [], Env.layout env)
