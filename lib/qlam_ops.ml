@@ -1572,38 +1572,33 @@ value rec layers sbr = match sbr with [
 ] ;
 
 value render_binding m (qc_assign_env, qubit2wire, clbit2wire) col (loc, qvl, cvl, qc) =
+  let open Qc_latex in
   match qc with [
       QCREATE loc _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QCREATE should never occur here")
     | QWIRES loc _ _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QWIRES should never occur here")
     | QLET loc _ _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QLET should never occur here")
     | QMEASURE loc _ ->
-(*
        let qv = List.hd qvl in
        let cv = List.hd cvl in
        let qubit = AB.Env.qv_swap_find qc_assign_env qv in
        let clbit = AB.Env.cv_swap_find qc_assign_env cv in
-       let quwire = AB.QUBMap.swap_find qubit2wire qubit in
-       let clwire = AB.CLBMap.swap_find clbit2wire clbit in
-       let cdstick =
-         let cwire_s = Fmt.(str "%d" (clwire - num_qubits))
-         if clwire > quwire then
-           DSTICK("0", -2)
- do {
-        Matrix.set m qwire col METER ;
-        Matrix.set m cwire col cdstick 
+       let (quwirename, quwirenum) = AB.QUBMap.swap_find qubit2wire qubit in
+       let (clwirename, clwirenum) = AB.CLBMap.swap_find clbit2wire clbit in
+       let cdstick = ME.DSTICK clwirename (quwirenum-clwirenum) in do {
+        Matrix.set m quwirenum col METER ;
+        Matrix.set m clwirenum col cdstick 
       }
-
+(*
 | QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
 | QRESET of loc and list qvar_t
  *)
-       ()
     ]
 ;
-value render_bindings m (qc_assign_env, qubit2wire, clbit2wire) bl =
-  List.iteri (fun layernum bl ->
+value render_bindings m (qc_assign_env, qubit2wire, clbit2wire) ll =
+  ll |> List.iteri (fun layernum bl ->
       let bl = List.map snd bl in
-      List.iter (render_binding m (qc_assign_env, qubit2wire, clbit2wire) (2+layernum)) bl)
+      List.iter (render_binding m (qc_assign_env, qubit2wire, clbit2wire) (3+layernum)) bl)
 ;
 
 (** remove_bit_overlap:
@@ -1638,20 +1633,22 @@ value generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit
   let open Qc_latex in
   let num_bits = num_qubits + num_clbits in
   let m = Matrix.mk num_bits (2 + (List.length ll) + 2) in do {
-  for i = 0 to num_qubits-1 do {
-      Matrix.set m i 0 (NGHOST (Fmt.str "q_%d" i)) ;
-      Matrix.set m i 1 (LSTICK(Some(Fmt.str "q_%d" i))) ;
-    } ;
-  for i = num_qubits to (num_bits-1) do {
-      Matrix.set_row m i CW ;
-      Matrix.set m i 0 (NGHOST (Fmt.str {x|\mathrm{{c_%d} :  }|x} i)) ;
-      Matrix.set m i 1 (LSTICK (Some (Fmt.str {x|\mathrm{{c_%d} :  }|x} i))) ;
-      Matrix.set m i 2 (CWIDTH 1) ;
-    } ;
+  qubit2wire
+  |> AB.QUBMap.iter (fun _ (name, num) -> do {
+                    Matrix.set m num 0 (NGHOST name) ;
+                    Matrix.set m num 1 (LSTICK(Some name)) ;
+       }) ;
+  clbit2wire
+  |> AB.CLBMap.iter (fun _ (name, num) -> do {
+                    Matrix.set_row m num CW ;
+                    Matrix.set m num 0 (NGHOST (Fmt.str {x|\mathrm{{%s} :  }|x} name)) ;
+                    Matrix.set m num 1 (LSTICK (Some (Fmt.str {x|\mathrm{{%s} :  }|x} name))) ;
+                    Matrix.set m num 2 (CWIDTH 1) ;
+       }) ;
   assert (
       let bl = List.map snd (List.hd ll) in
       bl |> List.for_all (fun [ (_, _, _, SYN.QCREATE _ _) -> True | _ -> False ])) ;
-  render_bindings m (qc_assign_env, qubit2wire, clbit2wire) ll ;
+  render_bindings m (qc_assign_env, qubit2wire, clbit2wire) (List.tl ll) ;
   m
   }
 ;
