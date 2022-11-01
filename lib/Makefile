@@ -18,14 +18,14 @@ TARGET := qc_ocaml.cma
 OML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
-	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml \
+	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml \
 	qlam_migrate.ml qc_latex.ml
 RML = qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_parser.ml qlam_ops.ml qlam_analyze.ml qconvert.ml
 ML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qc_latex.ml qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_migrate.ml qlam_parser.ml qlam_ops.ml qlam_analyze.ml qconvert.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
-	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml qasm0_tokens.ml qasm0_lexer.ml qasm0_2circ.ml
+	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml
 
 CMO := $(ML:.ml=.cmo)
 CMI := $(ML:.ml=.cmi)
@@ -116,7 +116,7 @@ qconvert.cmx:  qconvert.ml
 EXTERNAL := $(shell $(OCAMLFIND) query -predicates byte -format '%m' $(PACKAGES) | grep local-install)
 $(CMO) $(CMI) $(CMX): $(EXTERNAL)
 
-depend:: qasm0_lexer.ml qasm2_lexer.ml
+depend:: qasm2_lexer.ml
 	echo "$(CMO) $(CMI) $(CMX): $(EXTERNAL)" > .depend.NEW
 	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax camlp5o $(OML) $(MLI) >> .depend.NEW
 	$(OCAMLFIND) ocamldep $(DEBUG) -package $(PACKAGES) -syntax camlp5r $(RML) $(RMLI) >> .depend.NEW \

@@ -16,7 +16,7 @@ PACKAGES := $(PACKAGES),pcre,oUnit,pa_ppx.testutils,pa_ppx.runtime_fat,qc_ocaml
 SYNTAX := camlp5o
 
 TESTS= \
-	qlam_tests.byte qasm2_tests.byte qasm0_tests.byte \
+	qlam_tests.byte qasm2_tests.byte\
 
 LARGE_TESTS= \
 	large_tests.byte \
@@ -24,7 +24,7 @@ LARGE_TESTS= \
 ALL_TESTS = $(TESTS) $(LARGE_TESTS)
 
 ML=\
-	qlam_tests.ml qasm2_tests.ml qasm0_tests.ml large_tests.ml
+	qlam_tests.ml qasm2_tests.ml large_tests.ml
 
 
 CMO := $(ML:.ml=.cmo)
