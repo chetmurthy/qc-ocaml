@@ -1607,11 +1607,32 @@ value render_binding m (qc_assign_env, qubit2wire, clbit2wire) col (loc, qvl, cv
        |> List.iter (fun (i,j) ->
               Matrix.set m i col (BARRIER (j-i))
             )
-(*
-| QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
-| QBARRIER of loc and list qvar_t
-| QRESET of loc and list qvar_t
- *)
+
+    | QGATEAPP loc gn _ [qv] [] ->
+       let qubit = AB.Env.qv_swap_find qc_assign_env qv in
+       let (_, quwirenum) = AB.QUBMap.swap_find qubit2wire qubit in
+       Matrix.set m quwirenum col (GATE Fmt.(str {x|\mathrm{%a}|x} SYN.QG.pp_hum gn))
+
+    | QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [ctrl_qv;targ_qv] [] ->
+       let ctrl_qubit = AB.Env.qv_swap_find qc_assign_env ctrl_qv in
+       let targ_qubit = AB.Env.qv_swap_find qc_assign_env targ_qv in
+       let (_, ctrl_quwire) = AB.QUBMap.swap_find qubit2wire ctrl_qubit in
+       let (_, targ_quwire) = AB.QUBMap.swap_find qubit2wire targ_qubit in do {
+        Matrix.set m ctrl_quwire col (CTRL (targ_quwire - ctrl_quwire)) ;
+        Matrix.set m targ_quwire col TARG
+      }
+
+    | QGATEAPP loc ((SYN.SWAP _|SYN.GENGATE _ ("swap",-1)) as gn) _ [qv1;qv2] [] ->
+       let qubit1 = AB.Env.qv_swap_find qc_assign_env qv1 in
+       let qubit2 = AB.Env.qv_swap_find qc_assign_env qv2 in
+       let (_, quwire1) = AB.QUBMap.swap_find qubit2wire qubit1 in
+       let (_, quwire2) = AB.QUBMap.swap_find qubit2wire qubit2 in do {
+        Matrix.set m quwire1 col (SWAP None) ;
+        Matrix.set m quwire2 col (SWAP (Some (-(quwire2-quwire1))))
+      }
+
+    | QGATEAPP loc gn _ _ _ ->
+       Fmt.(raise_failwithf loc "render_binding: unhandled gate %a" SYN.QG.pp_hum gn)
     ]
 ;
 value render_bindings m (qc_assign_env, qubit2wire, clbit2wire) ll =

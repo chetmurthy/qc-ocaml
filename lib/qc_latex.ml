@@ -21,6 +21,7 @@ type t =
 | CTRL of int
 | TARG
 | METER
+| SWAP of int option
 | CWIDTH of int
 | BARRIER of int
 | L of t list
@@ -48,6 +49,8 @@ let rec tolatex pps me =
     | MULTIGATE (n, s, Some m) -> Fmt.(str {|\multigate{%d}{%s}_<<<{%d}|} n s m)
     | CTRL n -> Fmt.(str {|\ctrl{%d}|} n)
     | TARG -> {|\targ|}
+    | SWAP None -> {|\qswap|}
+    | SWAP (Some n) -> Fmt.(str {|\qswap \qwx[%d]|} n)
     | METER -> {|\meter|} 
     | CWIDTH n -> Fmt.(str {|\lstick{/_{_{%d}}} \cw |} n)
     | BARRIER n -> Fmt.(str {|\barrier[0em]{%d}|} n)

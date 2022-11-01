@@ -141,8 +141,9 @@ let bi_pp x = Fmt.(pf stdout "<:bi< %a >>" SYN.BI.pp_hum x) ;;
 #install_printer bi_pp ;;
 
 let qgn_pp x = Fmt.(pf stdout "<:qgn<%a>>" SYN.QG.pp_hum x) ;;
+(*
 #install_printer qgn_pp ;;
-
+ *)
 let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" PP.qcirc qc) ;;
 #install_printer qcircuit_pp ;;
 
