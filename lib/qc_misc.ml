@@ -111,3 +111,31 @@ let next { it=it } =
   n
 
 end
+
+let sorted (l : int list) =
+  let rec srec = function
+      n::(m::_ as t) ->
+       n <= m && srec t
+    | [_] | [] -> true in
+  srec l
+
+let consecutive_ints (l : int list) =
+  sorted l &&
+    let min = List.hd l in
+    let max = fst (Std.sep_last l) in
+    l = Std.interval min max
+
+let collapse_intervals l =
+  let _ = assert (sorted l) in
+  let rec cinterval (n,m) = function
+        [] ->  ((n,m),[])
+      | h::t as l ->
+         if m+1 = h then cinterval (n,m+1) t
+         else ((n,m), l)
+  and crec acc = function
+        [] -> List.rev acc
+      | h::t ->
+         let (p,t) = cinterval (h,h) t in
+         crec (p::acc) t
+      in
+  crec [] l

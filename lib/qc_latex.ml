@@ -22,6 +22,7 @@ type t =
 | TARG
 | METER
 | CWIDTH of int
+| BARRIER of int
 | L of t list
 [@@deriving to_yojson, show, eq, ord]
 
@@ -49,6 +50,7 @@ let rec tolatex pps me =
     | TARG -> {|\targ|}
     | METER -> {|\meter|} 
     | CWIDTH n -> Fmt.(str {|\lstick{/_{_{%d}}} \cw |} n)
+    | BARRIER n -> Fmt.(str {|\barrier[0em]{%d}|} n)
     | L l -> Fmt.(str "%a" (list ~sep:(const string " ") tolatex) l) in
   Fmt.(pf pps "%s" s)
 end

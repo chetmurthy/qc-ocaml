@@ -1390,9 +1390,9 @@ value rec binding genv env (loc, qvar_formals, cvar_formals, qc) =
   | _ ->
      let (env, (qrl, crl)) = qcircuit genv env qc in
       if List.length qvar_formals <> List.length qrl then
-        Fmt.(raise_failwithf loc "AssignBits.binding: internal error: QMEASURE qvar formals/actuals length mismatch")
+        Fmt.(raise_failwithf loc "AssignBits.binding: internal error: qvar formals/actuals length mismatch")
       else if List.length cvar_formals <> List.length crl then
-        Fmt.(raise_failwithf loc "AssignBits.binding: internal error: QMEASURE cvar formals/actuals length mismatch")
+        Fmt.(raise_failwithf loc "AssignBits.binding: internal error: cvar formals/actuals length mismatch")
       else
         let qvar_additional_mapping = List.map2 (fun qformal qresult -> (qformal, qresult)) qvar_formals qrl in
         let cvar_additional_mapping = List.map2 (fun cformal cresult -> (cformal, cresult)) cvar_formals crl in
@@ -1442,9 +1442,13 @@ and qcircuit genv env qc =
   | QBARRIER _ qvl ->
      (env, (List.map (Env.qv_swap_find env) qvl,[]))
 
-  | (QBARRIER _ _
-     | QDISCARD _ _
-    | QRESET _ _) -> (Env.empty, ([], []))
+  | QRESET _ qv ->
+     (env, ([Env.qv_swap_find env qv],[]))
+
+  | QBARRIER _ qvl ->
+     (env, (List.map (Env.qv_swap_find env) qvl,[]))
+
+  | QDISCARD _ _ -> (Env.empty, ([], []))
   ] in
   arec qc
 ;
@@ -1538,7 +1542,7 @@ module Latex = struct
 
 
  *)
-
+open Qc_latex ;
 module AB = AssignBits ;
 
 value binding_wire_range aenv (qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
@@ -1572,7 +1576,6 @@ value rec layers sbr = match sbr with [
 ] ;
 
 value render_binding m (qc_assign_env, qubit2wire, clbit2wire) col (loc, qvl, cvl, qc) =
-  let open Qc_latex in
   match qc with [
       QCREATE loc _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QCREATE should never occur here")
     | QWIRES loc _ _ -> Fmt.(raise_failwithf loc "render_binding: internal error: QWIRES should never occur here")
@@ -1588,6 +1591,22 @@ value render_binding m (qc_assign_env, qubit2wire, clbit2wire) col (loc, qvl, cv
         Matrix.set m quwirenum col METER ;
         Matrix.set m clwirenum col cdstick 
       }
+    | QRESET _ qv ->
+       let qubit = AB.Env.qv_swap_find qc_assign_env qv in
+       let (_, quwirenum) = AB.QUBMap.swap_find qubit2wire qubit in
+       Matrix.set m quwirenum col (GATE {x|\mathrm{\left|0\right\rangle}|x})
+    | QBARRIER _ qvl ->
+       let qubits = List.map (AB.Env.qv_swap_find qc_assign_env) qvl in
+       let sorted_qwires =
+         qubits
+         |>  List.map (AB.QUBMap.swap_find qubit2wire)
+         |> List.map snd 
+         |> List.sort Stdlib.compare in
+       let wire_intervals = collapse_intervals sorted_qwires in
+       wire_intervals
+       |> List.iter (fun (i,j) ->
+              Matrix.set m i col (BARRIER (j-i))
+            )
 (*
 | QGATEAPP of loc and qgn_t and list pexpr_t and list qvar_t and list cvar_t
 | QBARRIER of loc and list qvar_t
@@ -1616,6 +1635,22 @@ value remove_bit_overlap aenv (qubit2wire, clbit2wire) (loc, bl) =
   layers sorted_bl_ranges
 ;
 
+(** fixup_barriers
+
+    It seems that a barrier in column i+1 needs to be moved to column
+    i, and a QW in column i+1.  This code does that.
+ *)
+value fixup_barriers m =
+  let fixlist l =
+    let rec frec = fun [
+          [m; ((ME.BARRIER _) as n) :: t] -> [ME.L[m;n] :: frec [QW :: t]]
+        | [m :: t] -> [m :: frec t]
+        | [] -> []
+        ] in
+    frec l in
+  let open Matrix in
+  { (m) with it = Array.map (fun a -> a |> Array.to_list |> fixlist |> Array.of_list) m.it }
+;
 (** generate_matrix
 
     Generates the Matrix.t from this circuit.
@@ -1630,26 +1665,27 @@ value remove_bit_overlap aenv (qubit2wire, clbit2wire) (loc, bl) =
 
  *)
 value generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit2wire) (ll, qc) =
-  let open Qc_latex in
   let num_bits = num_qubits + num_clbits in
   let m = Matrix.mk num_bits (2 + (List.length ll) + 2) in do {
   qubit2wire
   |> AB.QUBMap.iter (fun _ (name, num) -> do {
-                    Matrix.set m num 0 (NGHOST name) ;
-                    Matrix.set m num 1 (LSTICK(Some name)) ;
+                       let txt = (Fmt.str {x|%s :  |x} name) in
+                       Matrix.set m num 0 (NGHOST txt) ;
+                       Matrix.set m num 1 (LSTICK(Some txt)) ;
        }) ;
   clbit2wire
   |> AB.CLBMap.iter (fun _ (name, num) -> do {
                     Matrix.set_row m num CW ;
-                    Matrix.set m num 0 (NGHOST (Fmt.str {x|\mathrm{{%s} :  }|x} name)) ;
-                    Matrix.set m num 1 (LSTICK (Some (Fmt.str {x|\mathrm{{%s} :  }|x} name))) ;
+                    let txt = (Fmt.str {x|\mathrm{{%s} :  }|x} name) in
+                    Matrix.set m num 0 (NGHOST txt) ;
+                    Matrix.set m num 1 (LSTICK (Some txt)) ;
                     Matrix.set m num 2 (CWIDTH 1) ;
        }) ;
   assert (
       let bl = List.map snd (List.hd ll) in
       bl |> List.for_all (fun [ (_, _, _, SYN.QCREATE _ _) -> True | _ -> False ])) ;
   render_bindings m (qc_assign_env, qubit2wire, clbit2wire) (List.tl ll) ;
-  m
+  m |> fixup_barriers
   }
 ;
 
@@ -1733,11 +1769,10 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
            (list ~{sep=const string " "} int) (Std2.hash_list_repeats wirenums))
   else
   let sorted_wirenums = List.sort Stdlib.compare wirenums in
-  let (max_wirenum, _) = Std.sep_last sorted_wirenums in
   if 0 <> List.hd sorted_wirenums then
     Fmt.(failwithf "lowest-numbered wire must be 0")
-  else if sorted_wirenums <> Std.interval 0 max_wirenum then
-    Fmt.(failwithf "wires do not fill the interval [0,%d]: %a" max_wirenum
+  else if not (consecutive_ints sorted_wirenums) then
+    Fmt.(failwithf "wires do not consecutively fill an interval: %a"
            (list ~{sep=const string " "} int) sorted_wirenums)
   else
   let out_of_range = wirenums |> List.filter (fun n -> not (0 <= n && n < num_bits)) in
