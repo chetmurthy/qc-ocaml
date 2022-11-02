@@ -1022,8 +1022,10 @@ value mk (edges, positions) =
 
 value has_pair it v1 v2 = DAG.mem_edge it.dag.underlying v1 v2 ;
 value has_path it v1 v2 = DAG.mem_edge it.dag.tclosure v1 v2 ;
-value path it v1 v2 = DAGX.DSP.shortest_path it.dag.underlying v1 v2 ;
-
+value path it v1 v2 =
+  let (edges, _) = DAGX.DSP.shortest_path it.dag.underlying v1 v2 in
+  [v1:: List.map (fun (s,_,d) -> d) edges]
+;
 value dot ?{terse=True} ?{tclos=False} cm =
   let g = if tclos then cm.dag.tclosure else cm.dag.underlying in
   let positions = cm.positions in
@@ -1084,6 +1086,22 @@ module LO = struct
 
   value logical_to_physical l lbit = M.find lbit l.layout ;
   value physical_to_logical l phybit = M.find_rng phybit l.layout ;
+
+  value has_logical_pair l cmap l1 l2 =
+    let pq1 = logical_to_physical l l1 in
+    let pq2 = logical_to_physical l l2 in
+    CM.has_pair cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
+
+  value has_logical_path l cmap l1 l2 =
+    let pq1 = logical_to_physical l l1 in
+    let pq2 = logical_to_physical l l2 in
+    CM.has_path cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
+
+  value logical_path l cmap l1 l2 =
+    let pq1 = logical_to_physical l l1 in
+    let pq2 = logical_to_physical l l2 in
+    let physpath = CM.path cmap (PQ.toInt pq1) (PQ.toInt pq2) in
+    List.map (fun n -> physical_to_logical l (PQ.ofInt n)) physpath ;
 
   value swap l (logical_i,logical_j) =
     let m = l.layout in
@@ -1857,7 +1875,7 @@ module  BasicSwap = struct
     Method:
 
     (1) hoist the circuit
-    (2) compute let-listd
+    (2) compute let-list
 
     (3) for each binding in each layer:
 
@@ -1870,8 +1888,57 @@ module  BasicSwap = struct
         higher-numbered endpoint.
 
  *)
+module AB = AssignBits ;
 
-value basic_swap ~{coupling}_map ~{layout} genv0 (envitems,qc) =
+value logical_to_explicit_qubit loc q =
+  match q with [
+      AB.QUBIT bi -> bi
+    | _ ->
+       Fmt.(raise_failwithf loc "layout_sensitive_binding: logical qubit was not explicitly named (all must be to apply BasicSwap): %a"
+              AB.QUBit.pp_hum q)
+    ]
+;
+
+value layout_sensitive_binding aenv cm l logical2qvar ((loc, qvl,  cvl,  qc) as b) =
+  match qc with [
+      QCREATE loc _ -> Fmt.(raise_failwithf loc "layout_sensitive_binding: internal error: QCREATE should never occur here")
+    | QWIRES loc _ _ -> Fmt.(raise_failwithf loc "layout_sensitive_binding: internal error: QWIRES should never occur here")
+    | QLET loc _ _ -> Fmt.(raise_failwithf loc "layout_sensitive_binding: internal error: QLET should never occur here")
+    | (QMEASURE _ _ | QRESET _ _ | QBARRIER _ _) -> [[b]]
+    (* all single-qubit gates are fine *)
+    | QGATEAPP _ _ _ [_] [] -> [[b]]
+
+    | QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [ctrl_qv;targ_qv] [] ->
+       let (qv1,qv2) = match qvl with [ [qv1;qv2] -> (qv1,qv2) | _ -> assert False ] in
+       let qubit1 = AB.Env.qv_swap_find aenv qv1 in
+       let lqubit1 = logical_to_explicit_qubit loc qubit1 in
+       let qubit2 = AB.Env.qv_swap_find aenv qv2 in
+       let lqubit2 = logical_to_explicit_qubit loc qubit2 in
+       if LO.has_logical_pair l cm lqubit1 lqubit2 then [[b]]
+       else if not (LO.has_logical_path l cm lqubit1 lqubit2) then
+         Fmt.(raise_failwithf loc "BasicSwap.process_binding: no path logical qubits %a -> %a"
+              SYN.BI.pp_hum lqubit1 SYN.BI.pp_hum lqubit2)
+       else
+       let logical_path = LO.logical_path l cm lqubit1 lqubit2 in
+       let _ = assert (List.length logical_path > 2) in
+       let qvpath = List.map (BIMap.swap_find logical2qvar) logical_path in
+       let (qvlast, qvpath1) = Std.sep_last qvpath in
+       let (_, logical_path1) = Std.sep_last logical_path in
+       let _ = assert (QV.equal qvlast qv2) in
+       let mid_qvpath = List.tl qvpath1 in
+       (* mid_qvpath is the list of intermediate qvars in the path, (hence excluding the endpionts) *)
+       let swap_bl =
+         mid_qvpath
+         |> List.map (fun rightqv ->
+                (loc,  [rightqv;qv1], [], QGATEAPP loc (SYN.SWAP loc) [] [qv1;rightqv] [])) in
+       (swap_bl |> List.map (fun b -> [b]))@[[b]]
+           
+    | QGATEAPP loc gn _ _ _ ->
+       Fmt.(raise_failwithf loc "layout_sensitive_binding: unhandled gate %a" SYN.QG.pp_hum gn)
+    ] ;
+
+value basic_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout} (envitems,qc) =
+  let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
   let qc = Hoist.hoist qc in
   let (ll, qc) = SYN.to_letlist qc in
   ()
