@@ -111,9 +111,8 @@ module BISet = EntitySet(BI) ;
 module BIMap = EntityMap(BI)(BISet) ;
 module PQ = struct
   type t = [Physical of int] [@@deriving (to_yojson, show, eq, ord);] ;
-  value pp_hum pps = fun [
-    Physical n -> Fmt.(pf pps "{physical %d}" n)
-  ] ;
+  value toInt = fun [ Physical n -> n ] ;
+  value pp_hum pps pq = Fmt.(pf pps "{physical %d}" (toInt pq)) ;
 end ;
 module PQSet = EntitySet(PQ) ;
 module BitIdent = BI ;

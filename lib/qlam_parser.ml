@@ -110,7 +110,6 @@ EXTEND
   paramvars: [ [ l = LIST0 paramvar SEP "," -> l ] ] ;
   qvars: [ [ l = LIST0 qvar -> l ] ] ;
   ne_qvars: [ [ l = LIST1 qvar -> l ] ] ;
-  cvars: [ [ l = LIST0 cvar -> l ] ] ;
   ne_cvars: [ [ l = LIST1 cvar -> l ] ] ;
   qvars_cvars: [ [
       qvl = qvars ; ":" ; cvl = ne_cvars -> (qvl, cvl)
