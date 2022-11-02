@@ -923,28 +923,9 @@ end ;
 
  *)
 
-module CM = struct
-open CouplingMap ;
+module GraphExtra(G : (Graph.Sig.P with type E.label = int)) = struct
+  module G = G ;
 
-(* representation of a node -- must be hashable *)
-module Node = struct
-   type t = int ;
-   value compare (v1: t) (v2: t) = Stdlib.compare v1 v2 ;
-   value hash = Hashtbl.hash ;
-   value equal = (=) ;
-end ;
-
-(* representation of an edge -- must be comparable *)
-module Edge = struct
-   type t = int ;
-
-   value compare = Stdlib.compare ;
-   value equal = (=) ;
-   value default = max_int ;
-end ;
-
-(* a functional/persistent graph *)
-module G = Graph.Persistent.Digraph.ConcreteLabeled(Node)(Edge) ;
 
 value distance g v1 v2 =
     match G.find_edge g v1 v2 with [
@@ -977,23 +958,74 @@ value add_transitive_closure ?{reflexive=False} g0 =
     add_transitive_closure ~{reflexive=reflexive} g0
 ;
 
-type t = { cm : G.t ; tclosure : G.t; positions : IntMap.t (int * int) } ;
-
-value to_graph edges = 
+value of_edges edges = 
   List.fold_left (fun g (i,j) ->
-      G.(add_edge_e g (E.create i 1 j)))
+      G.(add_edge_e g (G.E.create i 1 j)))
   G.empty edges
 ;
 
-value mk (edges, positions) =
-  let cm = to_graph edges in
-  let positions = IntMap.ofList positions in
-  { cm = cm ; tclosure = transitive_closure cm ; positions = positions } ;
+module Weight = struct
+  type edge = G.E.t ;
+  type t = G.E.label ;
+  value weight e = G.E.label e ;
+  value compare = Int.compare ;
+  value add x y = x + y ;
+  value zero = 0 ;
+end ;
 
-value has_pair it v1 v2 = G.mem_edge it.cm v1 v2 ;
+module DSP = Graph.Path.Dijkstra(G)(Weight) ;
+
+end ;
+
+module CM = struct
+open CouplingMap ;
+
+(* representation of a node -- must be hashable *)
+module Node = struct
+   type t = int ;
+   value compare (v1: t) (v2: t) = Stdlib.compare v1 v2 ;
+   value hash = Hashtbl.hash ;
+   value equal = (=) ;
+end ;
+
+(* representation of an edge -- must be comparable *)
+module Edge = struct
+   type t = int ;
+
+   value compare = Stdlib.compare ;
+   value equal = (=) ;
+   value default = max_int ;
+end ;
+
+(* a functional/persistent graph *)
+module DAG = Graph.Persistent.Digraph.ConcreteLabeled(Node)(Edge) ;
+module DAGX = GraphExtra(DAG) ;
+
+module G = Graph.Persistent.Graph.ConcreteLabeled(Node)(Edge) ;
+module GX = GraphExtra(G) ;
+
+type graphs_t 'a = { underlying : 'a ; tclosure : 'a } ;
+type t = {
+    g : graphs_t G.t
+  ; dag : graphs_t DAG.t
+  ; positions : IntMap.t (int * int)
+  } ;
+
+value mk (edges, positions) =
+  let g = GX.of_edges edges in
+  let dag = DAGX.of_edges edges in
+  let positions = IntMap.ofList positions in
+  { g = { underlying = g ; tclosure = GX.transitive_closure g }
+  ; dag = { underlying = dag ; tclosure = DAGX.transitive_closure dag }
+  ; positions = positions
+  } ;
+
+value has_pair it v1 v2 = DAG.mem_edge it.dag.underlying v1 v2 ;
+value has_path it v1 v2 = DAG.mem_edge it.dag.tclosure v1 v2 ;
+value path it v1 v2 = DAGX.DSP.shortest_path it.dag.underlying v1 v2 ;
 
 value dot ?{terse=True} ?{tclos=False} cm =
-  let g = if tclos then cm.tclosure else cm.cm in
+  let g = if tclos then cm.dag.tclosure else cm.dag.underlying in
   let positions = cm.positions in
   let open Odot in
   let dot_vertex_0 v acc =
@@ -1021,8 +1053,8 @@ value dot ?{terse=True} ?{tclos=False} cm =
 
     let l =
       []
-      |> G.fold_vertex dot_vertex_0 g
-      |> G.fold_edges_e dot_edge_0 g
+      |> DAG.fold_vertex dot_vertex_0 g
+      |> DAG.fold_edges_e dot_edge_0 g
       |> List.rev in
     let l = 
       [(Odot.Stmt_attr
@@ -1807,4 +1839,41 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
   ((ll,qc),  generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit2wire) (ll, qc))
 ;
 
+end ;
+
+module  BasicSwap = struct
+(** BasicSwap
+
+    argument:
+
+    coupling map
+    layout for qubits (assumes # qubits)
+    circuit
+
+    produces a circuit from the input, by inserting swaps in order to
+    obey the constraints of the coupling-map.
+
+
+    Method:
+
+    (1) hoist the circuit
+    (2) compute let-listd
+
+    (3) for each binding in each layer:
+
+        (4) if it's a single-bit gate, just pass it
+        (5) if it's not a CX/cx, fail
+        (6) for CX/cx, if it's realizable with the coupling-map, pass it
+
+        (7) otherwise, find a path between the two endpoints, and add
+        swaps to move the lower-numbered endpoint up to be next to the
+        higher-numbered endpoint.
+
+ *)
+
+value basic_swap ~{coupling}_map ~{layout} genv0 (envitems,qc) =
+  let qc = Hoist.hoist qc in
+  let (ll, qc) = SYN.to_letlist qc in
+  ()
+;
 end ;

@@ -205,7 +205,7 @@ module Ops = Qlam_ops ;;
 let cm = Ops.CM.mk cm0 ;;
 Ops.CM.(cm |> dot |> dot_to_file "goo.dot");;
 
-let g_to_list g = Ops.CM.(G.fold_edges_e (fun e acc -> e::acc) g []) ;;
+let g_to_list g = Ops.CM.(DAG.fold_edges_e (fun e acc -> e::acc) g []) ;;
 
 let p1 = with_include_path ~path:["testdata"] full_to_ast_from_file "testdata/example.qasm" in
 let p2 = p1 |>  Qconvert.ToLam.program in
