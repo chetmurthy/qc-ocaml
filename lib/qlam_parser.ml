@@ -11,9 +11,13 @@ value qbinding = Grammar.Entry.create g "qbinding";
 value env = Grammar.Entry.create g "env";
 value env_item = Grammar.Entry.create g "env_item";
 value top = Grammar.Entry.create g "top";
+value layout = Grammar.Entry.create g "layout";
+value coupling_map = Grammar.Entry.create g "coupling_map";
 value qcirc_eoi = Grammar.Entry.create g "qcirc_eoi";
 value top_eoi = Grammar.Entry.create g "top_eoi";
 value env_eoi = Grammar.Entry.create g "env_eoi";
+value layout_eoi = Grammar.Entry.create g "layout_eoi";
+value coupling_map_eoi = Grammar.Entry.create g "coupling_map_eoi";
 
 value tokens_fun strm =
   list_of_stream_eof (fun [ ("EOI",_) -> True | _ -> False ]) strm ;
@@ -48,7 +52,8 @@ value qelib_from_file s =
 
 EXTEND
   GLOBAL: qcirc qbinding env env_item top
-          qcirc_eoi env_eoi top_eoi ;
+          qcirc_eoi env_eoi top_eoi
+          layout layout_eoi coupling_map coupling_map_eoi ;
 
   env: [ [
     l = LIST0 env_item -> l
@@ -64,23 +69,24 @@ EXTEND
          QINCLUDE loc QLAM s (qelib_from_file s)
        else
          Fmt.(raise_failwithf loc "QLAM parser only accepts QLAM (.qli) includes")
-    | "coupling_map" ; mname = ident ; "[" ;
-      edges = LIST1 [ n = INT ; dir=direction ; m = INT -> (int_of_string n,dir,int_of_string m) ] ;
-      positions = [ ";" ; l = LIST1 position -> l | -> [] ] ;
-      "]" ; ";" -> QCOUPLING_MAP loc mname (CouplingMap.mk edges positions)
-    | "layout" ; mname = ident ; "[" ;
-      l = LIST1 layout_item SEP "," ;
-      "]" ; ";" -> QLAYOUT loc mname (Layout.mk l)
+    | "coupling_map" ; mname = ident ; (edges, positions) = coupling_map ; ";" -> QCOUPLING_MAP loc mname (CouplingMap.mk edges positions)
+    | "layout" ; mname = ident ; l = layout ; ";" -> QLAYOUT loc mname (Layout.mk l)
   ] ]
   ;
   direction: [ [ "->" -> CouplingMap.LR | "<-" -> CouplingMap.RL | "<->" -> CouplingMap.BIDI ] ] ;
   position: [ [ n=INT ; "@" ; "(" ; x=signed_int; ","; y=signed_int ; ")" -> (int_of_string n, (x,y)) ] ] ;
   signed_int: [ [ n= INT -> int_of_string n  | "-" ; n=INT -> - (int_of_string n) ] ] ;
+  layout: [ [ "[" ; l = LIST1 layout_item SEP "," ; "]" -> l ] ] ;
   layout_item: [ [
         OPT "logical" ; lbit = explicit_bit ; ":"  ; pbit = physical_bit -> (lbit, pbit)
       | pbit = physical_bit ; ":" ; OPT "logical" ; lbit = explicit_bit -> (lbit, pbit)
     ] ]
   ;
+  coupling_map: [ [ "[" ;
+      edges = LIST1 [ n = INT ; dir=direction ; m = INT -> (int_of_string n,dir,int_of_string m) ] ;
+      positions = [ ";" ; l = LIST1 position -> l | -> [] ] ;
+      "]" -> (edges, positions) ] ] ;
+
   gate_args: [ [
       "(" ; pvl = paramvars ; ")" ; (qvl,cvl) = qvars_cvars -> (pvl, qvl, cvl)
   ] ]
@@ -185,6 +191,8 @@ EXTEND
   top_eoi: [ [ x = top ; EOI -> x ] ] ;
   qcirc_eoi: [ [ x = qcirc ; EOI -> x ] ] ;
   env_eoi: [ [ x = env ; EOI -> x ] ] ;
+  layout_eoi: [ [ x = layout ; EOI -> x ] ] ;
+  coupling_map_eoi: [ [ x = coupling_map ; EOI -> x ] ] ;
 
 END;
 
@@ -200,4 +208,12 @@ value read_qcircuit s =
   s |> Fpath.v |> Bos.OS.File.read
   |> Rresult.R.get_ok |> Stream.of_string
   |> parse_qcircuit ~{file=s}
+;
+
+value layout_from_string s =
+  s |> Stream.of_string |> (Grammar.Entry.parse layout_eoi)
+;
+
+value coupling_map_from_string s =
+  s |> Stream.of_string |> (Grammar.Entry.parse coupling_map_eoi)
 ;

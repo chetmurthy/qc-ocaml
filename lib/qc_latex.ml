@@ -1,5 +1,6 @@
 open Pa_ppx_base
 open Ppxutil
+open Qc_misc
 
 module ME = struct
 
@@ -128,7 +129,7 @@ end
 module Exec = struct
   open Rresult
   open Bos
-  let (let*) x f = Rresult.(>>=) x f
+  let ( let* ) x f = Rresult.(>>=) x f
 
 let latex2png_cmd = Cmd.v "latex2png"
 let latex2png f =
@@ -140,7 +141,7 @@ let imv f =
   let doit = Cmd.(imv_cmd % (Fpath.to_string f)) in
   OS.Cmd.(run_out doit |> to_string)
 
-  let dolatex dir txt =
+  let generate dir txt =
     let texf = Fpath.(dir // v "circuit.tex") in
     let pngf = Fpath.(dir // v "circuit.png") in
     let* () = OS.File.write texf txt in
@@ -151,24 +152,13 @@ let imv f =
     let* _ = imv pngf in
     Ok ()
 
-  let in_tmp_dir ?(preserve=false) f arg =
-    if preserve then
-      let* dir = OS.Dir.tmp ~mode:0o755 "latex%s" in
-      let* r = f dir arg in
-      Ok (Some dir)
-    else
-      let* r = OS.Dir.with_tmp ~mode:0o755 "latex%s"
-                 f arg in
-      let* dir = r in
-      Ok None
-
-  let dolatex_and_display dir txt =
-    let* texf = dolatex dir txt in
+  let generate_and_display dir txt =
+    let* texf = generate dir txt in
     let* () = display texf in
     Ok texf
 
   let latex ?(preserve=false) ?(display=true) txt =
-    in_tmp_dir ~preserve (if display then dolatex_and_display else dolatex) txt
+    in_tmp_dir ~preserve (if display then generate_and_display else generate) txt
 
   let latex_file ?(preserve=false) ?(display=true) texf =
     let* txt = OS.File.read texf in

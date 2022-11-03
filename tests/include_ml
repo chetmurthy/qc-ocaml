@@ -126,7 +126,7 @@ open Qlam_syntax ;;
 open Qlam_ops ;;
 open Qlam_parser ;;
 open Qlam_env ;;
-open Qc_latex ;;
+module LATEX = Qc_latex ;;
 
 let id_pp x = Fmt.(pf stdout "<:id<%a>>" ID.pp_hum x) ;;
 #install_printer id_pp ;;
@@ -212,23 +212,24 @@ let p2 = p1 |>  Qconvert.ToLam.program in
 let (genv0,_) = TYCHK.program (env0@(fst p2), snd p2) in
 Ops.AssignBits.program genv0 (env0@(fst p2), snd p2) ;;
 
-let m = Matrix.mk 3 3 ;;
+let m = LATEX.Matrix.mk 3 3 ;;
 for i = 0 to 2 do
-Matrix.(set m i 1 (ME.LSTICK (Some Fmt.(str "q_%d" i)))) ;
-Matrix.(set m i 0 (ME.NGHOST Fmt.(str "q_%d" i)))
+LATEX.(Matrix.(set m i 1 (ME.LSTICK (Some Fmt.(str "q_%d" i))))) ;
+LATEX.(Matrix.(set m i 0 (ME.NGHOST Fmt.(str "q_%d" i))))
 done ;;
 
-Exec.latex (Matrix.tolatex m) ;;
+LATEX.(Exec.latex (Matrix.tolatex m)) ;;
 
 let m =
-  let open Qc_latex.ME in
+  let open LATEX in
+  let open LATEX.ME in
   Matrix.ofList
     [[NGHOST "q_0"; LSTICK (Some "q_0"); QW; QW];
      [NGHOST "q_1"; LSTICK (Some "q_1"); QW; QW];
      [NGHOST "q_2"; LSTICK (Some "q_2"); QW; QW]]
 ;;
 
-Exec.latex (Matrix.tolatex m) ;;
+LATEX.(Exec.latex (Matrix.tolatex m)) ;;
 
 (*
 qreg q[2];
@@ -237,27 +238,29 @@ measure q -> c ;
  *)
 
 let m =
-  let open Qc_latex.ME in
+  let open LATEX in
+  let open LATEX.ME in
   Matrix.ofList
 [[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
  [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
  [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 2;DSTICK("0", -2);DSTICK("1", -1);CW;CW]]
 ;;
-
-
-Exec.latex (Matrix.tolatex m) ;;
+LATEX.(Exec.latex (Matrix.tolatex m)) ;;
 
 let m =
-  let open Qc_latex.ME in
+  let open LATEX in
+  let open LATEX.ME in
   Matrix.ofList
 [[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
  [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
  [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 1;DSTICK("0", -2);CW;CW;CW];
  [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 1;CW;DSTICK("1", -2);CW;CW]]
 ;;
+LATEX.(Exec.latex (Matrix.tolatex m)) ;;
 
-
-Exec.latex (Matrix.tolatex m) ;;
+let cm = (ID.mk"ibmq_quito") |> GEnv.find_mach genv0 |> Ops.CM.mk;;
+module DOT = Qc_dot ;;
+DOT.Exec.xdot (Ops.CM.dot cm);;
 
 (* Local Variables: *)
 (* mode: tuareg *)
