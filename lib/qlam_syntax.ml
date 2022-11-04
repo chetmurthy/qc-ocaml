@@ -199,6 +199,11 @@ end ;
 module Layout = struct
   type t = { it : list (BI.t * PQ.t) }[@@deriving (to_yojson, show, eq, ord);] ;
   value mk l = { it = l } ;
+
+  value pp_hum pps { it = it } =
+    Fmt.(pf pps "%a" (list ~{sep=const string ", "} (pair ~{sep=const string " : "} BI.pp_hum PQ.pp_hum)) it)
+  ;
+
 end ;
 
 type gate_item = [

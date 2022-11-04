@@ -242,7 +242,7 @@ value qcircuit ~{counter} ~{qvmap} ~{cvmap} qc =
     | QGATEAPP loc gn pel qvl cvl -> QGATEAPP loc gn pel (List.map map_qvar qvl) (List.map map_cvar cvl)
 
     | QBARRIER loc qvl -> QBARRIER loc (List.map map_qvar qvl)
-    | QCREATE loc _ -> QCREATE loc (UNIQUE (Unique.mk()))
+    | QCREATE loc bi -> QCREATE loc bi
     | QDISCARD loc qv -> QDISCARD loc (map_qvar qv)
     | QMEASURE loc qv -> QMEASURE loc (map_qvar qv)
     | QRESET loc qv -> QRESET loc (map_qvar qv)
@@ -1075,7 +1075,8 @@ module CouplingMap = CM ;
 
 module LO = struct
   module M = BI_Phys_BIJ ;
-  type t = { layout : M.t ; logical : BISet.t ; physical : PQSet.t } ;
+  type t = { layout : M.t ; logical : BISet.t ; physical : PQSet.t } [@@deriving (to_yojson, show, eq, ord);] ;
+  value pp_hum pps l = M.pp_hum pps l.layout ;
   value empty = { layout = M.empty ; logical = BISet.mt ; physical = PQSet.mt } ;
   value assign l (log,phys) = {
       layout = M.insert log phys l.layout
@@ -1558,6 +1559,7 @@ value program genv0 ?{env0=[]} (env_items, qc) =
 ;
 
 end ;
+module AB = AssignBits ;
 
 module Standard = struct
 value program ?{env0=[]} (environ, qc) =
@@ -1593,7 +1595,6 @@ module Latex = struct
 
  *)
 open Qc_latex ;
-module AB = AssignBits ;
 
 value binding_wire_range aenv (qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
   let (_, qvfvs, cvfvs) = circuit_freevars qc in
@@ -1888,7 +1889,6 @@ module  BasicSwap = struct
         higher-numbered endpoint.
 
  *)
-module AB = AssignBits ;
 
 value logical_to_explicit_qubit loc q =
   match q with [

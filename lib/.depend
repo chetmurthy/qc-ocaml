@@ -79,8 +79,10 @@ qasmpp.cmx : \
     qasm2syntax.cmx \
     qasm2_parser.cmx \
     misc_functions.cmx
-qc_dot.cmo :
-qc_dot.cmx :
+qc_dot.cmo : \
+    qc_misc.cmo
+qc_dot.cmx : \
+    qc_misc.cmx
 qc_environment.cmo :
 qc_environment.cmx :
 qc_latex.cmo : \

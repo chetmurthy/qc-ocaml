@@ -2,10 +2,42 @@ open Qc_misc ;
 open Pa_ppx_base ;
 open Ppxutil ;
 
-module type ENTITY_SIG = sig
-  type t = 'a[@@deriving (eq, ord, show);];
+module type PP_HUM_SIG = sig
+  type t = 'a ;
   value pp_hum : Fmt.t t ;
 end ;
+
+module type PP_HUM_POLY1_SIG = sig
+  type t 'b = 'a ;
+  value pp_hum : Fmt.t 'b -> Fmt.t (t 'b) ;
+end ;
+
+module type ORDERED_TYPE_WITH_PP = sig
+  type t = 'a [@@deriving (to_yojson, eq, ord, show);] ;
+  include (Set.OrderedType with type t := t) ;
+  include (PP_HUM_SIG with type t := t) ;
+end ;
+
+module type SET_WITH_PP = sig
+  type elt = 'a [@@deriving (to_yojson, eq, ord, show);] ;
+  type t = 'a [@@deriving (to_yojson, eq, ord, show);] ;
+  include (Set.S with type elt := elt and type t := t) ;
+  include (PP_HUM_SIG with type t := t) ;
+end ;
+
+module type MAP_WITH_PP = sig
+  type key = 'a [@@deriving (to_yojson, eq, ord, show);] ;
+  type t !+'a = 'b [@@deriving (to_yojson, eq, ord, show);] ;
+  include (Map.S with type key := key and type t 'a := t 'a) ;
+  include (PP_HUM_POLY1_SIG with type t 'a := t 'a) ;
+end ;
+
+module type ENTITY_SIG = sig
+  type t = 'a [@@deriving (to_yojson, eq, ord, show);];
+  include (ORDERED_TYPE_WITH_PP with type t := t) ;
+  include (PP_HUM_SIG with type t := t) ;
+end ;
+
 module type VARSIG = sig
   include ENTITY_SIG ;
   value toID : t -> ID.t ;
@@ -13,8 +45,9 @@ module type VARSIG = sig
 end ;
 module type SETSIG = sig
   module M : ENTITY_SIG ;
-  module S : (Set.S with type elt = M.t) ;
-  type t = S.t [@@deriving (show);] ;
+  module S : (SET_WITH_PP with type elt = M.t) ;
+  type t = S.t [@@deriving (to_yojson, eq, ord, show);] ;
+  include (PP_HUM_SIG with type t := t) ;
   value mt : t ;
   value add : t -> M.t -> t ;
   value mem : t -> M.t -> bool ;
@@ -26,7 +59,6 @@ module type SETSIG = sig
   value subset : t -> t -> bool ;
   value concat : list t -> t ;
   value equal : t -> t -> bool ;
-  value pp_hum : Fmt.t t ;
 end ;
 module type VARSETSIG = sig
   module M : VARSIG ;
@@ -46,6 +78,23 @@ module type MAPSIG = sig
   value rng : t 'a -> list 'a ;
 end ;
 
+module MapWithPP(M : ORDERED_TYPE_WITH_PP) : (MAP_WITH_PP with type key = M.t) = struct
+  module S = Map.Make(M) ;
+  value pp_key = M.pp ;
+  value show_key = M.show ;
+  value equal_key = M.equal ;
+  value compare_key = M.compare ;
+  value key_to_yojson = M.to_yojson ;
+  type _t 'a = list (M.t * 'a) [@@deriving (to_yojson, eq, ord, show);] ;
+  value pp ppval pps m = pp__t ppval pps (S.bindings m) ;
+  value show ppval m = show__t ppval (S.bindings m) ;
+  value to_yojson val_to_yojson m = _t_to_yojson val_to_yojson (S.bindings m) ;
+  value pp_hum ppval_hum pps m =
+    Fmt.(pf pps "%a" (list ~{sep=const string ", "} (pair ~{sep=const string " : "} M.pp_hum ppval_hum)) (S.bindings m))
+  ;
+  include S ;
+end ;
+
 module EntityMap(M : ENTITY_SIG)(S : SETSIG with module M = M) : (MAPSIG with module M = M and module S = S) = struct
   module M = M ;
   module S = S ;
@@ -62,10 +111,28 @@ module EntityMap(M : ENTITY_SIG)(S : SETSIG with module M = M) : (MAPSIG with mo
   value rng m = m |> toList |> List.map snd ;
 end ;
 
+module SetWithPP(M : ORDERED_TYPE_WITH_PP) : (SET_WITH_PP with type elt = M.t) = struct
+  module S = Set.Make(M) ;
+  value pp_elt = M.pp ;
+  value show_elt = M.show ;
+  value compare_elt = M.compare ;
+  value equal_elt = M.equal ;
+  value elt_to_yojson = M.to_yojson ;
+  type _t = list M.t [@@deriving (to_yojson, eq, ord, show);] ;
+  value pp_hum pps l =
+    Fmt.(pf pps "%a" (list ~{sep=const string ", "} M.pp_hum) (S.elements l))
+  ;
+  value pp pps s = pp__t pps (S.elements s) ;
+  value show s = show__t (S.elements s) ;
+  value to_yojson s = _t_to_yojson (S.elements s);
+  value compare s1 s2 = compare__t (S.elements s1) (S.elements s2) ;
+  include S ;
+end ;
+
 module EntitySet(M : ENTITY_SIG) : (SETSIG with module M = M) = struct
   module M = M ;
-  module S = Set.Make(M) ;
-  type t = S.t ;
+  module S = SetWithPP(M) ;
+  type t = S.t [@@deriving (to_yojson, eq, ord, show);] ;
   value mt = S.empty ;
   value mem s x = S.mem x s ;
   value add s x = S.add x s ;
@@ -105,24 +172,25 @@ module type BIJSIG = sig
   module DOMMap : (Map.S with type key = DOM.t) ;
   module RNGMap : (Map.S with type key = RNG.t) ;
 
-  include (Misc_map.MonoMapS with type key = DOM.t and type rng = RNG.t) ;
+  type t = 'a [@@deriving (to_yojson, eq, ord, show);] ;
+  include (Misc_map.MonoMapS with type t := t and type key = DOM.t and type rng = RNG.t) ;
 
   value insert : DOM.t -> RNG.t -> t -> t ;
 
   value find_rng : RNG.t -> t -> DOM.t ;
   value mem_rng : RNG.t -> t -> bool ;
 
-  value pp_hum : Fmt.t t ;
+  include (PP_HUM_SIG with type t := t) ;
 end ;
 
 module Bijection(M1 : ENTITY_SIG) (M2 : ENTITY_SIG) : (BIJSIG with module DOM = M1 and module RNG = M2) = struct
   module DOM = M1 ;
   module RNG = M2 ;
-  module DOMMap = Map.Make(M1) ;
-  module RNGMap = Map.Make(M2) ;
+  module DOMMap = MapWithPP(M1) ;
+  module RNGMap = MapWithPP(M2) ;
   type key = DOM.t ;
   type rng = RNG.t ;
-  type t = (DOMMap.t RNG.t * RNGMap.t DOM.t);
+  type t = (DOMMap.t RNG.t * RNGMap.t DOM.t) [@@deriving (to_yojson, eq, ord, show);] ;
 
   value empty    = (DOMMap.empty,RNGMap.empty) ;
   value is_empty (l, _)   = DOMMap.is_empty l;
@@ -144,9 +212,7 @@ module Bijection(M1 : ENTITY_SIG) (M2 : ENTITY_SIG) : (BIJSIG with module DOM = 
   value find x (l, _) = DOMMap.find x l ;
   value find_rng y (_, r) = RNGMap.find y r ;
 
-  value pp_hum pps (l,_) =
-    Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} DOM.pp_hum RNG.pp_hum))) (DOMMap.bindings l))
-  ;
+  value pp_hum pps (dm, _) = DOMMap.pp_hum RNG.pp_hum pps dm ;
 end ;
 
 module IDFVS = VarSet(ID) ;
