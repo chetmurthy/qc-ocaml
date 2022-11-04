@@ -287,6 +287,7 @@ let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 ;;
 #trace Qlam_ops.AB.program ;;
 #trace Qlam_ops.BasicSwap.layout_sensitive_binding ;;
 #trace Qlam_ops.BasicSwap.process_bindings ;;
+#trace Qlam_ops.LO.logical_path ;;
 Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1;;
 
 (* Local Variables: *)
