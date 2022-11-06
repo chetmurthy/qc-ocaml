@@ -44,3 +44,15 @@ end ;
 
 end ;
 
+module Layout = struct
+open Qlam_syntax ;
+type t = SYN.Layout.t [@@deriving (to_yojson, show, eq, ord);] ;
+
+value of_string s = Qlam_parser.layout_of_string s ;
+value pp_hum pps l = SYN.Layout.pp_hum pps l ;
+
+end ;
+
+module CM = struct
+end ;
+module CouplingMap = CM ;

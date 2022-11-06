@@ -36,7 +36,7 @@ open Qasm2syntax.AST ;;
 
 let roundtrip_program s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
-  let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
+  let s1 = Fmt.(str "%a" Qasm2.pp_hum instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in

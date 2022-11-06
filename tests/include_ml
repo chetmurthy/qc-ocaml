@@ -15,19 +15,8 @@ open Coll ;;
 open Std ;;
 open Misc_functions ;;
 open Qc_misc ;;
+open Qc ;;
 open Qasm2syntax ;;
-open Qasm2_lexer ;;
-open Qasm2_parser ;;
-open Qasmpp ;;
-open Qasmdag0 ;;
-open Qasm_io ;;
-open Qasm_passes ;;
-open Qc_layout ;;
-open Qc_symbolic ;;
-open Qobj_types ;;
-open Qobj_compile ;;
-open Qrpc_types ;;
-open Qrpc_api ;;
 open OUnit2 ;;
 
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
@@ -52,79 +41,9 @@ let pp_lexbuf lb =
 let pp_tokenaux (t : Qc_misc.TokenAux.t) = Fmt.(pf stdout "<tokenaux>") ;;
 #install_printer pp_tokenaux ;;
 
-(*
-#trace QGate.Latex.latex ;;
-#trace QGate.Latex.do_multiqubit ;;
-let ast = Top.(full_parse_from_file parse1) "testdata/qasm0/test15.qasm";;
-let qc = Circuit.mk ast ;;
-!(ast.Ast.gates)
-|> List.iter (Circuit.add_op qc) ;;
-List.iter print_string (Circuit.format_sequence qc) ;;
-List.iter print_string (Circuit.format_matrix qc) ;;
-List.iter print_string (Circuit.format_latex qc) ;;
-
-List.iter print_string Top.(full_parse_from_file document "testdata/qasm0/test15.qasm");;
- *)
-(*
-#trace header ;;
-#trace grab_real ;;
-#trace eat_header_suffix ;;
-#trace body_token ;;
-#trace token ;;
-#trace grab_include ;;
-#trace eat_include_suffix_1 ;;
-#trace cleanws ;;
-
-#trace TS.choose ;;
-#trace TS.Q.choose ;;
-#trace Node.compare ;;#trace Node.compare ;;
-#trace DAG.compare ;;
- *)
-
-(*
-
-let pl = body_parse PA.program {| qreg q[2] ; CX q[0], q[1] ; qreg r[2] ; CX r[0], r[1] ; |} in
-let (envs, pl) = TYCHK.program pl in
-    let (dag, _) = DAG.make envs pl in
-print_string (pp DAG.pp_dag dag) ;
-print_newline () ;
-let pl = DAG.to_ast envs dag in
-print_string (pp ASTPP.program pl) ;
-DAG.tsort dag
-;;
-
-let pl = body_parse PA.program {| qreg r[2] ; CX r[0], r[1] ; qreg q[2] ; CX q[0], q[1] ; |} in
-let (envs, pl) = TYCHK.program pl in
-    let (dag, _) = DAG.make envs pl in
-print_string (pp DAG.pp_dag dag) ;
-print_newline () ;
-let pl = DAG.to_ast envs dag in
-print_string (pp ASTPP.program pl) ;
-DAG.tsort dag
-;;
- *)
-(*
-let creds = Credentials.mk() ;;
-Credentials.add_rcfile creds ;;
-let session = Session.mk creds ;;
-Session.setup session ;;
- *)
-(*
-Session.available_backends session ;;
-
-        let (envs, dag) = full_to_dag0_from_file ~path:["testdata"] "testdata/qobj/bell0.qasm" ;;
-        let circuit = Compile.circuit_to_experiment  ~name:"circuit0" envs dag ;;
-        let (qobj: Qobj_types.Qobj.t) = Compile.circuits_to_qobj ~backend_name:"ibmq_16_melbourne"
-                     ~shots:1024 ~max_credits:10 ~qobj_id:"168a65c1-f83b-4346-8643-6aa9eea59234"
-                     ~memory:false ["circuit0",envs, dag] ;;
-
-Job.submit_job "ibmq_16_melbourne" qobj session ;;
-
- *)
 
 open Qlam_syntax ;;
 open Qlam_ops ;;
-open Qlam_parser ;;
 open Qlam_env ;;
 module LATEX = Qc_latex ;;
 
@@ -155,7 +74,7 @@ let item_pp gi = Fmt.(pf stdout "<:item< %a >>" PP.item gi) ;;
 #install_printer item_pp ;;
 
 let read_file_tolam s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
   (env, instrs) |>  Qconvert.ToLam.program
 ;;
 
@@ -192,10 +111,10 @@ open Qlam_tests ;;
 #load "qclatex_tests.cmo";;
 open Qclatex_tests ;;
 
-let [@warning "-8"] ([], qc) = {| let q = qubit() in let q = tg q in (q) |} |> qcircuit_from_string ;;
+let [@warning "-8"] ([], qc) = {| let q = qubit() in let q = tg q in (q) |} |> Qlam.Prog.of_string ;;
 let e = {|
 gate tg () x = let q = h x in (q) ;
-|} |> qelib_from_string ;;
+|} |> Qlam.Environ.of_string ;;
 #trace BetaReduce.qcircuit ;;
 let (genv0, (envitems, qc1)) = Standard.program ~env0:(env0@env1) (e, qc) ;;
 Fmt.(pf stdout "%a" Qasmpp.ASTPP.program (Qconvert.ToQasm2.program genv0 ~env0:(env0@env1) (envitems, qc1)));;
@@ -209,11 +128,11 @@ let (q0, q1) = cx q0 q1 in
 let q0 = h q0 in
 let q1 = h q1 in
 (q0, q1)
-|} |> qcircuit_from_string ;;
+|} |> Qlam.Prog.of_string ;;
 
 let g_to_list g = Ops.CM.(DAG.fold_edges_e (fun e acc -> e::acc) g []) ;;
 
-let p1 = with_include_path ~path:["testdata"] full_to_ast_from_file "testdata/example.qasm" in
+let p1 = with_include_path ~path:["testdata"] Qasm2.of_file "testdata/example.qasm" in
 let p2 = p1 |>  Qconvert.ToLam.program in
 let (genv0,_) = TYCHK.program (env0@(fst p2), snd p2) in
 Ops.AssignBits.program genv0 (env0@(fst p2), snd p2) ;;
@@ -226,7 +145,7 @@ let l = {|
 #3 : <physical 3>,
 #4 : <physical 4>
 ]
-|} |> layout_from_string ;;
+|} |> Layout.of_string ;;
 let cm = GEnv.find_mach genv0 (ID.mk"ibmq_quito") ;;
 
 let p0 = read_tolam "testdata/ghz-bv.qasm";;
