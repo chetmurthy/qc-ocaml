@@ -209,24 +209,12 @@ let q1 = h q1 in
 (q0, q1)
 |} |> qcircuit_from_string ;;
 
-
-module TYCHK = Ops.TYCHK ;;
-let ge0 = TYCHK.environ env0 ;;
-let cm0 = GEnv.(find_mach ge0 (ID.mk"ibm_qx5"));;
-module Ops = Qlam_ops ;;
-let cm = Ops.CM.mk cm0 ;;
-Ops.CM.(cm |> dot |> dot_to_file "goo.dot");;
-
 let g_to_list g = Ops.CM.(DAG.fold_edges_e (fun e acc -> e::acc) g []) ;;
 
 let p1 = with_include_path ~path:["testdata"] full_to_ast_from_file "testdata/example.qasm" in
 let p2 = p1 |>  Qconvert.ToLam.program in
 let (genv0,_) = TYCHK.program (env0@(fst p2), snd p2) in
 Ops.AssignBits.program genv0 (env0@(fst p2), snd p2) ;;
-
-let cm = (ID.mk"ibmq_quito") |> GEnv.find_mach genv0;;
-module DOT = Qc_dot ;;
-DOT.Exec.xdot (Ops.CM.dot cm);;
 
 let l = {|
 [
@@ -237,6 +225,7 @@ let l = {|
 #4 : <physical 4>
 ]
 |} |> layout_from_string ;;
+let cm = GEnv.find_mach genv0 (ID.mk"ibmq_quito") ;;
 
 let p0 = read_tolam "testdata/ghz-bv.qasm";;
 let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 ;;
