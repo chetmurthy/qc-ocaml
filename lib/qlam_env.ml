@@ -6,10 +6,10 @@ open Qlam_syntax ;
 
 module GEnv = struct
 open SYN ;
-type t 'a = {
+type t 'a 'b 'c = {
     gates : QGMap.t 'a
-  ; machs : IDMap.t SYN.CouplingMap.t
-  ; layouts : IDMap.t SYN.Layout.t
+  ; machs : IDMap.t 'b
+  ; layouts : IDMap.t 'c
   }
 ;
 
@@ -79,7 +79,7 @@ value mk_of_environ gate_item env_items =
   List.fold_left env_item env env_items
 ;
 
-value upgrade_environ gate_item genv0 env_items =
+value upgrade_environ ~{gate_item} genv0 env_items =
   let env = mk () in
   let rec env_item genv ei = match ei with [
         QINCLUDE loc _ fname l ->

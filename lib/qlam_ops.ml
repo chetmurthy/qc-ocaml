@@ -1139,7 +1139,7 @@ type cvar_binding_t = option qbinding_t ;
 type pvar_binding_t = unit ;
 
 type t = {
-    genv : GEnv.t env_gate_t
+    genv : GEnv.t env_gate_t SYN.CouplingMap.t SYN.Layout.t
   ; qvars : QVMap.t qvar_binding_t
   ; cvars : CVMap.t cvar_binding_t
   ; pvars : PVMap.t pvar_binding_t
@@ -1565,7 +1565,7 @@ value upgrade_gate_item genv (prev_gitem, gitem) =
   rv
 ;
 
-value environ genv0 ?{env0=[]} env_items = GEnv.upgrade_environ upgrade_gate_item genv0 (env0@env_items) ;
+value environ genv0 ?{env0=[]} env_items = GEnv.upgrade_environ ~{gate_item=upgrade_gate_item} genv0 (env0@env_items) ;
 
 value program genv0 ?{env0=[]} (env_items, qc) =
   let genv = environ genv0 ~{env0=env0} env_items in

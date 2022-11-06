@@ -38,7 +38,7 @@ type cvar_binding_t = option qbinding_t ;
 type pvar_binding_t = unit ;
 
 type t = {
-    genv : GEnv.t TYCHK.env_gate_t
+    genv : GEnv.t TYCHK.env_gate_t SYN.CouplingMap.t SYN.Layout.t
   ; qvars : QVMap.t BI.t
   ; layout : LO.t
   ; coupling_map : CM.t
