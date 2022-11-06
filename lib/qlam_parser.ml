@@ -39,11 +39,11 @@ value parse_qelib ?{file="<string>"} s =
   s |> with_input_file file (Grammar.Entry.parse env_eoi)
 ;
 
-value qelib_from_string s =
+value qelib_of_string s =
   s |> Stream.of_string |> parse_qelib
 ;
 
-value qelib_from_file s =
+value qelib_of_file s =
   let s = find_file_from ~{path=include_path.val} s in
   s |> Fpath.v |> Bos.OS.File.read
   |> Rresult.R.get_ok |> Stream.of_string
@@ -66,7 +66,7 @@ EXTEND
     | "gate" ; gname = qgatename ; gargs = gate_args ; ";" -> QGATE loc (OPAQUE loc gname gargs)
     | "include" ; s = STRING ; ";" ->
        if Std.ends_with ~{pat=".qli"} s then
-         QINCLUDE loc QLAM s (qelib_from_file s)
+         QINCLUDE loc QLAM s (qelib_of_file s)
        else
          Fmt.(raise_failwithf loc "QLAM parser only accepts QLAM (.qli) includes")
     | "coupling_map" ; mname = ident ; (edges, positions) = coupling_map ; ";" -> QCOUPLING_MAP loc mname (CouplingMap.mk edges positions)
@@ -196,11 +196,25 @@ EXTEND
 
 END;
 
-value parse_qcircuit ?{file="<string>"} s =
+value parse_program ?{file="<string>"} s =
   s |> with_input_file file (Grammar.Entry.parse top_eoi)
 ;
 
-value qcircuit_from_string s =
+value program_of_string s =
+  s |> Stream.of_string |> parse_program
+;
+
+value read_program s =
+  s |> Fpath.v |> Bos.OS.File.read
+  |> Rresult.R.get_ok |> Stream.of_string
+  |> parse_program ~{file=s}
+;
+
+value parse_qcircuit ?{file="<string>"} s =
+  s |> with_input_file file (Grammar.Entry.parse qcirc_eoi)
+;
+
+value qcircuit_of_string s =
   s |> Stream.of_string |> parse_qcircuit
 ;
 
@@ -210,10 +224,10 @@ value read_qcircuit s =
   |> parse_qcircuit ~{file=s}
 ;
 
-value layout_from_string s =
+value layout_of_string s =
   s |> Stream.of_string |> (Grammar.Entry.parse layout_eoi)
 ;
 
-value coupling_map_from_string s =
+value coupling_map_of_string s =
   s |> Stream.of_string |> (Grammar.Entry.parse coupling_map_eoi)
 ;

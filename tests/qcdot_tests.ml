@@ -10,6 +10,7 @@ open Misc_functions
 open Qc_misc
 open Qc_dot
 open Qlam_env
+open Qc
 module Ops = Qlam_ops
 
 open Rresult.R
@@ -26,7 +27,7 @@ let compare_results r1 r2 =
   | (Ok (Some f1), Ok (Some f2)) -> (compare_files f1 f2) |> Rresult.R.get_ok
   | _ -> false
 
-let envitems = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "machines.qli") ;;
+let envitems = with_include_path ~path:["testdata"] Qlam.Environ.of_file "machines.qli" ;;
 let genv0 = Ops.Upgrade.environ (GEnv.mk()) envitems ;;
 
 let todot genv name =

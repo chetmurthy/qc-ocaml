@@ -166,14 +166,14 @@ end
 
 module AST = struct
   type param_var_t =
-    | CPARAM of string
+    | CPARAM of string [@@deriving to_yojson, show, eq, ord]
 
   type gate_bit_t =
-    | QUBIT of string
+    | QUBIT of string [@@deriving to_yojson, show, eq, ord]
 
   type main_var_t =
     | CREG of string
-    | QREG of string
+    | QREG of string [@@deriving to_yojson, show, eq, ord]
 
   type 'paramvar expr =
     | ID of 'paramvar
@@ -191,41 +191,45 @@ module AST = struct
     | TAN of 'paramvar expr
     | EXP of 'paramvar expr
     | LN of 'paramvar expr
-    | SQRT of 'paramvar expr
+    | SQRT of 'paramvar expr [@@deriving to_yojson, show, eq, ord]
 
-  type cparamvar_t = CPARAMVAR of string
-  type qubit_t = QUBIT of string
-  type qreg_t = QREG of string
-  type creg_t = CREG of string
+  type cparamvar_t = CPARAMVAR of string [@@deriving to_yojson, show, eq, ord]
+  type qubit_t = QUBIT of string [@@deriving to_yojson, show, eq, ord]
+  type qreg_t = QREG of string [@@deriving to_yojson, show, eq, ord]
+  type creg_t = CREG of string [@@deriving to_yojson, show, eq, ord]
 
   type 'a or_indexed =
     | IT of 'a
-    | INDEXED of 'a * int
+    | INDEXED of 'a * int [@@deriving to_yojson, show, eq, ord]
 
   type empty_t
+  let compare_empty_t x y = assert false
+  let equal_empty_t x y = assert false
+  let pp_empty_t pps x = assert false
+  let empty_t_to_yojson x = assert false
 
   type ('paramvar, 'qregvar) raw_uop_t =
     | U of 'paramvar expr list * 'qregvar
     | CX of 'qregvar * 'qregvar
-    | COMPOSITE_GATE of string * 'paramvar expr list * 'qregvar list
+    | COMPOSITE_GATE of string * 'paramvar expr list * 'qregvar list [@@deriving to_yojson, show, eq, ord]
 
   type raw_qop_t =
     | UOP of (empty_t, qreg_t or_indexed) raw_uop_t
     | MEASURE of qreg_t or_indexed * creg_t or_indexed
-    | RESET of qreg_t or_indexed
+    | RESET of qreg_t or_indexed [@@deriving to_yojson, show, eq, ord]
 
 
   type  'aux qop_t =
-    'aux * raw_qop_t
+    'aux * raw_qop_t [@@deriving to_yojson, show, eq, ord]
 
   type  raw_gate_op_t =
     GATE_UOP of (cparamvar_t, qubit_t) raw_uop_t
-  | GATE_BARRIER of qubit_t list
+  | GATE_BARRIER of qubit_t list [@@deriving to_yojson, show, eq, ord]
 
   type 'aux gate_op_t =
-    'aux * raw_gate_op_t
+    'aux * raw_gate_op_t [@@deriving to_yojson, show, eq, ord]
 
-  type 'aux gatedecl_t = string * string list * string list * 'aux gate_op_t list
+  type 'aux gatedecl_t = string * string list * string list * 'aux gate_op_t list [@@deriving to_yojson, show, eq, ord]
 
   type 'aux raw_stmt_t =
     | STMT_INCLUDE of file_type_t * string * 'aux stmt_t list option
@@ -237,9 +241,9 @@ module AST = struct
     | STMT_QREG of string * int
     | STMT_CREG of string * int
 
-  and 'aux stmt_t = 'aux * 'aux raw_stmt_t
+  and 'aux stmt_t = 'aux * 'aux raw_stmt_t [@@deriving to_yojson, show, eq, ord]
 
-  type 'aux program_t = 'aux stmt_t list
+  type 'aux program_t = 'aux stmt_t list [@@deriving to_yojson, show, eq, ord]
 
   module AuxMap = struct
     type ('a, 'b) mappers_t = {

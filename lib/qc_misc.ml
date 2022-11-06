@@ -4,7 +4,7 @@ open Pa_ppx_utils
 open Std
 open Misc_functions
 
-type loc = Ploc.t
+type loc = Ploc.t [@@deriving show]
 let loc_to_yojson (_ : loc) = `String "<loc>"
 let equal_loc _ _ = true
 let compare_loc _ _ = 0

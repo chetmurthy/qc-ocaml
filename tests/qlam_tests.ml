@@ -8,10 +8,8 @@ open Coll
 open Std
 open Misc_functions
 open Qc_misc
-open Qasm_io
-open Qasm2_parser
 open Qlam_syntax
-open Qlam_parser
+open Qc
 module Ops = Qlam_ops
 open Test_helpers
 
@@ -33,12 +31,11 @@ let printer x = Fmt.(str "<:id<%a>>" ID.pp x) in
 ]
 
 open Qlam_syntax ;;
-open Qlam_parser ;;
 
 open Qasm2syntax.AST ;;
 
 let roundtrip_program s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
@@ -49,7 +46,7 @@ let roundtrip_program s0 =
 ;;
 
 let roundtrip_program_file s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
@@ -60,7 +57,7 @@ let roundtrip_program_file s0 =
 ;;
 
 let tolam_file s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (gates, qc) = Qconvert.ToLam.program (env, instrs) in
   let s2 = Fmt.(str "%a" PP.program (gates, qc)) in
@@ -99,7 +96,7 @@ let open Ops.TYCHK in
 )
 
 let env1 =
-  let stmts = with_include_path ~path:["testdata"] PA.include_file "qelib1.inc" in
+  let stmts = with_include_path ~path:["testdata"] Qasm2.lib_of_file "qelib1.inc" in
   let (_, stmts) = Qasm2syntax.TYCHK.program stmts in
   Qconvert.ToLam.env stmts
 ;;
@@ -107,7 +104,7 @@ let env1 =
 let tychk_qlam (name, txt, expect) = 
   name >:: (fun ctxt ->
     let printer (n,m) = Fmt.(str "(%d,%d)" n m) in
-    let (env, qc) = txt |> qcircuit_from_string in
+    let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
       Left expect ->
        let (_, ty) = Ops.TYCHK.program ~env0:(env0@env1) (env, qc) in
@@ -120,7 +117,7 @@ let tychk_qlam (name, txt, expect) =
 
 let lower_qlam (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let (env, qc) = txt |> qcircuit_from_string in
+    let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
       Left expect ->
        let qc' = Ops.lower_circuit qc in
@@ -147,7 +144,7 @@ let pp_tolam (name, qasm, qlam) =
 
 let pp_qlam (name, txt) = 
   name >:: (fun ctxt ->
-    let (env, qc) = txt |> qcircuit_from_string in
+    let (env, qc) = txt |> Qlam.Prog.of_string in
     let got = Fmt.(str "%a" PP.qcirc qc) in
     let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
     let printer = (fun x -> "<<"^x^">>") in
@@ -157,7 +154,7 @@ let pp_qlam (name, txt) =
 
 let tychk_qelib (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let env = txt |> Stream.of_string |> parse_qelib in
+    let env = txt |> Qlam.Environ.of_string in
     match expect with
       Left () ->
        ignore (Ops.TYCHK.environ ~env0:(env0@env1) env)
@@ -217,8 +214,8 @@ let (q0, q1) = cx q0 q1 in
 
 let alpha_equality (name, txt1, txt2, expect) = 
   name >:: (fun ctxt ->
-    let (env, qc1) = txt1 |> qcircuit_from_string in
-    let (env, qc2) = txt2 |> qcircuit_from_string in
+    let (env, qc1) = txt1 |> Qlam.Prog.of_string in
+    let (env, qc2) = txt2 |> Qlam.Prog.of_string in
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
     if expect then
@@ -317,11 +314,11 @@ let anorm_qcirc (name, txt, expect) =
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
-    let (env, qc) = txt |> qcircuit_from_string in
+    let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
       Left expect ->
        let got_qc = Ops.ANorm.qcircuit qc in
-       let (_, expect_qc) = expect |> qcircuit_from_string in
+       let (_, expect_qc) = expect |> Qlam.Prog.of_string in
       assert_equal ~cmp ~printer expect_qc got_qc
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
@@ -333,11 +330,11 @@ let anorm_gate (name, txt, expect) =
   name >:: (fun ctxt ->
     let cmp qelib1 qelib2 = SYN.equal_environ_t qelib1 qelib2 in
     let printer qelib = Fmt.(str "%a" PP.environ qelib) in
-    let qelib = txt |> qelib_from_string in
+    let qelib = txt |> Qlam.Environ.of_string in
     match expect with
       Left expect ->
        let (got_qelib, _) = Ops.ANorm.program (qelib, QWIRES(Ploc.dummy, [], [])) in
-       let expect_qelib = expect |> qelib_from_string in
+       let expect_qelib = expect |> Qlam.Environ.of_string in
       assert_equal ~cmp ~printer expect_qelib got_qelib
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
@@ -395,11 +392,11 @@ let nnorm_qcirc (name, txt, expect) =
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" PP.qcirc qc) in
-    let (env, qc) = txt |> qcircuit_from_string in
+    let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
       Left expect ->
        let got_qc = Ops.NameNorm.qcircuit qc in
-       let (_, expect_qc) = expect |> qcircuit_from_string in
+       let (_, expect_qc) = expect |> Qlam.Prog.of_string in
       assert_equal ~cmp ~printer expect_qc got_qc
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
@@ -423,14 +420,14 @@ let (x,y) = (y,x) in
 )
 ;;
 let latex_qasm s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] program_to_ast s0 in
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
   Ops.Latex.latex genv0 ~env0 (envitems, qc)
 ;;
 
 let latex_qasm_file s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
   snd (Ops.Latex.latex genv0 ~env0 (envitems, qc))

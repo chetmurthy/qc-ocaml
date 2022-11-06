@@ -231,15 +231,6 @@ let cm = GEnv.find_mach genv0 (ID.mk"ibmq_quito") ;;
 
 let p0 = read_tolam "testdata/ghz-bv.qasm";;
 let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 ;;
-p1 |> Ops.Latex.latex genv0 ~env0 |> snd |> LATEX.Matrix.tolatex |> LATEX.Exec.latex ;;
-(*
-#trace Qlam_ops.AB.qcircuit ;;
-#trace Qlam_ops.AB.program ;;
-#trace Qlam_ops.BasicSwap.layout_sensitive_binding ;;
-#trace Qlam_ops.BasicSwap.process_bindings ;;
-#trace Qlam_ops.LO.logical_path ;;
- *)
-
 let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1;;
 p2 |> Ops.Latex.latex genv0 ~env0 |> snd |> LATEX.Matrix.tolatex |> LATEX.Exec.latex ;;
 
