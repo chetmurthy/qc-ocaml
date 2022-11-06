@@ -1,8 +1,10 @@
-qlam_tests.cmo qclatex_tests.cmo qasm2_tests.cmo large_tests.cmo qlam_tests.cmi qclatex_tests.cmi qasm2_tests.cmi large_tests.cmi qlam_tests.cmx qclatex_tests.cmx qasm2_tests.cmx large_tests.cmx: ../local-install/lib/qc_ocaml/META
+qlam_tests.cmo qclatex_tests.cmo qcdot_tests.cmo qasm2_tests.cmo large_tests.cmo qlam_tests.cmi qclatex_tests.cmi qcdot_tests.cmi qasm2_tests.cmi large_tests.cmi qlam_tests.cmx qclatex_tests.cmx qcdot_tests.cmx qasm2_tests.cmx large_tests.cmx: ../local-install/lib/qc_ocaml/META
 large_tests.cmo :
 large_tests.cmx :
 qasm2_tests.cmo :
 qasm2_tests.cmx :
+qcdot_tests.cmo :
+qcdot_tests.cmx :
 qclatex_tests.cmo :
 qclatex_tests.cmx :
 qlam_tests.cmo :

@@ -1565,7 +1565,15 @@ value upgrade_gate_item genv (prev_gitem, gitem) =
   rv
 ;
 
-value environ genv0 ?{env0=[]} env_items = GEnv.upgrade_environ ~{gate_item=upgrade_gate_item} genv0 (env0@env_items) ;
+value upgrade_coupling_map x = x ;
+value upgrade_layout x = x ;
+
+value environ genv0 ?{env0=[]} env_items =
+  GEnv.upgrade_environ
+    ~{gate_item=upgrade_gate_item}
+    ~{coupling_map=upgrade_coupling_map}
+    ~{layout=upgrade_layout}
+    genv0 (env0@env_items) ;
 
 value program genv0 ?{env0=[]} (env_items, qc) =
   let genv = environ genv0 ~{env0=env0} env_items in
@@ -1576,6 +1584,25 @@ value program genv0 ?{env0=[]} (env_items, qc) =
 end ;
 module AssignBits = AB ;
 
+module Upgrade = struct
+
+value upgrade_gate_item _ (prev,_) = prev ;
+value upgrade_coupling_map x = CM.mk x ;
+value upgrade_layout x = LO.mk x ;
+
+value environ genv0 ?{env0=[]} env_items =
+  GEnv.upgrade_environ
+    ~{gate_item=upgrade_gate_item}
+    ~{coupling_map=upgrade_coupling_map}
+    ~{layout=upgrade_layout}
+    genv0 (env0@env_items) ;
+
+value program genv0 ?{env0=[]} (env_items, qc) =
+  let genv = environ genv0 ~{env0=env0} env_items in
+  (genv, (env_items, qc))
+;
+end ;
+
 module Standard = struct
 value program ?{env0=[]} (environ, qc) =
   let p = (environ,qc) in
@@ -1583,6 +1610,7 @@ value program ?{env0=[]} (environ, qc) =
   let p = ANorm.program p in
   let p = NameNorm.program p in
   let (genv, ty) = TYCHK.program ~{env0=env0} p in
+  let (genv, p) = Upgrade.program  ~{env0=env0} genv p in
   (genv, p)
 ;
 

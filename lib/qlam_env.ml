@@ -79,7 +79,7 @@ value mk_of_environ gate_item env_items =
   List.fold_left env_item env env_items
 ;
 
-value upgrade_environ ~{gate_item} genv0 env_items =
+value upgrade_environ ~{gate_item=upgrade_gate_item} ~{coupling_map=upgrade_coupling_map} ~{layout=upgrade_layout} genv0 env_items =
   let env = mk () in
   let rec env_item genv ei = match ei with [
         QINCLUDE loc _ fname l ->
@@ -87,11 +87,13 @@ value upgrade_environ ~{gate_item} genv0 env_items =
       | QGATE loc gitem ->
          let gn = match gitem with [ DEF _ gn _ -> gn | OPAQUE _ gn _ -> gn ] in
          let rv0 = find_gate ~{loc=loc} genv0 gn in
-         let rv = gate_item genv (rv0,gitem) in
+         let rv = upgrade_gate_item genv (rv0,gitem) in
          add_gate loc genv (gn,  rv)
       | QCOUPLING_MAP loc mname cm ->
+         let cm = upgrade_coupling_map cm in
          add_mach loc genv (mname, cm)
       | QLAYOUT loc lname l ->
+         let l = upgrade_layout l in
          add_layout loc genv (lname, l)
       ] in
   List.fold_left env_item env env_items

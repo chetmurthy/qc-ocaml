@@ -25,18 +25,6 @@ let assert_raises_exn_pattern ~msg pattern f =
 
 open Rresult.R
 
-let compare_files f1 f2 =
-  let open Exec in
-  let* contents1 = Bos.OS.File.read f1 in
-  let* contents2 = Bos.OS.File.read f2 in
-  Ok (contents1 = contents2)
-
-let compare_results r1 r2 =
-  match (r1, r2) with
-    (Error msg1, Error msg2) -> msg1 = msg2
-  | (Ok (Some f1), Ok (Some f2)) -> (compare_files f1 f2) |> Rresult.R.get_ok
-  | _ -> false
-
 let latex_matrix m =
   let open Matrix in
   let open Exec in
