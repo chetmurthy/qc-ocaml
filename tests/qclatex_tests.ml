@@ -9,19 +9,8 @@ open Std
 open Misc_functions
 open Qc_misc
 open Qc_latex
-
-let matches ~pattern text =
-  let rex = Pcre.regexp ~flags:[`DOTALL] pattern in
-  Pcre.pmatch ~rex text
-
-let assert_raises_exn_pattern ~msg pattern f =
-  Testutil.assert_raises_exn_pred ~exnmsg:msg
-    (function
-       Ploc.Exc(_, exn) when matches ~pattern (Printexc.to_string exn) -> true
-     | exn when matches ~pattern (Printexc.to_string exn) -> true
-     | _ -> false
-     )
-    f
+module Ops = Qlam_ops
+open Test_helpers
 
 open Rresult.R
 
@@ -31,11 +20,15 @@ let latex_matrix m =
   let* rvopt = Exec.latex ~display:false ~preserve:true (tolatex m) in
   Ok (rvopt |> Option.map snd)
 
+let program_to_latex genv0 p =
+  p |> Ops.Latex.latex genv0 ~env0 |> snd |> Matrix.tolatex
+
+let printer x = Fmt.(str "%a" (Rresult.R.pp ~ok:string ~error:pp_msg) x)
+
 let matrix_tests = "Matrix tests" >:::
 [
   "three-qubits" >:: (fun _ ->
     let open Matrix in
-    let printer x = Fmt.(str "%a" (Rresult.R.pp ~ok:string ~error:pp_msg) x) in
     let m = ofList
               ME.[[NGHOST "q_0"; LSTICK (Some "q_0"); QW; QW];
      [NGHOST "q_1"; LSTICK (Some "q_1"); QW; QW];
@@ -45,7 +38,6 @@ let matrix_tests = "Matrix tests" >:::
   )
 ; "classical-two-in-one" >:: (fun _ ->
     let open Matrix in
-    let printer x = Fmt.(str "%a" (Rresult.R.pp ~ok:string ~error:pp_msg) x) in
     let m = ofList
               ME.[[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
                [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
@@ -55,7 +47,6 @@ let matrix_tests = "Matrix tests" >:::
   )
 ; "classical-two-separate-bits" >:: (fun _ ->
     let open Matrix in
-    let printer x = Fmt.(str "%a" (Rresult.R.pp ~ok:string ~error:pp_msg) x) in
     let m = ofList
               ME.[[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
  [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
@@ -63,6 +54,12 @@ let matrix_tests = "Matrix tests" >:::
  [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 1;CW;DSTICK("1", -2);CW;CW]] in
     assert_equal ~printer
       (Bos.OS.File.read (Fpath.v "testdata/latex/classical-two-separate-bits.tex")) (Ok (tolatex m))
+  )
+; "ghz-bv.qasm" >:: (fun _ ->
+  let p0 = read_tolam "testdata/ghz-bv.qasm" in
+  let (genv0, p1) = Ops.Standard.program ~env0 p0 in
+    assert_equal ~printer
+      (Bos.OS.File.read (Fpath.v "testdata/latex/ghz-bv.tex")) (Ok (program_to_latex genv0 p1))
   )
 ]
 ;;

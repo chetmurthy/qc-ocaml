@@ -23,7 +23,8 @@ LARGE_TESTS= \
 
 ALL_TESTS = $(TESTS) $(LARGE_TESTS)
 
-ML=\
+ML= \
+	test_helpers.ml \
 	qlam_tests.ml qclatex_tests.ml qcdot_tests.ml qasm2_tests.ml large_tests.ml
 
 
@@ -40,11 +41,11 @@ large-tests: $(LARGE_TESTS) $(LARGE_TESTS:.byte=.opt) $(LARGE_TESTS:.byte=.test)
 	mkdir -p _build && ./$<
 
 .PRECIOUS: $(CMO) $(CMX)
-%_tests.byte: %_tests.cmo
+%_tests.byte: test_helpers.cmo %_tests.cmo
 	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) -package $(PACKAGES) \
 	-linkpkg -linkall -syntax camlp5o $^ -o $@
 
-%_tests.opt: %_tests.cmx
+%_tests.opt: test_helpers.cmx %_tests.cmx
 	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) -package $(PACKAGES) \
 	-linkpkg -linkall -syntax camlp5o $^ -o $@
 

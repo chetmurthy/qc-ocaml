@@ -1,11 +1,19 @@
-qlam_tests.cmo qclatex_tests.cmo qcdot_tests.cmo qasm2_tests.cmo large_tests.cmo qlam_tests.cmi qclatex_tests.cmi qcdot_tests.cmi qasm2_tests.cmi large_tests.cmi qlam_tests.cmx qclatex_tests.cmx qcdot_tests.cmx qasm2_tests.cmx large_tests.cmx: ../local-install/lib/qc_ocaml/META
+test_helpers.cmo qlam_tests.cmo qclatex_tests.cmo qcdot_tests.cmo qasm2_tests.cmo large_tests.cmo test_helpers.cmi qlam_tests.cmi qclatex_tests.cmi qcdot_tests.cmi qasm2_tests.cmi large_tests.cmi test_helpers.cmx qlam_tests.cmx qclatex_tests.cmx qcdot_tests.cmx qasm2_tests.cmx large_tests.cmx: ../local-install/lib/qc_ocaml/META
 large_tests.cmo :
 large_tests.cmx :
-qasm2_tests.cmo :
-qasm2_tests.cmx :
+qasm2_tests.cmo : \
+    test_helpers.cmo
+qasm2_tests.cmx : \
+    test_helpers.cmx
 qcdot_tests.cmo :
 qcdot_tests.cmx :
-qclatex_tests.cmo :
-qclatex_tests.cmx :
-qlam_tests.cmo :
-qlam_tests.cmx :
+qclatex_tests.cmo : \
+    test_helpers.cmo
+qclatex_tests.cmx : \
+    test_helpers.cmx
+qlam_tests.cmo : \
+    test_helpers.cmo
+qlam_tests.cmx : \
+    test_helpers.cmx
+test_helpers.cmo :
+test_helpers.cmx :

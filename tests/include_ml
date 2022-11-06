@@ -179,8 +179,10 @@ let pp_logical2qvar m = Fmt.(pf stdout "<:logical2qvar< %a >>" (SYN.BIMap.pp_hum
 let pp_ab_env x = Fmt.(pf stdout "<:abenv< %a >>" Qlam_ops.AB.Env.pp_hum x) ;;
 #install_printer pp_ab_env ;;
 
+#load "test_helpers.cmo";;
 #load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
+open Test_helpers ;;
 open Qasm2_tests ;;
 
 

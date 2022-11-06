@@ -12,19 +12,6 @@ open Qc_dot
 open Qlam_env
 module Ops = Qlam_ops
 
-let matches ~pattern text =
-  let rex = Pcre.regexp ~flags:[`DOTALL] pattern in
-  Pcre.pmatch ~rex text
-
-let assert_raises_exn_pattern ~msg pattern f =
-  Testutil.assert_raises_exn_pred ~exnmsg:msg
-    (function
-       Ploc.Exc(_, exn) when matches ~pattern (Printexc.to_string exn) -> true
-     | exn when matches ~pattern (Printexc.to_string exn) -> true
-     | _ -> false
-     )
-    f
-
 open Rresult.R
 
 let compare_files f1 f2 =

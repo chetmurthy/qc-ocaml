@@ -14,19 +14,7 @@ open Qasm_io
 open Qasmpp
 open Qasmdag0
 open Qasm_passes
-
-let matches ~pattern text =
-  let rex = Pcre.regexp ~flags:[`DOTALL] pattern in
-  Pcre.pmatch ~rex text
-
-let assert_raises_exn_pattern ~msg pattern f =
-  Testutil.assert_raises_exn_pred ~exnmsg:msg
-    (function
-       Ploc.Exc(_, exn) when matches ~pattern (Printexc.to_string exn) -> true
-     | exn when matches ~pattern (Printexc.to_string exn) -> true
-     | _ -> false
-     )
-    f
+open Test_helpers
 
 let misc_tests = "misc tests" >:::
   [

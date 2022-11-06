@@ -13,19 +13,7 @@ open Qasm2_parser
 open Qlam_syntax
 open Qlam_parser
 module Ops = Qlam_ops
-
-let matches ~pattern text =
-  let rex = Pcre.regexp ~flags:[`DOTALL] pattern in
-  Pcre.pmatch ~rex text
-
-let assert_raises_exn_pattern ~msg pattern f =
-  Testutil.assert_raises_exn_pred ~exnmsg:msg
-    (function
-       Ploc.Exc(_, exn) when matches ~pattern (Printexc.to_string exn) -> true
-     | exn when matches ~pattern (Printexc.to_string exn) -> true
-     | _ -> false
-     )
-    f
+open Test_helpers
 
 
 let id_tests = "ID tests" >:::
@@ -49,17 +37,12 @@ open Qlam_parser ;;
 
 open Qasm2syntax.AST ;;
 
-let env0a = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "qelib0.qli") ;;
-let env0b = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "machines.qli") ;;
-let env0c = Qlam_parser.(with_include_path ~path:["testdata"] qelib_from_file "layouts.qli") ;;
-let env0 = env0a @ env0b @ env0c ;;
-
 let roundtrip_program s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
-  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
+  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
   let instrs' = Qconvert.ToQasm2.program genv0 (env0 @ envitems, qc) in
   let s3 = Fmt.(str "%a" Qasmpp.ASTPP.main ("2.0",instrs')) in
   [s0;s1; s2; s3]
@@ -70,8 +53,8 @@ let roundtrip_program_file s0 =
   let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
   let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
-  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
-  let instrs' = Qconvert.ToQasm2.program genv0 ~env0:env0 (envitems, qc) in
+  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
+  let instrs' = Qconvert.ToQasm2.program genv0 ~env0 (envitems, qc) in
   let s3 = Fmt.(str "%a" Qasmpp.ASTPP.main ("2.0",instrs')) in
   [s0;s1; s2; s3]
 ;;
@@ -119,15 +102,6 @@ let env1 =
   let stmts = with_include_path ~path:["testdata"] PA.include_file "qelib1.inc" in
   let (_, stmts) = Qasm2syntax.TYCHK.program stmts in
   Qconvert.ToLam.env stmts
-;;
-
-let parse_tolam s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast s0 in
-  (env, instrs) |>  Qconvert.ToLam.program
-
-let read_tolam s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] full_to_ast_from_file s0 in
-  (env, instrs) |>  Qconvert.ToLam.program
 ;;
 
 let tychk_qlam (name, txt, expect) = 
