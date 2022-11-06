@@ -301,16 +301,20 @@ value gate_item ~{counter} gitem = match gitem with [
   ]
 ;
 
-value program ((envitems, qc) as p) =
-  let counter = mk ~{base=1 + MaxID.program p} () in
-  let rec env_item = fun [
+value rec env_item ~{counter} = fun [
       QGATE loc gitem -> QGATE loc (gate_item ~{counter=counter} gitem)
    | QINCLUDE loc fty fname l ->
-      QINCLUDE loc fty fname (List.map env_item l)
+      QINCLUDE loc fty fname (environ ~{counter=counter} l)
    | QCOUPLING_MAP loc id m -> QCOUPLING_MAP loc id m
    | QLAYOUT loc id l -> QLAYOUT loc id l
-   ] in
-  (List.map env_item envitems,
+    ] 
+
+and environ ~{counter} envitems = List.map (env_item ~{counter=counter}) envitems
+;
+
+value program ((envitems, qc) as p) =
+  let counter = mk ~{base=1 + MaxID.program p} () in
+  (environ ~{counter=counter} envitems,
    qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc)
 ;
 
@@ -1350,7 +1354,7 @@ value program ?{env0=[]} (env_items, qc) =
 
 end ;
 
-module AssignBits = struct
+module AB = struct
 (** AssignBits computes the qubit/clbit assignment of every variable in the circuit.
 
 To do this, we must first compute this assignment for every gate --
@@ -1395,6 +1399,14 @@ module Env = struct
     ; clbits : list clbit_t
     }
   ;
+  value pp_hum pps x =
+    Fmt.(pf pps "{qvmap: %a; cvmap: %a; qubits: %a; clbits: %a}"
+           (QVMap.pp_hum QUBit.pp_hum) x.qvmap
+           (CVMap.pp_hum CLBit.pp_hum) x.cvmap
+         (brackets (list ~{sep=const string ", "} QUBit.pp_hum)) x.qubits
+         (brackets (list ~{sep=const string ", "} CLBit.pp_hum)) x.clbits
+    ) ;
+
   value empty = {
       qvmap = QVMap.empty
     ; cvmap = CVMap.empty
@@ -1439,7 +1451,7 @@ value rec binding genv env (loc, qvar_formals, cvar_formals, qc) =
         env
 
   | _ ->
-     let (env, (qrl, crl)) = qcircuit genv env qc in
+     let (env, (qrl, crl)) = qcircuit0 genv env qc in
       if List.length qvar_formals <> List.length qrl then
         Fmt.(raise_failwithf loc "AssignBits.binding: internal error: qvar formals/actuals length mismatch")
       else if List.length cvar_formals <> List.length crl then
@@ -1452,11 +1464,11 @@ value rec binding genv env (loc, qvar_formals, cvar_formals, qc) =
         env
   ]
 
-and qcircuit genv env qc =
+and qcircuit0 genv env qc =
   let rec arec qc = match qc with [
     QLET loc bl qc ->
       let env = List.fold_left (binding genv) env bl in
-      qcircuit genv env qc
+      qcircuit0 genv env qc
 
   | QWIRES _ qvl cvl ->
      (env, (List.map (Env.qv_swap_find env) qvl,List.map (Env.cv_swap_find env) cvl))
@@ -1504,6 +1516,8 @@ and qcircuit genv env qc =
   arec qc
 ;
 
+value qcircuit genv env qc = qcircuit0 genv env qc ;
+
 value gate_item genv gitem = match gitem with [
   DEF loc gn (((pvl, qvl, cvl) as glam), qc) ->
     let env = Env.empty in
@@ -1545,7 +1559,8 @@ value gate_item genv gitem = match gitem with [
 
 value upgrade_gate_item genv (prev_gitem, gitem) =
   let (gate_env,  result) = gate_item genv gitem in
-  let {TYCHK.args=glam; res=res} = prev_gitem in
+  let res = prev_gitem.TYCHK.res in
+  let glam = args_of_gate_item gitem in
   let rv = { args = glam ; ty = res ; gate_env = gate_env ; result = result } in
   rv
 ;
@@ -1559,7 +1574,7 @@ value program genv0 ?{env0=[]} (env_items, qc) =
 ;
 
 end ;
-module AB = AssignBits ;
+module AssignBits = AB ;
 
 module Standard = struct
 value program ?{env0=[]} (environ, qc) =
@@ -1860,7 +1875,7 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
 
 end ;
 
-module  BasicSwap = struct
+module BasicSwap = struct
 (** BasicSwap
 
     argument:
@@ -1981,7 +1996,9 @@ value basic_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
         ((l, logicalqvar), [ll :: acc_rev_ll])
       )
       ((l,  logical2qvar), []) ll in
-  (List.concat (List.rev rev_ll),  qc)
+  let ll = List.concat (List.rev rev_ll) in
+  let qc = SYN.of_letlist (ll, qc) in
+  Fresh.program (envitems, qc)
 ;
 
 end ;

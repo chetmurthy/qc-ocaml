@@ -176,6 +176,9 @@ let pp_layout l = Fmt.(pf stdout "<:layout< %a >>" Qlam_ops.LO.pp_hum l) ;;
 let pp_logical2qvar m = Fmt.(pf stdout "<:logical2qvar< %a >>" (SYN.BIMap.pp_hum SYN.QV.pp_hum) m) ;; 
 #install_printer pp_logical2qvar ;;
 
+let pp_ab_env x = Fmt.(pf stdout "<:abenv< %a >>" Qlam_ops.AB.Env.pp_hum x) ;;
+#install_printer pp_ab_env ;;
+
 #load "qasm2_tests.cmo";;
 #load "qasm0_tests.cmo";;
 open Qasm2_tests ;;
@@ -278,17 +281,20 @@ let l = {|
 ]
 |} |> layout_from_string ;;
 
-let p0 = read_tolam "ghz-bv.qasm";;
+let p0 = read_tolam "testdata/ghz-bv.qasm";;
 let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 ;;
-
+p1 |> Ops.Latex.latex genv0 ~env0 |> snd |> LATEX.Matrix.tolatex |> LATEX.Exec.latex ;;
 (*
 #trace Qlam_ops.AB.qcircuit ;;
- *)
 #trace Qlam_ops.AB.program ;;
 #trace Qlam_ops.BasicSwap.layout_sensitive_binding ;;
 #trace Qlam_ops.BasicSwap.process_bindings ;;
 #trace Qlam_ops.LO.logical_path ;;
-Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1;;
+ *)
+
+let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1;;
+p2 |> Ops.Latex.latex genv0 ~env0 |> snd |> LATEX.Matrix.tolatex |> LATEX.Exec.latex ;;
+
 
 (* Local Variables: *)
 (* mode: tuareg *)

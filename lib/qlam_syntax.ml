@@ -220,6 +220,21 @@ type item = [
 and environ_t = list item
 [@@deriving (to_yojson, show, eq, ord);] ;
 
+value loc_of_gate_item = fun [
+  DEF loc _ _ -> loc
+| OPAQUE loc _ _ -> loc
+] ;
+
+value args_of_gate_item = fun [
+  DEF _ _ (args, _) -> args
+| OPAQUE _ _ args -> args
+] ;
+
+value name_of_gate_item = fun [
+  DEF _ gn _ -> gn
+| OPAQUE _ gn _ -> gn
+] ;
+
 type program_t = (environ_t * qcirc_t)[@@deriving (to_yojson, show, eq, ord);] ;
 
 end ;
