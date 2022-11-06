@@ -187,6 +187,9 @@ open Qasm2_tests ;;
 #load "qlam_tests.cmo";;
 open Qlam_tests ;;
 
+#load "qclatex_tests.cmo";;
+open Qclatex_tests ;;
+
 let [@warning "-8"] ([], qc) = {| let q = qubit() in let q = tg q in (q) |} |> qcircuit_from_string ;;
 let e = {|
 gate tg () x = let q = h x in (q) ;
@@ -220,52 +223,6 @@ let p1 = with_include_path ~path:["testdata"] full_to_ast_from_file "testdata/ex
 let p2 = p1 |>  Qconvert.ToLam.program in
 let (genv0,_) = TYCHK.program (env0@(fst p2), snd p2) in
 Ops.AssignBits.program genv0 (env0@(fst p2), snd p2) ;;
-
-let m = LATEX.Matrix.mk 3 3 ;;
-for i = 0 to 2 do
-LATEX.(Matrix.(set m i 1 (ME.LSTICK (Some Fmt.(str "q_%d" i))))) ;
-LATEX.(Matrix.(set m i 0 (ME.NGHOST Fmt.(str "q_%d" i))))
-done ;;
-
-LATEX.(Exec.latex (Matrix.tolatex m)) ;;
-
-let m =
-  let open LATEX in
-  let open LATEX.ME in
-  Matrix.ofList
-    [[NGHOST "q_0"; LSTICK (Some "q_0"); QW; QW];
-     [NGHOST "q_1"; LSTICK (Some "q_1"); QW; QW];
-     [NGHOST "q_2"; LSTICK (Some "q_2"); QW; QW]]
-;;
-
-LATEX.(Exec.latex (Matrix.tolatex m)) ;;
-
-(*
-qreg q[2];
-creg c[2];
-measure q -> c ;
- *)
-
-let m =
-  let open LATEX in
-  let open LATEX.ME in
-  Matrix.ofList
-[[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
- [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
- [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 2;DSTICK("0", -2);DSTICK("1", -1);CW;CW]]
-;;
-LATEX.(Exec.latex (Matrix.tolatex m)) ;;
-
-let m =
-  let open LATEX in
-  let open LATEX.ME in
-  Matrix.ofList
-[[NGHOST "q_0"; LSTICK(Some "q_0");QW;METER;QW;QW;QW];
- [NGHOST"q_1";LSTICK (Some "q_1");QW;QW;METER;QW;QW];
- [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 1;DSTICK("0", -2);CW;CW;CW];
- [NGHOST{|\mathrm{{c} :  }|};LSTICK(Some {|\mathrm{{c} :  }|});CWIDTH 1;CW;DSTICK("1", -2);CW;CW]]
-;;
-LATEX.(Exec.latex (Matrix.tolatex m)) ;;
 
 let cm = (ID.mk"ibmq_quito") |> GEnv.find_mach genv0 |> Ops.CM.mk;;
 module DOT = Qc_dot ;;

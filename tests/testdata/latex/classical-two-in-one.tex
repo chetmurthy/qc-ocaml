@@ -1,0 +1,14 @@
+
+\documentclass[border=2px]{standalone}
+
+\usepackage[braket, qm]{qcircuit}
+\usepackage{graphicx}
+
+\begin{document}
+\scalebox{1.0}{
+\Qcircuit @C=1.0em @R=0.2em @!R { \\
+\nghost{q_0} & \lstick{q_0} & \qw & \meter & \qw & \qw & \qw \\
+\nghost{q_1} & \lstick{q_1} & \qw & \qw & \meter & \qw & \qw \\
+\nghost{\mathrm{{c} :  }} & \lstick{\mathrm{{c} :  }} & \lstick{/_{_{2}}} \cw  & \dstick{_{_{\hspace{0.0em}0}}} \cw \ar @{<=} [-2,0] & \dstick{_{_{\hspace{0.0em}1}}} \cw \ar @{<=} [-1,0] & \cw & \cw
+\\ }}
+\end{document}

@@ -147,7 +147,7 @@ let in_tmp_dir ?(preserve=false) f arg =
     if preserve then
       let* dir = OS.Dir.tmp ~mode:0o755 "tmp%s" in
       let* r = f dir arg in
-      Ok (Some dir)
+      Ok (Some (dir,  r))
     else
       let* r = OS.Dir.with_tmp ~mode:0o755 "tmp%s"
                  f arg in
