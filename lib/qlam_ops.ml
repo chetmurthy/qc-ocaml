@@ -1980,6 +1980,53 @@ value logical_to_explicit_qubit loc q =
 value make_h loc qv = QGATEAPP loc (QG.ofID (ID.mk "h")) [] [qv] [] ;
 value make_cx loc c t = QGATEAPP loc (QG.ofID (ID.mk "CX")) [] [c; t] [] ;
 
+value layout_sensitive_cx aenv cm (l, logical2qvar) ((loc, qvl,  cvl,  qc) as b) =
+  let (ctrl_qv,targ_qv) = 
+  match qc with [
+      QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [ctrl_qv;targ_qv] [] -> (ctrl_qv,targ_qv)
+    ] in
+  let ctrl_qubit = AB.Env.qv_swap_find aenv ctrl_qv in
+  let ctrl_lqubit = logical_to_explicit_qubit loc ctrl_qubit in
+  let targ_qubit = AB.Env.qv_swap_find aenv targ_qv in
+  let targ_lqubit = logical_to_explicit_qubit loc targ_qubit in
+
+  if LO.has_logical_pair l cm ctrl_lqubit targ_lqubit then
+    [(loc, [b])]
+  else if LO.has_logical_pair l cm targ_lqubit ctrl_lqubit then
+    (* convert to:
+       let ctrl_qv = H ctrl_qv and targ_qv = H targ_qv in
+       let (targ_qv, ctrl_qv) = cx targ_qv ctrl_qv in
+       let ctrl_qv = H ctrl_qv and targ_qv = H targ_qv in
+       let qvl = (ctrl_qv, targ_qv) in
+       ...
+     *)
+    [(loc, [(loc, [ctrl_qv], [], make_h loc ctrl_qv); (loc, [targ_qv], [], make_h loc targ_qv)]);
+     (loc, [(loc, [targ_qv; ctrl_qv], [], make_cx loc targ_qv ctrl_qv)]);
+     (loc, [(loc, [ctrl_qv], [], make_h loc ctrl_qv); (loc, [targ_qv], [], make_h loc targ_qv)]) ;
+     (loc, [(loc, qvl, [],  QWIRES loc [ctrl_qv; targ_qv] [])])
+    ]
+  else if not (LO.has_logical_path l cm ctrl_lqubit targ_lqubit) then
+    Fmt.(raise_failwithf loc "BasicSwap.process_binding: no path logical qubits %a -> %a"
+           SYN.BI.pp_hum ctrl_lqubit SYN.BI.pp_hum targ_lqubit)
+  else
+    let logical_path = LO.logical_path l cm ctrl_lqubit targ_lqubit in
+    let _ = assert (List.length logical_path > 2) in
+    let qvpath = List.map (BIMap.swap_find logical2qvar) logical_path in
+    let qv_l_path = Std.combine qvpath logical_path in
+    let (qv_l_last, qv_l_path1) = Std.sep_last qv_l_path in
+
+    let (qvlast, qvpath1) = Std.sep_last qvpath in
+    let (_, logical_path1) = Std.sep_last logical_path in
+    let _ = assert (QV.equal qvlast targ_qv) in
+    let mid_qvpath = List.tl qvpath1 in
+    (* mid_qvpath is the list of intermediate qvars in the path, (hence excluding the endpionts) *)
+    let swap_bl =
+      mid_qvpath
+      |> List.map (fun rightqv ->
+             (loc,  [rightqv;ctrl_qv], [], QGATEAPP loc (SYN.SWAP loc) [] [ctrl_qv;rightqv] [])) in
+    (swap_bl |> List.map (fun b -> (loc, [b])))@[(loc, [b])]
+;
+
 value layout_sensitive_binding aenv cm (l, logical2qvar) ((loc, qvl,  cvl,  qc) as b) =
   match qc with [
       QWIRES loc _ _ -> Fmt.(raise_failwithf loc "layout_sensitive_binding: internal error: QWIRES should never occur here")
@@ -1990,46 +2037,7 @@ value layout_sensitive_binding aenv cm (l, logical2qvar) ((loc, qvl,  cvl,  qc) 
     | QGATEAPP _ _ _ [_] [] -> [(loc, [b])]
 
     | QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [ctrl_qv;targ_qv] [] ->
-       let ctrl_qubit = AB.Env.qv_swap_find aenv ctrl_qv in
-       let ctrl_lqubit = logical_to_explicit_qubit loc ctrl_qubit in
-       let targ_qubit = AB.Env.qv_swap_find aenv targ_qv in
-       let targ_lqubit = logical_to_explicit_qubit loc targ_qubit in
-
-       if LO.has_logical_pair l cm ctrl_lqubit targ_lqubit then
-         [(loc, [b])]
-       else if LO.has_logical_pair l cm targ_lqubit ctrl_lqubit then
-         (* convert to:
-            let ctrl_qv = H ctrl_qv and targ_qv = H targ_qv in
-            let (targ_qv, ctrl_qv) = cx targ_qv ctrl_qv in
-            let ctrl_qv = H ctrl_qv and targ_qv = H targ_qv in
-            let qvl = (ctrl_qv, targ_qv) in
-            ...
-          *)
-         [(loc, [(loc, [ctrl_qv], [], make_h loc ctrl_qv); (loc, [targ_qv], [], make_h loc targ_qv)]);
-          (loc, [(loc, [targ_qv; ctrl_qv], [], make_cx loc targ_qv ctrl_qv)]);
-          (loc, [(loc, [ctrl_qv], [], make_h loc ctrl_qv); (loc, [targ_qv], [], make_h loc targ_qv)]) ;
-          (loc, [(loc, qvl, [],  QWIRES loc [ctrl_qv; targ_qv] [])])
-         ]
-       else if not (LO.has_logical_path l cm ctrl_lqubit targ_lqubit) then
-         Fmt.(raise_failwithf loc "BasicSwap.process_binding: no path logical qubits %a -> %a"
-              SYN.BI.pp_hum ctrl_lqubit SYN.BI.pp_hum targ_lqubit)
-       else
-       let logical_path = LO.logical_path l cm ctrl_lqubit targ_lqubit in
-       let _ = assert (List.length logical_path > 2) in
-       let qvpath = List.map (BIMap.swap_find logical2qvar) logical_path in
-       let qv_l_path = Std.combine qvpath logical_path in
-       let (qv_l_last, qv_l_path1) = Std.sep_last qv_l_path in
-
-       let (qvlast, qvpath1) = Std.sep_last qvpath in
-       let (_, logical_path1) = Std.sep_last logical_path in
-       let _ = assert (QV.equal qvlast targ_qv) in
-       let mid_qvpath = List.tl qvpath1 in
-       (* mid_qvpath is the list of intermediate qvars in the path, (hence excluding the endpionts) *)
-       let swap_bl =
-         mid_qvpath
-         |> List.map (fun rightqv ->
-                (loc,  [rightqv;ctrl_qv], [], QGATEAPP loc (SYN.SWAP loc) [] [ctrl_qv;rightqv] [])) in
-       (swap_bl |> List.map (fun b -> (loc, [b])))@[(loc, [b])]
+       layout_sensitive_cx aenv cm (l, logical2qvar) b 
 
     | QGATEAPP loc gn _ _ _ ->
        Fmt.(raise_failwithf loc "layout_sensitive_binding: unhandled gate %a" SYN.QG.pp_hum gn)
