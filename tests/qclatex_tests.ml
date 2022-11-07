@@ -8,11 +8,41 @@ open Coll
 open Std
 open Misc_functions
 open Qc_misc
+open Qc
 open Qc_latex
 module Ops = Qlam_ops
 open Test_helpers
 
 open Rresult.R
+
+let latex_qasm s0 =
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
+  let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
+  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
+  Ops.Latex.latex genv0 ~env0 (envitems, qc)
+;;
+
+let latex_qasm_file s0 =
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
+  let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
+  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
+  snd (Ops.Latex.latex genv0 ~env0 (envitems, qc))
+;;
+
+
+let latex_tests = "Latex tests" >:::
+[
+  "bell" >:: (fun _ ->
+    let open Qc_latex.Matrix in
+    let printer x = Fmt.(str "%a" pp x) in
+    let open Qc_latex.ME in
+    assert_equal ~printer
+      (ofList [[NGHOST "q_0 :  "; LSTICK (Some "q_0 :  "); QW; GATE {|\mathrm{h}|}; CTRL 1; QW; QW];
+               [NGHOST "q_1 :  "; LSTICK (Some "q_1 :  "); QW; QW; TARG; QW; QW]])
+      (latex_qasm_file "testdata/bell2.qasm")
+  )
+]
+;;
 
 let latex_matrix m =
   let open Matrix in
@@ -25,7 +55,7 @@ let program_to_latex genv0 p =
 
 let printer x = Fmt.(str "%a" (Rresult.R.pp ~ok:string ~error:pp_msg) x)
 
-let matrix_tests = "Matrix tests" >:::
+let simple_tests = "simple tests" >:::
 [
   "three-qubits" >:: (fun _ ->
     let open Matrix in
@@ -72,6 +102,7 @@ Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 let _ =
 if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
-        matrix_tests
+        latex_tests
+      ; simple_tests
     ])
 ;;

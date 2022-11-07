@@ -419,34 +419,6 @@ let (x,y) = (y,x) in
   )
 )
 ;;
-let latex_qasm s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
-  let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
-  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
-  Ops.Latex.latex genv0 ~env0 (envitems, qc)
-;;
-
-let latex_qasm_file s0 =
-  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
-  let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
-  let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
-  snd (Ops.Latex.latex genv0 ~env0 (envitems, qc))
-;;
-
-
-let latex_tests = "Latex tests" >:::
-[
-  "bell" >:: (fun _ ->
-    let open Qc_latex.Matrix in
-    let printer x = Fmt.(str "%a" pp x) in
-    let open Qc_latex.ME in
-    assert_equal ~printer
-      (ofList [[NGHOST "q_0 :  "; LSTICK (Some "q_0 :  "); QW; GATE {|\mathrm{h}|}; CTRL 1; QW; QW];
-               [NGHOST "q_1 :  "; LSTICK (Some "q_1 :  "); QW; QW; TARG; QW; QW]])
-      (latex_qasm_file "testdata/bell2.qasm")
-  )
-]
-;;
 
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
@@ -463,6 +435,5 @@ if not !Sys.interactive then
       ; separate_let_tests
       ; name_norm_tests
       ; tychk_tests
-      ; latex_tests
     ])
 ;;
