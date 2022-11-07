@@ -188,10 +188,10 @@ value mk edges positions =
 value pp_hum pps = fun [
   {edges=edges; positions=[]} ->
   Fmt.(pf pps "[ %a ]"
-         (list (pair ~{sep=const string " -> "} int int)) edges)
+         (list ~{sep=sp} (pair ~{sep=const string "->"} int int)) edges)
 | {edges=edges; positions=positions} ->
    Fmt.(pf pps "[ %a ; %a ]"
-          (list (pair ~{sep=const string " -> "} int int)) edges
+          (list ~{sep=sp} (pair ~{sep=const string "->"} int int)) edges
           (list ~{sep=const string " "} (pair ~{sep=const string "@"} int (parens (pair ~{sep=const string ","} int int)))) positions
    )
 ] ;

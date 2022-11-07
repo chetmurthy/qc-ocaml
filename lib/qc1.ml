@@ -12,6 +12,9 @@ open Qlam_syntax
 
 module Circ = struct
 include Qc0.Qlam.Circ
+let closed qc = 
+  let open SYN in
+  (Qlam_ops.circuit_freevars qc) = (PVFVS.mt, QVFVS.mt, CVFVS.mt)
 end
 
 module Gate = struct

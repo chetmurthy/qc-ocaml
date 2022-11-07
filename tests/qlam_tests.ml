@@ -415,6 +415,64 @@ let (x,y) = (y,x) in
         Left {|
 (y,x)
 |})
+     ; ("bug1", {|
+let q60 = qubit #0 () in
+              let q61 = qubit #1 () in
+              let q62 = qubit #2 () in
+              let q63 = qubit #3 () in
+              let q64 = qubit #4 () in
+              let q65 = qubit #5 () in
+              let (q67, q66) = cx q62 q63 in
+              let q69 = h q61 and q68 = h q60 in
+              let (q71, q70) = CX q68 q69 in
+              let q73 = h q70 and q72 = h q71 in
+              let (q75, q74) = (q73, q72) in
+              let (q77, q76) = SWAP q75 q67 in
+              let (q79, q78) = SWAP q76 q66 in
+              let (q81, q80) = cx q78 q64 in
+              let (q83, q82) = SWAP q65 q74 in
+              let (q85, q84) = SWAP q82 q78 in
+              let (q87, q86) = SWAP q84 q77 in
+              let (q89, q88) = cx q86 q79 in
+              let q91 = h q87 and q90 = h q88 in
+              let (q93, q92) = CX q90 q91 in
+              let q95 = h q92 and q94 = h q93 in
+              let (q97, q96) = (q95, q94) in
+              (q83, q81, q97, q96, q80, q89)|},
+        Left {|
+let q60 = qubit #0 () in
+              let q61 = qubit #1 () in
+              let q62 = qubit #2 () in
+              let q63 = qubit #3 () in
+              let q64 = qubit #4 () in
+              let q65 = qubit #5 () in
+              let (q67, q66) = cx q62 q63 in
+              let q69 = h q61 and q68 = h q60 in
+              let (q71, q70) = CX q68 q69 in
+              let q73 = h q70 and q72 = h q71 in
+              let (q77, q76) = SWAP q73 q67 in
+              let (q79, q78) = SWAP q76 q66 in
+              let (q81, q80) = cx q78 q64 in
+              let (q83, q82) = SWAP q65 q72 in
+              let (q85, q84) = SWAP q82 q78 in
+              let (q87, q86) = SWAP q84 q77 in
+              let (q89, q88) = cx q86 q79 in
+              let q91 = h q87 and q90 = h q88 in
+              let (q93, q92) = CX q90 q91 in
+              let q95 = h q92 and q94 = h q93 in
+              (q83, q81, q95, q94, q80, q89)
+|})
+     ; ("bug1-simplified", {|
+              let q61 = qubit #1 () in
+              let (q75) = (q61) in
+              let x1 = h q75 in
+                 (x1)
+|},
+        Left {|
+              let q61 = qubit #1 () in
+              let x1 = h q61 in
+                 (x1)
+|})
      ]
   )
 )

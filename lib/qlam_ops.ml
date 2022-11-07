@@ -202,6 +202,8 @@ module Fresh = struct
 
 include Counter ;
 
+module Internal = struct
+
 value qcircuit ~{counter} ~{qvmap} ~{cvmap} qc =
   let fresh_qvar = fun [ (QV loc (s,_)) -> QV loc (s, next counter) ] in
   let fresh_cvar = fun [ (CV loc (s,_)) -> CV loc (s, next counter) ] in
@@ -266,8 +268,33 @@ value qgatelam ~{counter} ((pvl, qvl, cvl), qc) =
   ((pvl, qvl, cvl), qcircuit ~{qvmap=qvmap} ~{cvmap=cvmap} ~{counter=counter} qc)
 ;
 
+value gate_item ~{counter} gitem = match gitem with [
+    DEF loc gn glam -> DEF loc gn (qgatelam ~{counter=counter} glam)
+  | OPAQUE loc gn gargs -> OPAQUE loc gn gargs
+  ]
+;
+
+value rec env_item ~{counter} = fun [
+      QGATE loc gitem -> QGATE loc (gate_item ~{counter=counter} gitem)
+   | QINCLUDE loc fty fname l ->
+      QINCLUDE loc fty fname (environ ~{counter=counter} l)
+   | QCOUPLING_MAP loc id m -> QCOUPLING_MAP loc id m
+   | QLAYOUT loc id l -> QLAYOUT loc id l
+    ] 
+
+and environ ~{counter} envitems = List.map (env_item ~{counter=counter}) envitems
+;
+
+value program ~{counter} ((envitems, qc) as p) =
+  (environ ~{counter=counter} envitems,
+   qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc)
+;
+
+end ;
+
+
 module MaxID = struct
-value qcirc qc =
+value qcircuit qc =
   let max_id = ref (-1) in
   let open Qlam_migrate in
   let dt = make_dt() in
@@ -295,27 +322,14 @@ value program p =
 ;
 end ;
 
-value gate_item ~{counter} gitem = match gitem with [
-    DEF loc gn glam -> DEF loc gn (qgatelam ~{counter=counter} glam)
-  | OPAQUE loc gn gargs -> OPAQUE loc gn gargs
-  ]
-;
-
-value rec env_item ~{counter} = fun [
-      QGATE loc gitem -> QGATE loc (gate_item ~{counter=counter} gitem)
-   | QINCLUDE loc fty fname l ->
-      QINCLUDE loc fty fname (environ ~{counter=counter} l)
-   | QCOUPLING_MAP loc id m -> QCOUPLING_MAP loc id m
-   | QLAYOUT loc id l -> QLAYOUT loc id l
-    ] 
-
-and environ ~{counter} envitems = List.map (env_item ~{counter=counter}) envitems
+value qcircuit qc =
+  let counter = mk ~{base=1 + MaxID.qcircuit qc} () in
+  Internal.qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc
 ;
 
 value program ((envitems, qc) as p) =
   let counter = mk ~{base=1 + MaxID.program p} () in
-  (environ ~{counter=counter} envitems,
-   qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc)
+  Internal.program ~{counter=counter} p
 ;
 
 end ;
@@ -383,7 +397,7 @@ value qcircuit ~{counter} genv = fun [
   let ((pvl,qvl, cvl), qc) = 
     match QGMap.find gn genv with [
       exception Not_found -> Fmt.(raise_failwithf loc "BetaReduce.qcircuit: gate %a not found" QG.pp_hum gn)
-    | x -> Fresh.qgatelam ~{counter=counter} x ] in
+    | x -> Fresh.Internal.qgatelam ~{counter=counter} x ] in
   if List.length pel <> List.length pvl then
     Fmt.(raise_failwithf loc "BetaReduce.qcircuit: param-vars/actuals differ in length")
   else if List.length qel <> List.length qvl then
@@ -636,6 +650,7 @@ value qcircuit qc =
     match qc  with [
     SYN.QLET loc bl qc ->
     let (rename_bindings, rest_bindings) = filter_split is_rename_binding bl in
+    let rest_bindings = List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, nnrec (qvmap, cvmap) qc)) rest_bindings in
     let (qvmap,cvmap) =
       List.fold_left (fun (qvmap,cvmap) b ->
              let (loc, qvl, cvl, qel, cel) = match b with [
@@ -736,8 +751,8 @@ value mk_env ~{only} ~{except} env =
 
 value unroll ?{only} ?{except} (env : SYN.environ_t) qc =
   let genv = mk_env ~{only=only} ~{except=except} env in
-  let counter = Fresh.(mk ~{base=1 + MaxID.qcirc qc} ()) in
-  let qc = Fresh.qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc in
+  let counter = Fresh.(mk ~{base=1 + MaxID.qcircuit qc} ()) in
+  let qc = Fresh.Internal.qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc in
   let rec unrec qc = match qc with [
     QLET loc bl qc ->
     QLET loc (List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, unrec qc)) bl) (unrec qc)
@@ -1494,6 +1509,8 @@ and qcircuit0 genv env qc =
           
         *)
        let q_formal2actual = Std.combine qvar_formals qvar_actuals |> QVMap.ofList in
+       let _ = Fmt.(pf stdout "q_formal2actual: %a\n%!" (QVMap.pp_hum QV.pp_hum) q_formal2actual) in
+       let _ = Fmt.(pf stdout "gate_qresults: %a\n%!" (brackets (list ~{sep=const string "; "} QV.pp_hum)) gate_qresults) in
        let qresults = gate_qresults |> List.map (QVMap.swap_find q_formal2actual) |> List.map (Env.qv_swap_find env) in
        (env, (qresults, []))
 
@@ -1945,6 +1962,9 @@ value logical_to_explicit_qubit loc q =
     ]
 ;
 
+value make_h loc qv = QGATEAPP loc (QG.ofID (ID.mk "h")) [] [qv] [] ;
+value make_cx loc c t = QGATEAPP loc (QG.ofID (ID.mk "CX")) [] [c; t] [] ;
+
 value layout_sensitive_binding aenv cm (l, logical2qvar) ((loc, qvl,  cvl,  qc) as b) =
   match qc with [
       QWIRES loc _ _ -> Fmt.(raise_failwithf loc "layout_sensitive_binding: internal error: QWIRES should never occur here")
@@ -1960,7 +1980,21 @@ value layout_sensitive_binding aenv cm (l, logical2qvar) ((loc, qvl,  cvl,  qc) 
        let targ_qubit = AB.Env.qv_swap_find aenv targ_qv in
        let targ_lqubit = logical_to_explicit_qubit loc targ_qubit in
 
-       if LO.has_logical_pair l cm ctrl_lqubit targ_lqubit then [(loc, [b])]
+       if LO.has_logical_pair l cm ctrl_lqubit targ_lqubit then
+         [(loc, [b])]
+       else if LO.has_logical_pair l cm targ_lqubit ctrl_lqubit then
+         (* convert to:
+            let ctrl_qv = H ctrl_qv and targ_qv = H targ_qv in
+            let (targ_qv, ctrl_qv) = cx targ_qv ctrl_qv in
+            let ctrl_qv = H ctrl_qv and targ_qv = H targ_qv in
+            let qvl = (ctrl_qv, targ_qv) in
+            ...
+          *)
+         [(loc, [(loc, [ctrl_qv], [], make_h loc ctrl_qv); (loc, [targ_qv], [], make_h loc targ_qv)]);
+          (loc, [(loc, [targ_qv; ctrl_qv], [], make_cx loc targ_qv ctrl_qv)]);
+          (loc, [(loc, [ctrl_qv], [], make_h loc ctrl_qv); (loc, [targ_qv], [], make_h loc targ_qv)]) ;
+          (loc, [(loc, qvl, [],  QWIRES loc [ctrl_qv; targ_qv] [])])
+         ]
        else if not (LO.has_logical_path l cm ctrl_lqubit targ_lqubit) then
          Fmt.(raise_failwithf loc "BasicSwap.process_binding: no path logical qubits %a -> %a"
               SYN.BI.pp_hum ctrl_lqubit SYN.BI.pp_hum targ_lqubit)
@@ -1996,8 +2030,8 @@ value update_layout aenv l (loc, qvl, _, qc) = match qc with [
     | _ -> l
 ] ;
 
-value process_bindings aenv cm (l, logical2qvar) bl =
-  let bll = List.concat_map (layout_sensitive_binding aenv cm (l, logical2qvar)) bl in
+value process_binding aenv cm (l, logical2qvar) b =
+  let bll =  layout_sensitive_binding aenv cm (l, logical2qvar) b in
   let  qvar2logical loc qv =
     let qubit = AB.Env.qv_swap_find aenv qv in
     logical_to_explicit_qubit loc qubit in
@@ -2016,6 +2050,18 @@ value process_bindings aenv cm (l, logical2qvar) bl =
   ((l, logical2qvar), bll)
 ;
 
+value process_bindings aenv cm (l, logical2qvar) bl =
+  let process1 = process_binding aenv cm in
+  let rec prec (l, logical2qvar) = fun [
+        [] -> ((l, logical2qvar), [])
+      | [b :: bl] ->
+         let ((l, logical2qvar), b_res) = process1 (l, logical2qvar) b in
+         let ((l, logical2qvar),bl_res) = prec (l, logical2qvar) bl in
+         ((l, logical2qvar), b_res @ bl_res)
+      ] in
+  prec (l, logical2qvar) bl
+;
+
 value basic_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
   let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
   let qc = Hoist.hoist qc in
@@ -2029,7 +2075,7 @@ value basic_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
       ((l,  logical2qvar), []) ll in
   let ll = List.concat (List.rev rev_ll) in
   let qc = SYN.of_letlist (ll, qc) in
-  Fresh.program (envitems, qc)
+  (envitems, Fresh.qcircuit qc)
 ;
 
 end ;
