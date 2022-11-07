@@ -40,7 +40,7 @@ let roundtrip_program s0 =
   let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
   let s2 = Fmt.(str "%a" Qlam.Prog.pp_hum (envitems, qc)) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
-  let instrs' = Qconvert.ToQasm2.program genv0 (env0 @ envitems, qc) in
+  let instrs' = Qlam.Prog.to_qasm2 ~env0 (envitems, qc) in
   let s3 = Fmt.(str "%a" Qasm2.pp_hum instrs') in
   [s0;s1; s2; s3]
 ;;
@@ -51,7 +51,7 @@ let roundtrip_program_file s0 =
   let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
   let s2 = Fmt.(str "%a" Qlam.Prog.pp_hum (envitems, qc)) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
-  let instrs' = Qconvert.ToQasm2.program genv0 ~env0 (envitems, qc) in
+  let instrs' = Qlam.Prog.to_qasm2 ~env0 (envitems, qc) in
   let s3 = Fmt.(str "%a" Qasm2.pp_hum instrs') in
   [s0;s1; s2; s3]
 ;;
@@ -98,7 +98,7 @@ let open Ops.TYCHK in
 let env1 =
   let stmts = with_include_path ~path:["testdata"] Qasm2.lib_of_file "qelib1.inc" in
   let (_, stmts) = Qasm2syntax.TYCHK.program stmts in
-  Qconvert.ToLam.env stmts
+  Qlam.Environ.of_qasm2 stmts
 ;;
 
 let tychk_qlam (name, txt, expect) = 
@@ -421,14 +421,14 @@ let (x,y) = (y,x) in
 ;;
 let latex_qasm s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
-  let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
   Ops.Latex.latex genv0 ~env0 (envitems, qc)
 ;;
 
 let latex_qasm_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
-  let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 (envitems, qc) in
   snd (Ops.Latex.latex genv0 ~env0 (envitems, qc))
 ;;

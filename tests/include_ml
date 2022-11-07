@@ -117,7 +117,7 @@ gate tg () x = let q = h x in (q) ;
 |} |> Qlam.Environ.of_string ;;
 #trace BetaReduce.qcircuit ;;
 let (genv0, (envitems, qc1)) = Standard.program ~env0:(env0@env1) (e, qc) ;;
-Fmt.(pf stdout "%a" Qasmpp.ASTPP.program (Qconvert.ToQasm2.program genv0 ~env0:(env0@env1) (envitems, qc1)));;
+Fmt.(pf stdout "%a" Qasmpp.ASTPP.program (Qconvert.ToQasm2.program ~env0:(env0@env1) (envitems, qc1)));;
 
 let [@warning "-8"] ([], qc') = {|
 let q0 = qubit() in

@@ -31,9 +31,10 @@ let env0 = env0a @ env0b @ env0c ;;
 
 let parse_tolam s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
-  (env, instrs) |>  Qconvert.ToLam.program
+  Qlam.Prog.of_qasm2 (env, instrs)
+
 
 let read_tolam s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
-  (env, instrs) |>  Qconvert.ToLam.program
+  Qlam.Prog.of_qasm2 (env, instrs)
 ;;

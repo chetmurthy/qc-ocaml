@@ -576,7 +576,8 @@ value environ aenv gates =
   let gate_instrs = List.concat_map (env_item aenv) gates in
   gate_instrs ;
 
-value program genv0 ?{env0=[]} (envitems, qc) =
+value program ?{env0=[]} (envitems, qc) =
+  let genv0 = TYCHK.environ ~{env0=env0} envitems in
   let (gate_assign_env, qc_assign_env) = AssignBits.program genv0 ~{env0=env0} (envitems, qc) in
   let env_insns = environ gate_assign_env envitems in
 

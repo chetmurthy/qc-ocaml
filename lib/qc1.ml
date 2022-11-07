@@ -18,12 +18,14 @@ end
 
 module Environ = struct
 include Qc0.Qlam.Environ
+let of_qasm2 l = Qconvert.ToLam.env l
 end
 
 module Prog = struct
 include Qc0.Qlam.Prog
 
 let of_qasm2 l = Qconvert.ToLam.program l
+let to_qasm2 ~env0 p = Qconvert.ToQasm2.program ~env0 p
 end
 
 end
