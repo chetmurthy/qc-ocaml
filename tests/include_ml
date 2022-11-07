@@ -100,7 +100,6 @@ let pp_ab_env x = Fmt.(pf stdout "<:abenv< %a >>" Qlam_ops.AB.Env.pp_hum x) ;;
 
 #load "test_helpers.cmo";;
 #load "qasm2_tests.cmo";;
-#load "qasm0_tests.cmo";;
 open Test_helpers ;;
 open Qasm2_tests ;;
 

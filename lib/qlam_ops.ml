@@ -1846,9 +1846,9 @@ value generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit
 
     wire-labels will be the pp_hum of bits.
 
-    Next, we build the "layers" of the circuit (using Hoist), and then
-    further partition those layers so that each layer contains only
-    non-overlapping gates/operations.
+    Next, we build the "layers" of the circuit (using hoist_creates
+    and then to_letlist), and then further partition those layers so
+    that each layer contains only non-overlapping gates/operations.
 
     Each binding applies to some wires, and the qwires are of course
     present as both inputs and outputs.  Classical wires will only be
@@ -1864,6 +1864,23 @@ value latexable_gate gn ge =
   let (qrl, crl) = ge.AB.result in
   crl = [] &&
     List.for_all2 QV.equal qvl qrl
+;
+
+value is_create_binding b = match qbinding_qc b with [ QCREATE _ _ -> True | _ -> False ] ;
+value hoist_creates qc =
+  let acc = ref [] in
+  let rec hrec = fun [
+    QLET loc bl qc ->
+      let (create_bl, rest_bl) = bl |> filter_split is_create_binding in do {
+        List.iter (Std.push acc) create_bl ;
+        let qc = hrec qc in
+        if rest_bl = [] then qc else QLET loc rest_bl qc
+      }
+  | qc -> qc
+  ] in
+  let loc = loc_of_qcirc qc in
+  let qc = hrec qc in
+  QLET loc (List.rev acc.val) qc
 ;
 
 value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
@@ -1915,7 +1932,7 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
     Fmt.(failwithf "Latex.latex: wires out of range [0,%d): %a" num_bits
            (list ~{sep=const string " "} int) out_of_range)
   else
-  let qc = Hoist.hoist qc in
+  let qc = hoist_creates qc in
   let (ll, qc) = SYN.to_letlist qc in
   let ll = ll |> List.concat_map (remove_bit_overlap qc_assign_env (qubit2wire, clbit2wire)) in
   ((ll,qc),  generate_matrix (num_qubits, num_clbits) (qc_assign_env, qubit2wire, clbit2wire) (ll, qc))
