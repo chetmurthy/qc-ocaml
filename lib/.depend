@@ -85,9 +85,11 @@ qc.cmx : \
     qc1.cmx
 qc1.cmo : \
     qlam_syntax.cmo \
+    qconvert.cmo \
     qc0.cmo
 qc1.cmx : \
     qlam_syntax.cmx \
+    qconvert.cmx \
     qc0.cmx
 qc_dot.cmo : \
     qc_misc.cmo

@@ -22,6 +22,8 @@ end
 
 module Prog = struct
 include Qc0.Qlam.Prog
+
+let of_qasm2 l = Qconvert.ToLam.program l
 end
 
 end

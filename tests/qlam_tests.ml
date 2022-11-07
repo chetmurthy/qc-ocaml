@@ -37,7 +37,7 @@ open Qasm2syntax.AST ;;
 let roundtrip_program s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
   let s1 = Fmt.(str "%a" Qasm2.pp_hum instrs) in
-  let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
   let s2 = Fmt.(str "%a" Qlam.Prog.pp_hum (envitems, qc)) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
   let instrs' = Qconvert.ToQasm2.program genv0 (env0 @ envitems, qc) in
@@ -48,7 +48,7 @@ let roundtrip_program s0 =
 let roundtrip_program_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
   let s1 = Fmt.(str "%a" Qasm2.pp_hum instrs) in
-  let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
+  let (envitems, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
   let s2 = Fmt.(str "%a" Qlam.Prog.pp_hum (envitems, qc)) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
   let instrs' = Qconvert.ToQasm2.program genv0 ~env0 (envitems, qc) in
@@ -59,7 +59,7 @@ let roundtrip_program_file s0 =
 let tolam_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
   let s1 = Fmt.(str "%a" Qasm2.pp_hum instrs) in
-  let (gates, qc) = Qconvert.ToLam.program (env, instrs) in
+  let (gates, qc) = Qlam.Prog.of_qasm2 (env, instrs) in
   let s2 = Fmt.(str "%a" Qlam.Prog.pp_hum (gates, qc)) in
   [s0;s1; s2]
 ;;
