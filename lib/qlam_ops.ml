@@ -1509,8 +1509,6 @@ and qcircuit0 genv env qc =
           
         *)
        let q_formal2actual = Std.combine qvar_formals qvar_actuals |> QVMap.ofList in
-       let _ = Fmt.(pf stdout "q_formal2actual: %a\n%!" (QVMap.pp_hum QV.pp_hum) q_formal2actual) in
-       let _ = Fmt.(pf stdout "gate_qresults: %a\n%!" (brackets (list ~{sep=const string "; "} QV.pp_hum)) gate_qresults) in
        let qresults = gate_qresults |> List.map (QVMap.swap_find q_formal2actual) |> List.map (Env.qv_swap_find env) in
        (env, (qresults, []))
 

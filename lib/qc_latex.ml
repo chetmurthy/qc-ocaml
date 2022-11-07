@@ -98,12 +98,16 @@ module Matrix = struct
       set m i j v
     done
 
-let pp pps m =
+let pp_cols ~from_col ~to_col pps m =
   let a = m.it in
-  let ll = a |> Array.to_list |> List.map Array.to_list in
+  let la = Array.to_list a in
+  let la = List.map (fun a -> Array.sub a from_col (to_col - from_col)) la in
+  let ll = List.map Array.to_list la in
   Fmt.(pf pps "%a"
          (list ~sep:(const string " \\\\\n") (list ~sep:(const string " & ") ME.tolatex)) ll
   )
+
+let pp pps m = pp_cols ~from_col:0 ~to_col:m.cols pps m
 
 let prolog = {|
 \documentclass[border=2px]{standalone}
@@ -121,8 +125,10 @@ let epilog = {|
 \end{document}
 |}
 
-let tolatex m =
-  Fmt.(str "%s%a%s" prolog pp m epilog)
+let tolatex ?from_col ?to_col m =
+  let from_col = match from_col with None -> 0 | Some n -> n in
+  let to_col = match to_col with None -> m.cols | Some n -> n in
+  Fmt.(str "%s%a%s" prolog (pp_cols ~from_col ~to_col) m epilog)
 
 end
 
