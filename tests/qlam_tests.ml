@@ -420,6 +420,42 @@ let (x,y) = (y,x) in
 )
 ;;
 
+let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) ;;
+let printer s = s ;;
+
+let basic_swap_tests = "basic_swap tests" >:::
+[
+  "ghz-bv.qasm" >:: (fun _ ->
+    let p0 = read_tolam "testdata/ghz-bv.qasm" in
+    let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 in
+    let cm = GEnv.find_mach genv0 (ID.mk"ibmq_quito") in
+    let l = {|
+[
+#0 : <physical 0>,
+#1 : <physical 1>,
+#2 : <physical 2>,
+#3 : <physical 3>,
+#4 : <physical 4>
+]
+         |} |> Layout.of_string in
+
+    let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
+    let got = Fmt.(str "%a\n%!" Qasm2.pp_hum (Qlam.Prog.to_qasm2 ~env0 p2)) in
+    assert_equal ~cmp ~printer {|
+OPENQASM 2.0;
+include "qelib1.inc";
+h q[0];
+cx q[0], q[1];
+SWAP q[0], q[1];
+cx q[1], q[2];
+cx q[1], q[3];
+SWAP q[1], q[3];
+cx q[3], q[4];
+|} got
+  )
+]
+;;
+
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;

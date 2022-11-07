@@ -2,6 +2,8 @@ open Qc_misc ;
 
 value with_include_path = Qc_misc.with_include_path ;
 
+module GEnv = Qlam_env.GEnv ;
+
 module Qasm2 = struct
 open Qasm2syntax ;
 

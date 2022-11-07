@@ -1,6 +1,8 @@
 
 let with_include_path = Qc0.with_include_path
 
+module GEnv = Qc0.GEnv
+
 module Qasm2 = struct
 include Qc0.Qasm2
 end
