@@ -1043,9 +1043,18 @@ value mk syntax =
   } ;
 
 value has_pair it v1 v2 = DAG.mem_edge it.dag.underlying v1 v2 ;
-value has_path it v1 v2 = DAG.mem_edge it.dag.tclosure v1 v2 ;
-value path it v1 v2 =
-  let (edges, _) = DAGX.DSP.shortest_path it.dag.underlying v1 v2 in
+value has_path ?{undirected=False} it v1 v2 =
+  if undirected then
+    G.mem_edge it.g.tclosure v1 v2
+  else
+    DAG.mem_edge it.dag.tclosure v1 v2
+;
+value path ?{undirected=False} it v1 v2 =
+  let (edges, _) =
+    if undirected then
+      GX.DSP.shortest_path it.g.underlying v1 v2
+    else
+      DAGX.DSP.shortest_path it.dag.underlying v1 v2 in
   [v1:: List.map (fun (s,_,d) -> d) edges]
 ;
 value dot ?{terse=True} ?{tclos=False} cm =
@@ -1115,15 +1124,15 @@ module LO = struct
     let pq2 = logical_to_physical l l2 in
     CM.has_pair cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
 
-  value has_logical_path l cmap l1 l2 =
+  value has_logical_path ?{undirected=False} l cmap l1 l2 =
     let pq1 = logical_to_physical l l1 in
     let pq2 = logical_to_physical l l2 in
-    CM.has_path cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
+    CM.has_path ~{undirected=undirected} cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
 
-  value logical_path l cmap l1 l2 =
+  value logical_path ?{undirected=False} l cmap l1 l2 =
     let pq1 = logical_to_physical l l1 in
     let pq2 = logical_to_physical l l2 in
-    let physpath = CM.path cmap (PQ.toInt pq1) (PQ.toInt pq2) in
+    let physpath = CM.path ~{undirected=undirected} cmap (PQ.toInt pq1) (PQ.toInt pq2) in
     List.map (fun n -> physical_to_logical l (PQ.ofInt n)) physpath ;
 
   value swap l (logical_i,logical_j) =
@@ -2003,8 +2012,10 @@ value rec layout_sensitive_cx aenv cm (l, logical2qvar) ((loc, qvl,  cvl,  qc) a
     ] in
   let ctrl_qubit = AB.Env.qv_swap_find aenv ctrl_qv in
   let ctrl_lqubit = logical_to_explicit_qubit loc ctrl_qubit in
+  let ctrl_pqubit = LO.logical_to_physical l ctrl_lqubit in
   let targ_qubit = AB.Env.qv_swap_find aenv targ_qv in
   let targ_lqubit = logical_to_explicit_qubit loc targ_qubit in
+  let targ_pqubit = LO.logical_to_physical l targ_lqubit in
 
   if LO.has_logical_pair l cm ctrl_lqubit targ_lqubit then
     ([(loc, [b])],l)
@@ -2021,15 +2032,19 @@ value rec layout_sensitive_cx aenv cm (l, logical2qvar) ((loc, qvl,  cvl,  qc) a
       (loc, [(loc, [ctrl_qv], [], make_h loc ctrl_qv); (loc, [targ_qv], [], make_h loc targ_qv)]) ;
       (loc, [(loc, qvl, [],  QWIRES loc [ctrl_qv; targ_qv] [])])
      ], l)
-  else if not (LO.has_logical_path l cm ctrl_lqubit targ_lqubit) then
+  else if not (LO.has_logical_path ~{undirected=True} l cm ctrl_lqubit targ_lqubit) then
     Fmt.(raise_failwithf loc "BasicSwap.process_binding: no path logical qubits %a -> %a"
            SYN.BI.pp_hum ctrl_lqubit SYN.BI.pp_hum targ_lqubit)
   else
-    let logical_path = LO.logical_path l cm ctrl_lqubit targ_lqubit in
+    let logical_path = LO.logical_path ~{undirected=True} l cm ctrl_lqubit targ_lqubit in
     let _ = assert (List.length logical_path > 2) in
     let qvpath = List.map (BIMap.swap_find logical2qvar) logical_path in
-    let (qv1,qv2) = match qvpath with [ [qv1;qv2 :: _] -> (qv1,qv2) | _ -> assert False ] in
-    let _ = assert (QV.equal qv1 ctrl_qv) in
+    let (qv1,qv2) =
+      if ctrl_pqubit < targ_pqubit then
+        match qvpath with [ [qv1;qv2 :: _] -> (qv1,qv2) | _ -> assert False ]
+      else
+        match List.rev qvpath with [ [qv1;qv2 :: _] -> (qv2,qv1) | _ -> assert False ]
+    in
     let (swap_bl, l) = layout_swap aenv cm l loc (qv1, qv2) in
     let (rest_bll, l) = layout_sensitive_cx aenv cm (l, logical2qvar) b in
     ([swap_bl :: rest_bll], l)
