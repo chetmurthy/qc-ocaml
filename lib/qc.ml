@@ -27,6 +27,11 @@ value of_string s = Qlam_parser.qcircuit_of_string s ;
 value of_file f = Qlam_parser.read_qcircuit f ;
 end ;
 
+module Gate = struct
+type t = SYN.gate_item [@@deriving (to_yojson, show, eq, ord);] ;
+value pp_hum pps qc = PP.gate_item pps qc ;
+end ;
+
 module Environ = struct
 type t = SYN.environ_t [@@deriving (to_yojson, show, eq, ord);] ;
 value pp_hum pps qc = PP.environ pps qc ;

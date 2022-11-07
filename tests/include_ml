@@ -63,10 +63,10 @@ let qgn_pp x = Fmt.(pf stdout "<:qgn<%a>>" SYN.QG.pp_hum x) ;;
 (*
 #install_printer qgn_pp ;;
  *)
-let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" PP.qcirc qc) ;;
+let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" Qlam.Circ.pp_hum qc) ;;
 #install_printer qcircuit_pp ;;
 
-let gate_item_pp gi = Fmt.(pf stdout "<:gate_item< %a >>" PP.gate_item gi) ;;
+let gate_item_pp gi = Fmt.(pf stdout "<:gate_item< %a >>" Qlam.Gate.pp_hum gi) ;;
 (*
 #install_printer gate_item_pp ;;
  *)

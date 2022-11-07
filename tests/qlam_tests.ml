@@ -38,29 +38,29 @@ let roundtrip_program s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_string s0 in
   let s1 = Fmt.(str "%a" Qasm2.pp_hum instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
-  let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
+  let s2 = Fmt.(str "%a" Qlam.Prog.pp_hum (envitems, qc)) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
   let instrs' = Qconvert.ToQasm2.program genv0 (env0 @ envitems, qc) in
-  let s3 = Fmt.(str "%a" Qasmpp.ASTPP.main ("2.0",instrs')) in
+  let s3 = Fmt.(str "%a" Qasm2.pp_hum instrs') in
   [s0;s1; s2; s3]
 ;;
 
 let roundtrip_program_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
-  let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
+  let s1 = Fmt.(str "%a" Qasm2.pp_hum instrs) in
   let (envitems, qc) = (env, instrs) |>  Qconvert.ToLam.program  in
-  let s2 = Fmt.(str "%a" PP.program (envitems, qc)) in
+  let s2 = Fmt.(str "%a" Qlam.Prog.pp_hum (envitems, qc)) in
   let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 (envitems, qc) in
   let instrs' = Qconvert.ToQasm2.program genv0 ~env0 (envitems, qc) in
-  let s3 = Fmt.(str "%a" Qasmpp.ASTPP.main ("2.0",instrs')) in
+  let s3 = Fmt.(str "%a" Qasm2.pp_hum instrs') in
   [s0;s1; s2; s3]
 ;;
 
 let tolam_file s0 =
   let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
-  let s1 = Fmt.(str "%a" Qasmpp.ASTPP.program instrs) in
+  let s1 = Fmt.(str "%a" Qasm2.pp_hum instrs) in
   let (gates, qc) = Qconvert.ToLam.program (env, instrs) in
-  let s2 = Fmt.(str "%a" PP.program (gates, qc)) in
+  let s2 = Fmt.(str "%a" Qlam.Prog.pp_hum (gates, qc)) in
   [s0;s1; s2]
 ;;
 
@@ -121,7 +121,7 @@ let lower_qlam (name, txt, expect) =
     match expect with
       Left expect ->
        let qc' = Ops.lower_circuit qc in
-       let txt = Fmt.(str "%a" PP.qcirc qc') in
+       let txt = Fmt.(str "%a" Qlam.Circ.pp_hum qc') in
        let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
        let printer = (fun x -> "<<"^x^">>") in
        assert_equal ~cmp ~printer expect txt
@@ -135,7 +135,7 @@ let lower_qlam (name, txt, expect) =
 let pp_tolam (name, qasm, qlam) = 
   name >:: (fun ctxt ->
     let (env, qc) = qasm |> parse_tolam in
-    let got = Fmt.(str "%a" PP.qcirc qc) in
+    let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
     let printer = (fun x -> "<<"^x^">>") in
     assert_equal ~cmp ~printer qlam got
@@ -145,7 +145,7 @@ let pp_tolam (name, qasm, qlam) =
 let pp_qlam (name, txt) = 
   name >:: (fun ctxt ->
     let (env, qc) = txt |> Qlam.Prog.of_string in
-    let got = Fmt.(str "%a" PP.qcirc qc) in
+    let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
     let printer = (fun x -> "<<"^x^">>") in
     assert_equal ~cmp ~printer txt got
@@ -217,7 +217,7 @@ let alpha_equality (name, txt1, txt2, expect) =
     let (env, qc1) = txt1 |> Qlam.Prog.of_string in
     let (env, qc2) = txt2 |> Qlam.Prog.of_string in
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
-    let printer qc = Fmt.(str "%a" PP.qcirc qc) in
+    let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     if expect then
       assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2
     else
@@ -313,7 +313,7 @@ let q0 = h q in
 let anorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
-    let printer qc = Fmt.(str "%a" PP.qcirc qc) in
+    let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
       Left expect ->
@@ -329,7 +329,7 @@ let anorm_qcirc (name, txt, expect) =
 let anorm_gate (name, txt, expect) = 
   name >:: (fun ctxt ->
     let cmp qelib1 qelib2 = SYN.equal_environ_t qelib1 qelib2 in
-    let printer qelib = Fmt.(str "%a" PP.environ qelib) in
+    let printer qelib = Fmt.(str "%a" Qlam.Environ.pp_hum qelib) in
     let qelib = txt |> Qlam.Environ.of_string in
     match expect with
       Left expect ->
@@ -391,7 +391,7 @@ gate rzz(theta) a b =
 let nnorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
-    let printer qc = Fmt.(str "%a" PP.qcirc qc) in
+    let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
       Left expect ->
