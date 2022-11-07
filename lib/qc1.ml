@@ -38,5 +38,6 @@ end
 
 module CM = struct
 include Qc0.CM
+let display cm = Qc_dot.(Exec.xdot (Qlam_ops.CM.dot cm))
 end
 module CouplingMap = CM

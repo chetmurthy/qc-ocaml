@@ -170,7 +170,11 @@ value of_letlist (ll, qc) =
 module CouplingMap = struct
 type direction_t = [ LR | RL | BIDI ] ;
 
-type t = (list (int * int) * list (int * (int * int)))
+type t =
+  {
+    edges : list (int * int)
+  ; positions : list (int * (int * int))
+  }
   [@@deriving (to_yojson, show, eq, ord);]
 ;
 value mk edges positions =
@@ -179,7 +183,18 @@ value mk edges positions =
         | (n,RL,m) -> [(m,n)]
         | (n,BIDI,m) -> [(n,m); (m,n)]
         ]) in
-  (edges, positions) ;
+  {edges=edges; positions=positions} ;
+
+value pp_hum pps = fun [
+  {edges=edges; positions=[]} ->
+  Fmt.(pf pps "[ %a ]"
+         (list (pair ~{sep=const string " -> "} int int)) edges)
+| {edges=edges; positions=positions} ->
+   Fmt.(pf pps "[ %a ; %a ]"
+          (list (pair ~{sep=const string " -> "} int int)) edges
+          (list ~{sep=const string " "} (pair ~{sep=const string "@"} int (parens (pair ~{sep=const string ","} int int)))) positions
+   )
+] ;
 
 value from_core_config cc =
   let open Qrpc_types.CoreConfig in
@@ -201,7 +216,7 @@ module Layout = struct
   value mk l = { it = l } ;
 
   value pp_hum pps { it = it } =
-    Fmt.(pf pps "%a" (list ~{sep=const string ", "} (pair ~{sep=const string " : "} BI.pp_hum PQ.pp_hum)) it)
+    Fmt.(pf pps "[ %a ]" (list ~{sep=const string ", "} (pair ~{sep=const string " : "} BI.pp_hum PQ.pp_hum)) it)
   ;
 
 end ;
@@ -359,20 +374,14 @@ value item pps = fun [
     QGATE _ gitem -> gate_item pps gitem
   | QINCLUDE _ _ s _ ->
      Fmt.(pf pps "include %a ;" (quote string) s)
-  | QCOUPLING_MAP _ mname (edges, []) ->
-     Fmt.(pf pps "coupling_map %a [ %a ] ;"
+  | QCOUPLING_MAP _ mname cm ->
+     Fmt.(pf pps "coupling_map %a %a ;"
             ID.pp_hum mname
-         (list (pair ~{sep=const string " -> "} int int)) edges)
-  | QCOUPLING_MAP _ mname (edges, positions) ->
-     Fmt.(pf pps "coupling_map %a [ %a ; %a ] ;"
-            ID.pp_hum mname
-         (list (pair ~{sep=const string " -> "} int int)) edges
-          (list ~{sep=const string " "} (pair ~{sep=const string "@"} int (parens (pair ~{sep=const string ","} int int)))) positions
-     )
+            CouplingMap.pp_hum cm)
   | QLAYOUT _ mname l ->
-     Fmt.(pf pps "layout %a [ %a ] ;"
+     Fmt.(pf pps "layout %a %a ;"
             ID.pp_hum mname
-         (list ~{sep=const string ", "} (pair ~{sep=const string " -> "} BI.pp_hum PQ.pp_hum)) l.it)
+            Layout.pp_hum l)
 ] ;
 
 value newline_sep pps () = Fmt.(pf pps "@.") ;

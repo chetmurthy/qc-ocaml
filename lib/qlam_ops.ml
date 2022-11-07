@@ -1013,15 +1013,18 @@ type t = {
     g : graphs_t G.t
   ; dag : graphs_t DAG.t
   ; positions : IntMap.t (int * int)
+  ; syntax : SYN.CouplingMap.t
   } ;
 
-value mk (edges, positions) =
+value mk syntax =
+  let {SYN.CouplingMap.edges=edges; positions=positions} = syntax in
   let g = GX.of_edges edges in
   let dag = DAGX.of_edges edges in
   let positions = IntMap.ofList positions in
   { g = { underlying = g ; tclosure = GX.transitive_closure g }
   ; dag = { underlying = dag ; tclosure = DAGX.transitive_closure dag }
   ; positions = positions
+  ; syntax = syntax
   } ;
 
 value has_pair it v1 v2 = DAG.mem_edge it.dag.underlying v1 v2 ;
