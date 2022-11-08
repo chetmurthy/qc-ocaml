@@ -1500,6 +1500,12 @@ and qcircuit0 genv env qc =
   | QWIRES _ qvl cvl ->
      (env, (List.map (Env.qv_swap_find env) qvl,List.map (Env.cv_swap_find env) cvl))
 
+  | QGATEAPP loc ((SYN.SWAP _|SYN.GENGATE _ ("swap",-1)) as gn) [] [qv1;qv2] [] ->
+     (env, ([Env.qv_swap_find env qv2; Env.qv_swap_find env qv1], []))
+
+  | QGATEAPP loc ((SYN.SWAP _|SYN.GENGATE _ ("swap",-1)) as gn) _ _ _ ->
+     Fmt.(raise_failwithf loc "AssignBits: internal error: malformed SWAP/swap gate")
+
   | QGATEAPP loc gn pel qvar_actuals cvar_actuals ->
      let {args=(_, qvar_formals, cvar_formals); result=(gate_qresults, gate_cresults)} = GEnv.find_gate ~{loc=loc} genv gn in
      if List.length qvar_formals <> List.length qvar_actuals then
@@ -2110,5 +2116,92 @@ value basic_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
   let qc = SYN.of_letlist (ll, qc) in
   (envitems, Fresh.qcircuit qc)
 ;
+
+end ;
+
+module CheckLayout = struct
+
+(** check_layout will check that a circuit with the provided layout
+    can be executed on the provided coupling_map.
+ *)
+
+value check_binding aenv cm l b =
+  let qc = qbinding_qc b in
+  match qc with [
+  QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [ctrl_qv;targ_qv] [] -> 
+  let ctrl_qubit = AB.Env.qv_swap_find aenv ctrl_qv in
+  let ctrl_lqubit = BasicSwap.logical_to_explicit_qubit loc ctrl_qubit in
+  let targ_qubit = AB.Env.qv_swap_find aenv targ_qv in
+  let targ_lqubit = BasicSwap.logical_to_explicit_qubit loc targ_qubit in
+  if LO.has_logical_pair l cm ctrl_lqubit targ_lqubit then
+    l
+  else
+    Fmt.(raise_failwithf loc "check_binding: CX/cx gate not supported by coupling_map: %a" PP.qcirc qc)
+
+| QGATEAPP loc ((SYN.SWAP _|SYN.GENGATE _ ("swap",-1)) as gn) _ [ctrl_qv;targ_qv] [] -> 
+  let ctrl_qubit = AB.Env.qv_swap_find aenv ctrl_qv in
+  let ctrl_lqubit = BasicSwap.logical_to_explicit_qubit loc ctrl_qubit in
+  let targ_qubit = AB.Env.qv_swap_find aenv targ_qv in
+  let targ_lqubit = BasicSwap.logical_to_explicit_qubit loc targ_qubit in
+  if LO.has_logical_pair l cm ctrl_lqubit targ_lqubit || LO.has_logical_pair l cm targ_lqubit ctrl_lqubit then
+    BasicSwap.update_layout aenv l b
+  else
+    Fmt.(raise_failwithf loc "check_binding: SWAP/swap gate not supported by coupling_map: %a" PP.qcirc qc)
+
+| _ -> l
+] ;
+
+(** check_bindings:
+
+    (1) checks that the gates in the bindings can be executed against the layout.
+
+    (2) updates the layout to reflect these bindings
+
+    Method:
+
+    (a) All the arguments to all the gates must be distinct; if not,
+    it's an internal error, b/c typechecking should have caught it.
+
+    We actually need to check that the logical qubits associated with
+    the arguments are distinct, even though this should follow from
+    the qvars being distinct.  So if qvars are distinct, but logical
+    qubits are not distinct, that's an internal error.
+
+    (b) single-argument gates always work
+
+    (c) SWAP works if there's an undirected pair in the coupling map
+
+    (d) CX works if there's a directed pair in the coupling map
+
+    (e) everything else is silently passed
+
+ *)
+value check_bindings aenv cm l bl =
+  let qv_args =
+    bl
+    |> List.concat_map (fun b ->
+           let qc = qbinding_qc b in
+           match qc with [
+               QGATEAPP _ _ _ qvl _ -> qvl
+             | _ -> []
+             ]) in
+  let _ = assert (QVFVS.distinct qv_args) in
+  let qubits = List.map (AB.Env.qv_swap_find aenv) qv_args in
+  let _ = assert (AB.QUBSet.distinct qubits) in
+  let l = List.fold_left (check_binding aenv cm) l bl in
+  l
+;
+
+value check_layout genv0 ?{env0=[]} ~{coupling_map=cm} ~{layout=l} (envitems, qc) =
+  let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
+  let (ll, qc) = SYN.to_letlist qc in
+  let _ =
+    List.fold_left (fun l (loc, bl) ->
+        check_bindings qc_assign_env cm l bl
+      )
+      l ll in
+  ()
+;
+
 
 end ;

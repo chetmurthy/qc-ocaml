@@ -55,6 +55,7 @@ module type SETSIG = sig
   value subtract : t -> t -> t ;
   value ofList : list M.t -> t ;
   value toList : t -> list M.t ;
+  value distinct : list M.t -> bool ;
   value union : t -> t -> t ;
   value subset : t -> t -> bool ;
   value concat : list t -> t ;
@@ -140,6 +141,14 @@ module EntitySet(M : ENTITY_SIG) : (SETSIG with module M = M) = struct
   value subtract l1 l2 = S.diff l1 l2 ;
   value ofList l = S.of_list l ;
   value toList l = S.elements l ;
+  value distinct l =
+    let rec drec m = fun [
+          [] -> True
+        | [h::t] ->
+           not (mem m h) && drec (add m h) t
+        ] in
+    drec mt l
+  ;
   value union l1 l2 = S.union l1 l2 ;
   value subset l1 l2 = S.subset l1 l2 ;
   value concat l = List.fold_left union mt l ;

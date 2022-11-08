@@ -498,6 +498,7 @@ let basic_swap_tests = "basic_swap tests" >:::
          |} |> Layout.of_string in
 
     let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
+    let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
     let got = Fmt.(str "%a\n%!" Qasm2.pp_hum (Qlam.Prog.to_qasm2 ~env0 p2)) in
     assert_equal ~cmp ~printer {|
 OPENQASM 2.0;
@@ -510,6 +511,29 @@ cx q[1], q[3];
 SWAP q[1], q[3];
 cx q[3], q[4];
 |} got
+  )
+]
+;;
+
+let check_layout_tests = "check_layout tests" >:::
+[
+  "ghz-bv.qasm-no-swap" >:: (fun _ ->
+    let p0 = read_tolam "testdata/ghz-bv.qasm" in
+    let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 in
+    let cm = GEnv.find_mach genv0 (ID.mk"ibmq_quito") in
+    let l = {|
+[
+#0 : <physical 0>,
+#1 : <physical 1>,
+#2 : <physical 2>,
+#3 : <physical 3>,
+#4 : <physical 4>
+]
+         |} |> Layout.of_string in
+    assert_raises_exn_pattern ~msg:"should raise Failure(coupling_map)"
+      "Failure.*check_binding: CX/cx gate not supported by coupling_map: cx q12 q7"
+      (fun () ->
+        Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1)
   )
 ]
 ;;
@@ -529,5 +553,7 @@ if not !Sys.interactive then
       ; separate_let_tests
       ; name_norm_tests
       ; tychk_tests
+      ; basic_swap_tests
+      ; check_layout_tests
     ])
 ;;
