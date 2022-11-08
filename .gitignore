@@ -9,4 +9,4 @@ qctool
 local-install
 *.ppo*
 *_ppo*
-*.dot
+
