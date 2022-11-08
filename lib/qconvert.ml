@@ -607,6 +607,6 @@ value program ?{env0=[]} (envitems, qc) =
   
   let env = { (CE.empty) with CE.qubit2reg = qubit2reg; clbit2reg = clbit2reg } in
   let (_, qc_insns) = qcircuit gate_assign_env env qc in
-  env_insns @ qc_insns
+  env_insns @ qreg_insns @ creg_insns @ qc_insns
 ;
 end ;

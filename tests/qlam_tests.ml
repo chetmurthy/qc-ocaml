@@ -483,11 +483,48 @@ let printer s = s ;;
 
 let basic_swap_tests = "basic_swap tests" >:::
 [
-  "ghz-bv.qasm" >:: (fun _ ->
-    let p0 = read_tolam "testdata/ghz-bv.qasm" in
+  "zulehner_4a.qasm" >:: (fun _ ->
+    let p0 = read_tolam "testdata/zulehner_4a.qasm" in
     let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 in
-    let cm = GEnv.find_mach genv0 (ID.mk"ibmq_quito") in
+    let cm = GEnv.find_mach genv0 (ID.mk"ibm_qx3") in
     let l = {|
+[
+#0 : <physical 0>,
+#1 : <physical 1>,
+#2 : <physical 2>,
+#3 : <physical 3>,
+#4 : <physical 14>,
+#5 : <physical 15>
+]
+|} |> Layout.of_string in
+    let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
+    let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
+    let got = Fmt.(str "%a\n%!" Qasm2.pp_hum (Qlam.Prog.to_qasm2 ~env0 p2)) in
+    assert_equal ~cmp ~printer {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[6];
+cx q[2], q[3];
+h q[1];
+h q[0];
+CX q[0], q[1];
+h q[1];
+h q[0];
+SWAP q[1], q[0];
+SWAP q[0], q[5];
+cx q[5], q[4];
+SWAP q[0], q[5];
+SWAP q[4], q[3];
+cx q[5], q[4];
+SWAP q[2], q[3];
+cx q[3], q[4];
+|} got
+  )
+; "ghz-bv.qasm" >:: (fun _ ->
+  let p0 = read_tolam "testdata/ghz-bv.qasm" in
+  let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 in
+  let cm = GEnv.find_mach genv0 (ID.mk"ibmq_quito") in
+  let l = {|
 [
 #0 : <physical 0>,
 #1 : <physical 1>,
@@ -495,14 +532,14 @@ let basic_swap_tests = "basic_swap tests" >:::
 #3 : <physical 3>,
 #4 : <physical 4>
 ]
-         |} |> Layout.of_string in
-
-    let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
-    let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
-    let got = Fmt.(str "%a\n%!" Qasm2.pp_hum (Qlam.Prog.to_qasm2 ~env0 p2)) in
-    assert_equal ~cmp ~printer {|
+|} |> Layout.of_string in
+  let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
+  let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
+  let got = Fmt.(str "%a\n%!" Qasm2.pp_hum (Qlam.Prog.to_qasm2 ~env0 p2)) in
+  assert_equal ~cmp ~printer {|
 OPENQASM 2.0;
 include "qelib1.inc";
+qreg q[5];
 h q[0];
 cx q[0], q[1];
 SWAP q[0], q[1];
