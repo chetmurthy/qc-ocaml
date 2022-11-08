@@ -773,24 +773,7 @@ value unroll ?{only} ?{except} (env : SYN.environ_t) qc =
 
 end ;
 
-module Hoist = struct
-
-  (** Hoist let-bindings as far "up" as possible.
-
-    Method:
-
-    (1) assign a distinct numeric index to each let-binding
-
-    (2) edge from [binding i]->[binding j] if a variable bound in [i]
-     is among the freevars of the RHS of [binding j].
-
-    (3) apply tsort to this graph, producing layers (lists of bindings
-     that are independent of each other)
-
-    (4) and rebuild the let-list from these layers
-
- *)
-
+module StableTSort = struct
 
 (* representation of a node -- must be hashable *)
 module Node = struct
@@ -875,6 +858,27 @@ value tsort g =
     in List.rev (dorec [])
   }
 ;
+
+end ;
+
+module Hoist = struct
+
+  (** Hoist let-bindings as far "up" as possible.
+
+    Method:
+
+    (1) assign a distinct numeric index to each let-binding
+
+    (2) edge from [binding i]->[binding j] if a variable bound in [i]
+     is among the freevars of the RHS of [binding j].
+
+    (3) apply tsort to this graph, producing layers (lists of bindings
+     that are independent of each other)
+
+    (4) and rebuild the let-list from these layers
+
+ *)
+open StableTSort ;
 
 value make_dag loc ll =
   let bl =
