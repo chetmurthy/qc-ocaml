@@ -2115,20 +2115,26 @@ value layout_sensitive_binding aenv cm (l, logical2qvar) ((loc, qvl,  cvl,  qc) 
        Fmt.(raise_failwithf loc "layout_sensitive_binding: unhandled gate %a" SYN.QG.pp_hum gn)
     ] ;
 
+value l2q_binding aenv logical2qvar (loc, qvl, _, _) =
+  let qvar2logical loc qv =
+    let qubit = AB.Env.qv_swap_find aenv qv in
+    logical_to_explicit_qubit loc qubit in
+  List.fold_left (fun logical2qvar qv ->
+      let bi = qvar2logical loc qv in
+      BIMap.add bi qv logical2qvar)
+    logical2qvar qvl
+;
+
+value l2q_letlayer aenv logical2qvar (_, bl) =
+  List.fold_left (l2q_binding aenv) logical2qvar bl
+;
+
 value process_binding aenv cm (l, logical2qvar) b =
   let (bll, l) =  layout_sensitive_binding aenv cm (l, logical2qvar) b in
   let  qvar2logical loc qv =
     let qubit = AB.Env.qv_swap_find aenv qv in
     logical_to_explicit_qubit loc qubit in
-  let logical2qvar =
-    List.fold_left (fun logical2qvar (_, bl) ->
-        List.fold_left (fun logical2qvar (loc, qvl, _, _) ->
-            List.fold_left (fun logical2qvar qv ->
-                let bi = qvar2logical loc qv in
-                BIMap.add bi qv logical2qvar)
-              logical2qvar qvl)
-          logical2qvar bl)
-      logical2qvar bll in
+  let logical2qvar = List.fold_left (l2q_letlayer aenv) logical2qvar bll in
   ((l, logical2qvar), bll)
 ;
 
@@ -2246,5 +2252,66 @@ value check_layout genv0 ?{env0=[]} ~{coupling_map=cm} ~{layout=l} (envitems, qc
   ()
 ;
 
+end ;
+
+module SabreSwap = struct
+(** SabreSwap
+
+    (1) SabreHoist the circuit
+
+    (2) pass thru layers that don't contain CX gates
+
+    (3) For layers that only contain CX gates:
+
+    (a) this is the FRONT layer
+
+    (b) find the next layer (the EXTENDED layer) that contains only CX gates (or [] if there is none)
+
+    (c) for each gate construct the map from pairs of logical qubits to gates, for both layers
+
+    (d) identify all physical qubits associated with logical qubits in
+    the circuit. This should be trivial, as it should correspond to
+    the range of the initial layout function.
+
+    (e) set the decay for all physical qubits to 1.0
+
+    (f) iterate the below until the FRONT layer is empty
+
+    (g) for all physical qubits in FRONT layer, for all possible
+    SWAPs, find all swaps that are syntactically allowed (for which
+    there are qvars associated with both ends of the SWAP) and put
+    them in the "SWAP SET".
+
+    (h) evaluate each swap, selecting the lowest-cost swap to apply
+
+    (i) apply any CS gates from the FRONT set that are now executable
+
+    (j) back to #f
+
+ *)
+
+value process_bindings aenv cm (l, logical2qvar) (loc, bl) =
+  if not (List.for_all SabreHoist.is_cx_binding bl) then
+    let _ = assert (not (List.exists SabreHoist.is_cx_binding bl)) in
+    ((l, logical2qvar), [(loc,bl)])
+  else
+    assert False
+;
+
+value sabre_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
+  let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
+  let qc = SabreHoist.hoist qc in
+  let (ll, qc) = SYN.to_letlist qc in
+  let logical2qvar = BIMap.empty in
+  let (_,  rev_ll) =
+    List.fold_left (fun ((l, logical2qvar), acc_rev_ll) (loc, bl) ->
+        let ((l, logicalqvar), ll) = process_bindings qc_assign_env coupling_map (l, logical2qvar) (loc, bl) in
+        ((l, logicalqvar), [ll :: acc_rev_ll])
+      )
+      ((l,  logical2qvar), []) ll in
+  let ll = List.concat (List.rev rev_ll) in
+  let qc = SYN.of_letlist (ll, qc) in
+  (envitems, Fresh.qcircuit qc)
+;
 
 end ;
