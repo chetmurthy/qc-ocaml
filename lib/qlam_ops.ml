@@ -928,6 +928,41 @@ value hoist qc =
 ;
 end ;
 
+module SabreHoist = struct
+
+  (** SabreHoist does the same thing as Hoist, but whenever there are
+      non-CX gates in a layer, it hoists them first, so that
+      eventually there are only CX gates in a layer; then it hoists
+      the layer of CX gates.
+
+      This has the effect of building a let-list that contains layers
+      of only CX gates, separated by layers of non-CX gates, but
+      otherwise with maximal parallelism.
+
+ *)
+open StableTSort ;
+
+value is_cx_gate = fun [ QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ _ _ -> True | _ -> False ] ;
+value is_cx_binding b = is_cx_gate (qbinding_qc b) ;
+value is_cx_vertex bl_array v = is_cx_binding (Array.get bl_array v) ;
+
+value accept_non_cx_or_only_cx bl_array l =
+  if List.for_all (is_cx_vertex bl_array) l then 
+    (l, [])
+  else
+    let (cx_l, noncx_l) = filter_split (is_cx_vertex bl_array) l in
+    (noncx_l, cx_l)
+;
+
+value hoist qc =
+  let (ll, qc0) = SYN.to_letlist qc in
+  let (g, bl_array) = Hoist.make_dag (loc_of_qcirc qc) ll in
+  let layers = tsort (accept_non_cx_or_only_cx bl_array) g in
+  let bll = layers |> List.map (List.map (Array.get bl_array)) in
+  List.fold_right (fun bl qc -> SYN.QLET Ploc.dummy bl qc) bll qc0
+;
+end ;
+
 (** TODO
 
 (1) alpha-equality
