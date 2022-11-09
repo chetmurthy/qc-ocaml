@@ -116,6 +116,7 @@ module PQ = struct
   value pp_hum pps pq = Fmt.(pf pps "{physical %d}" (toInt pq)) ;
 end ;
 module PQSet = EntitySet(PQ) ;
+module PQMap = EntityMap(PQ)(PQSet) ;
 module BitIdent = BI ;
 module PhysicalQubit = PQ ;
 module BI_Phys_BIJ = Bijection(BI)(BISet)(PQ)(PQSet) ;
