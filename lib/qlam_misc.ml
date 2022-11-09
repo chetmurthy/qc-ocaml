@@ -70,7 +70,7 @@ end ;
 module type MAPSIG = sig
   module M : ENTITY_SIG ;
   module S : (SETSIG with module M = M) ;
-  include Map.S with type key = M.t ;
+  include MAP_WITH_PP with type key = M.t ;
   value swap_find: t 'a -> key -> 'a ;
   value pp_hum : Fmt.t 'a -> Fmt.t (t 'a) ;
   value ofList : list (M.t * 'a) -> t 'a ;
@@ -99,8 +99,13 @@ end ;
 module EntityMap(M : ENTITY_SIG)(S : SETSIG with module M = M) : (MAPSIG with module M = M and module S = S) = struct
   module M = M ;
   module S = S ;
-  module IT = Map.Make(M) ;
+  module IT = MapWithPP(M) ;
   include IT ;
+  value pp_key = M.pp ;
+  value show_key = M.show ;
+  value compare_key = M.compare ;
+  value equal_key = M.equal ;
+  value key_to_yojson = M.to_yojson ;
   value pp_hum ppval pps l =
     Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} M.pp_hum ppval))) (bindings l))
   ;
@@ -177,7 +182,9 @@ end ;
 
 module type BIJSIG = sig
   module DOM : ENTITY_SIG ;
+  module DOMS : SETSIG ;
   module RNG : ENTITY_SIG ;
+  module RNGS : SETSIG ;
   module DOMMap : (Map.S with type key = DOM.t) ;
   module RNGMap : (Map.S with type key = RNG.t) ;
 
@@ -192,11 +199,19 @@ module type BIJSIG = sig
   include (PP_HUM_SIG with type t := t) ;
 end ;
 
-module Bijection(M1 : ENTITY_SIG) (M2 : ENTITY_SIG) : (BIJSIG with module DOM = M1 and module RNG = M2) = struct
+module Bijection(M1 : ENTITY_SIG)(S1 : SETSIG with module M = M1)
+         (M2 : ENTITY_SIG)(S2 : SETSIG with module M = M2)
+       : (BIJSIG with module DOM = M1
+                  and module DOMS = S1
+                  and module RNG = M2
+                  and module RNGS = S2
+         ) = struct
   module DOM = M1 ;
+  module DOMS = S1 ;
   module RNG = M2 ;
-  module DOMMap = MapWithPP(M1) ;
-  module RNGMap = MapWithPP(M2) ;
+  module RNGS = S2 ;
+  module DOMMap = EntityMap(M1)(S1) ;
+  module RNGMap = EntityMap(M2)(S2) ;
   type key = DOM.t ;
   type rng = RNG.t ;
   type t = (DOMMap.t RNG.t * RNGMap.t DOM.t) [@@deriving (to_yojson, eq, ord, show);] ;

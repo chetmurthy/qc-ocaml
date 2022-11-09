@@ -118,7 +118,7 @@ end ;
 module PQSet = EntitySet(PQ) ;
 module BitIdent = BI ;
 module PhysicalQubit = PQ ;
-module BI_Phys_BIJ = Bijection(BI)(PQ) ;
+module BI_Phys_BIJ = Bijection(BI)(BISet)(PQ)(PQSet) ;
 type qgatelam_t = (qgateargs_t * qcirc_t)
 and qgateargs_t = (list pvar_t * list qvar_t * list cvar_t)
 
