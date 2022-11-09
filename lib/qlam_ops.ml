@@ -2267,45 +2267,92 @@ module SabreSwap = struct
 
     (b) find the next layer (the EXTENDED layer) that contains only CX gates (or [] if there is none)
 
-    (c) for each gate construct the map from pairs of logical qubits to gates, for both layers
+    (c) for the FRONT set, construct map from {pair of logical qubits} -> gate
 
-    (d) identify all physical qubits associated with logical qubits in
+    (d) for the EXTENDED set, construct the list of {pair of logical qubits}
+
+    (e) identify all physical qubits associated with logical qubits in
     the circuit. This should be trivial, as it should correspond to
     the range of the initial layout function.
 
-    (e) set the decay for all physical qubits to 1.0
+    (f) set the decay for all physical qubits to 1.0
 
-    (f) iterate the below until the FRONT layer is empty
+    (g) iterate the below until the FRONT layer is empty
 
-    (g) for all physical qubits in FRONT layer, for all possible
+    (h) for all physical qubits in FRONT layer, for all possible
     SWAPs, find all swaps that are syntactically allowed (for which
     there are qvars associated with both ends of the SWAP) and put
     them in the "SWAP SET".
 
-    (h) evaluate each swap, selecting the lowest-cost swap to apply
+    (i) evaluate each swap, selecting the lowest-cost swap to apply
 
-    (i) apply any CS gates from the FRONT set that are now executable
+    (j) apply any CS gates from the FRONT set that are now executable
 
-    (j) back to #f
+    (k) back to #g
 
  *)
 
-value process_bindings aenv cm (l, logical2qvar) (loc, bl) =
+
+(** sabre_swap_cx_layer
+
+ *)
+value sabre_swap_cx_layer aenv cm (l, logical2qvar) (fs, es, (loc, bl)) =
+  let _ = assert (List.length fs = List.length bl) in
+  let fs_bl = List.map2 (fun varpair b -> (varpair, b)) fs bl in
+
+
+  assert False
+;
+
+value process_bindings aenv cm (l, logical2qvar) (varset, (loc, bl)) =
+  match varset with [
+      None ->
+      ((l, logical2qvar), [(loc,bl)])
+    | Some (fs, es) ->
+       sabre_swap_cx_layer aenv cm (l, logical2qvar) (fs, es, (loc, bl))
+    ]
+;
+
+value compute_varset aenv l (loc, bl) =
   if not (List.for_all SabreHoist.is_cx_binding bl) then
     let _ = assert (not (List.exists SabreHoist.is_cx_binding bl)) in
-    ((l, logical2qvar), [(loc,bl)])
+    None
   else
-    assert False
+    let l =
+      bl
+      |> List.map (fun b ->
+             match qbinding_qc b with [
+                 QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [qv1;qv2] _ ->
+                 let lbit1 = AB.Env.qv_swap_find aenv qv1 in
+                 let lbit2 = AB.Env.qv_swap_find aenv qv2 in
+                 (lbit1, lbit2)
+               | _ -> assert False
+           ]) in
+    let _ = assert (AB.QUBSet.distinct (List.concat_map (fun (b1, b2) -> [b1;b2]) l)) in
+    Some l
+;
+
+value add_bothsets_to_letlist aenv l ll =
+  let (_, rv) =
+    List.fold_right (fun (loc, bl) (curset, rest) ->
+        let newset = compute_varset aenv l (loc, bl) in
+        match (newset, curset) with [
+            (None, _) -> (None, [(None, (loc, bl)) :: rest])
+          | (Some fs,  None) -> (Some fs,  [(Some (fs, []), (loc, bl)) :: rest])
+          | (Some fs,  Some es) -> (Some fs, [(Some (fs, es), (loc, bl)) :: rest])
+      ]) ll (None, []) in
+  rv
 ;
 
 value sabre_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
   let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
   let qc = SabreHoist.hoist qc in
   let (ll, qc) = SYN.to_letlist qc in
+  let ll = add_bothsets_to_letlist qc_assign_env l ll in
   let logical2qvar = BIMap.empty in
   let (_,  rev_ll) =
-    List.fold_left (fun ((l, logical2qvar), acc_rev_ll) (loc, bl) ->
-        let ((l, logicalqvar), ll) = process_bindings qc_assign_env coupling_map (l, logical2qvar) (loc, bl) in
+    List.fold_left (fun ((l, logical2qvar), acc_rev_ll) (varsets, (loc, bl)) ->
+        let ((l, logicalqvar), ll) = process_bindings qc_assign_env coupling_map (l, logical2qvar) (varsets, (loc, bl)) in
         ((l, logicalqvar), [ll :: acc_rev_ll])
       )
       ((l,  logical2qvar), []) ll in
