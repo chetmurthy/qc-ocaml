@@ -195,6 +195,8 @@ module type BIJSIG = sig
 
   value find_rng : RNG.t -> t -> DOM.t ;
   value mem_rng : RNG.t -> t -> bool ;
+  value dom : t -> DOMS.t ;
+  value rng : t -> RNGS.t ;
 
   include (PP_HUM_SIG with type t := t) ;
 end ;
@@ -233,6 +235,8 @@ module Bijection(M1 : ENTITY_SIG)(S1 : SETSIG with module M = M1)
     (DOMMap.remove x l, RNGMap.remove y r)
   ;
   value bindings (l, _) = DOMMap.bindings l ;
+  value dom (l, _) = DOMMap.dom l ;
+  value rng (_, r) = RNGMap.dom r ;
   value find x (l, _) = DOMMap.find x l ;
   value find_rng y (_, r) = RNGMap.find y r ;
 
