@@ -822,7 +822,7 @@ module D = Graph.Traverse.Dfs(G) ;
  *
  *)
 
-value tsort g =
+value tsort accept_todo g =
   let todo = ref [] in
   let indegree = Hashtbl.create 97 in do {
 
@@ -837,8 +837,12 @@ value tsort g =
         if Hashtbl.length indegree = 0 then acc
         else failwith "tsort: DAG was cyclic!"
       else
-        let work = todo.val in do {
-          todo.val := [] ;
+        let (accepted, remaining_todo) = accept_todo todo.val in
+        if accepted = [] then
+          failwith "StableTSort.tsort: internal error: accept_todo accepted nothing from current todo list!"
+        else
+        let work = accepted in do {
+          todo.val := remaining_todo ;
           List.iter (fun src ->
               G.iter_succ_e (fun (_, _, dst) ->
                   if not (Hashtbl.mem indegree dst) then failwith "tsort: DAG was cyclic" else
@@ -918,7 +922,7 @@ value make_dag loc ll =
 value hoist qc =
   let (ll, qc0) = SYN.to_letlist qc in
   let (g, bl_array) = make_dag (loc_of_qcirc qc) ll in
-  let layers = tsort g in
+  let layers = tsort (fun l -> (l, [])) g in
   let bll = layers |> List.map (List.map (Array.get bl_array)) in
   List.fold_right (fun bl qc -> SYN.QLET Ploc.dummy bl qc) bll qc0
 ;
