@@ -309,7 +309,6 @@ let q0 = h q in
 )
 ;;
 
-
 let anorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
@@ -387,7 +386,6 @@ gate rzz(theta) a b =
 )
 ;;
 
-
 let nnorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
     let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
@@ -403,7 +401,6 @@ let nnorm_qcirc (name, txt, expect) =
          exnpat
          (fun () -> Ops.NameNorm.qcircuit qc)
   )
-
 
 let name_norm_tests = "name-norm tests" >:::
 (
@@ -575,6 +572,108 @@ let check_layout_tests = "check_layout tests" >:::
 ]
 ;;
 
+let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) ;;
+let printer s = s ;;
+
+let hoist_tests = "hoist tests" >:::
+[
+  "simple1" >:: (fun _ ->
+    let p0 = parse_tolam {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[4];
+cx q[1], q[2];
+cx q[0], q[1] ;
+cx q[2], q[3] ;
+|} in
+    let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 p0 in
+    let qc = Ops.Hoist.hoist qc in
+    let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
+    assert_equal ~printer ~cmp {|
+let q4 = qubit #0 () and q5 = qubit #1 () and q6 = qubit #2 ()
+    and q7 = qubit #3 () in
+let (q9, q8) = cx q5 q6 in
+let (q11, q10) = cx q4 q9 and (q13, q12) = cx q8 q7 in
+(q11, q10, q13, q12)
+|} got
+  )
+; "simple2" >:: (fun _ ->
+    let p0 = parse_tolam {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[4];
+cx q[1], q[2];
+h q[2] ;
+cx q[0], q[1] ;
+cx q[2], q[3] ;
+|} in
+    let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 p0 in
+    let qc = Ops.Hoist.hoist qc in
+    let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
+    assert_equal ~printer ~cmp {|
+let q4 = qubit #0 () and q5 = qubit #1 () and q6 = qubit #2 ()
+    and q7 = qubit #3 () in
+let (q9, q8) = cx q5 q6 in
+let q10 = h q8 and (q12, q11) = cx q4 q9 in
+let (q14, q13) = cx q10 q7 in
+(q12, q11, q14, q13)
+|} got
+  )
+; "simple2-sabre-hoist" >:: (fun _ ->
+    let p0 = parse_tolam {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[4];
+cx q[1], q[2];
+h q[2] ;
+cx q[0], q[1] ;
+cx q[2], q[3] ;
+|} in
+    let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 p0 in
+    let qc = Ops.SabreHoist.hoist qc in
+    let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
+    assert_equal ~printer ~cmp {|
+let q4 = qubit #0 () and q5 = qubit #1 () and q6 = qubit #2 ()
+    and q7 = qubit #3 () in
+let (q9, q8) = cx q5 q6 in
+let q10 = h q8 in
+let (q12, q11) = cx q4 q9 and (q14, q13) = cx q10 q7 in
+(q12, q11, q14, q13)
+|} got
+  )
+; "complex" >:: (fun _ ->
+    let p0 = parse_tolam {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[3];
+qreg r[3];
+h q;
+cx q, r;
+creg c[3];
+creg d[3];
+barrier q;
+measure q->c;
+measure r->d;
+|} in
+    let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 p0 in
+    let qc = Ops.Hoist.hoist qc in
+    let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
+    assert_equal ~printer ~cmp {|
+let q4 = qubit #0 () and q5 = qubit #1 () and q6 = qubit #2 ()
+    and r7 = qubit #3 () and r8 = qubit #4 () and r9 = qubit #5 () in
+let q10 = h q4 and q11 = h q5 and q12 = h q6 in
+let (q14, r13) = cx q10 r7 and (q16, r15) = cx q11 r8
+    and (q18, r17) = cx q12 r9 in
+let (q21, q20, q19) = barrier q14 q16 q18 and (r28 : d29) = measure r13
+    and (r30 : d31) = measure r15 and (r32 : d33) = measure r17 in
+let (q22 : c23) = measure q21 and (q24 : c25) = measure q20
+    and (q26 : c27) = measure q19 in
+(q22, q24, q26, r28, r30, r32 : c23, c25, c27, d29, d31, d33)
+|} got
+  )
+]
+;;
+
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
@@ -592,5 +691,6 @@ if not !Sys.interactive then
       ; tychk_tests
       ; basic_swap_tests
       ; check_layout_tests
+      ; hoist_tests
     ])
 ;;
