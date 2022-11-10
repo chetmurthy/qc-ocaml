@@ -3,4 +3,13 @@ gate CX () p q ;
 
 gate u3(theta,phi,lambda) q =
 let q = U(theta,phi,lambda) q in
-(q);
+(q) ;
+
+gate u2(phi,lambda) q =
+let q = U(pi/2,phi,lambda) q in
+(q) ;
+
+
+gate h () a =
+let a = u2(0,pi) a in
+(a) ;

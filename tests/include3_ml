@@ -1,0 +1,123 @@
+(* Copyright 2019 Chetan Murthy, All rights reserved. *)
+
+#use "topfind";;
+
+#require "camlp5";;
+#require "pa_ppx.testutils";;
+#require"pa_ppx.runtime_fat" ;;
+#require "qc_ocaml";;
+#require "oUnit";;
+#print_length 1048576 ;;
+
+open Asttools ;;
+open Pa_ppx_utils ;;
+open Coll ;;
+open Std ;;
+open Misc_functions ;;
+open Qc_misc ;;
+open Qc ;;
+open Qasm2syntax ;;
+open OUnit2 ;;
+
+Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
+Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
+
+#install_printer Fpath.pp ;;
+
+let lexbuf_contents lb =
+  let open Lexing in
+  let pos = lb.lex_curr_pos in
+  let len = lb.lex_buffer_len - lb.lex_curr_pos in
+  (Bytes.to_string (Bytes.sub lb.lex_buffer pos len))
+;;
+
+let pp_lexbuf lb =
+  Format.print_string "#<lexbuf:<";
+  Format.print_string (lexbuf_contents lb);
+  Format.print_string ">>"
+;;
+#install_printer pp_lexbuf ;;
+
+let pp_tokenaux (t : Qc_misc.TokenAux.t) = Fmt.(pf stdout "<tokenaux>") ;;
+#install_printer pp_tokenaux ;;
+
+
+open Qlam_syntax ;;
+open Qlam_ops ;;
+open Qlam_env ;;
+module LATEX = Qc_latex ;;
+
+let id_pp x = Fmt.(pf stdout "<:id<%a>>" ID.pp_hum x) ;;
+#install_printer id_pp ;;
+
+let qvar_pp x = Fmt.(pf stdout "<:qvar<%a>>" SYN.QV.pp_hum x) ;;
+#install_printer qvar_pp ;;
+
+let cvar_pp x = Fmt.(pf stdout "<:cvar<%a>>" SYN.CV.pp_hum x) ;;
+#install_printer cvar_pp ;;
+
+let bi_pp x = Fmt.(pf stdout "<:bi< %a >>" SYN.BI.pp_hum x) ;;
+#install_printer bi_pp ;;
+
+let qgn_pp x = Fmt.(pf stdout "<:qgn<%a>>" SYN.QG.pp_hum x) ;;
+(*
+#install_printer qgn_pp ;;
+ *)
+let qcircuit_pp qc = Fmt.(pf stdout "<:circuit< %a >>" Qlam.Circ.pp_hum qc) ;;
+#install_printer qcircuit_pp ;;
+
+let gate_item_pp gi = Fmt.(pf stdout "<:gate_item< %a >>" Qlam.Gate.pp_hum gi) ;;
+(*
+#install_printer gate_item_pp ;;
+ *)
+let item_pp gi = Fmt.(pf stdout "<:item< %a >>" PP.item gi) ;;
+#install_printer item_pp ;;
+
+let read_file_tolam s0 =
+  let (env,instrs) = with_include_path ~path:["testdata"] Qasm2.of_file s0 in
+  Qlam.Prog.of_qasm2 (env, instrs)
+;;
+
+let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QVFVS.pp_hum x) ;;
+let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.CVFVS.pp_hum x) ;;
+
+let pp_qv_corr l = Fmt.(pf stdout "<:qvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QV.pp_hum SYN.QV.pp_hum))) (SYN.QVMap.bindings l)) ;;
+let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.CV.pp_hum SYN.CV.pp_hum))) (SYN.CVMap.bindings l)) ;;
+
+#install_printer pp_qvfvs ;;
+#install_printer pp_cvfvs ;;
+#install_printer pp_qv_corr ;;
+#install_printer pp_cv_corr ;;
+
+let pp_layout l = Fmt.(pf stdout "<:layout< %a >>" Qlam_ops.LO.pp_hum l) ;;
+#install_printer pp_layout ;;
+
+let pp_logical2qvar m = Fmt.(pf stdout "<:logical2qvar< %a >>" (SYN.BIMap.pp_hum SYN.QV.pp_hum) m) ;; 
+#install_printer pp_logical2qvar ;;
+
+let pp_ab_env x = Fmt.(pf stdout "<:abenv< %a >>" Qlam_ops.AB.Env.pp_hum x) ;;
+#install_printer pp_ab_env ;;
+
+#load "test_helpers.cmo";;
+#load "qasm2_tests.cmo";;
+open Test_helpers ;;
+open Qasm2_tests ;;
+
+
+#load "qlam_tests.cmo";;
+open Qlam_tests ;;
+
+#load "qclatex_tests.cmo";;
+open Qclatex_tests ;;
+
+
+let p0 = with_include_path ~path:["testdata"] Qlam.Prog.of_file "testdata/bell2.ql" ;;
+let (genv, p1) = Standard.program p0 ;;
+let p2 = Unroll.program ~only:["bell2" |> ID.mk |> SYN.QG.ofID] p1 ;;
+let (genv, p3) = Standard.program p2 ;;
+let p4 = Lower.program p3 ;;
+Fmt.(pf stdout "%a\n%!" Qlam.Prog.pp_hum p4) ;;
+
+(* Local Variables: *)
+(* mode: tuareg *)
+(* End: *)

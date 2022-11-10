@@ -139,7 +139,7 @@ value check_cv_corr loc lr rl v1 v2 =
   with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" CV.pp_hum v1 CV.pp_hum v2)
 ;
 
-value circuit qc1 qc2 =
+value qcircuit qc1 qc2 =
   let rec alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
     (QLET _ bl1 qc1, QLET _ bl2 qc2) ->
     (List.length bl1 = List.length bl2)
@@ -732,7 +732,7 @@ value mk_env ~{only} ~{except} env =
       ] in
   let accept gn =
     (match only with [ None -> True | Some l -> List.exists (QG.equal gn) l ])
-    && (match except with [ None -> False | Some l -> not(List.exists (QG.equal gn) l) ]) in
+    && (match except with [ None -> True | Some l -> not(List.exists (QG.equal gn) l) ]) in
   let rec flatrec m = fun [
       QGATE _ (DEF _ gn x) -> if accept gn then QGMap.add gn x m else m
     | QGATE _ (OPAQUE _ _ _) -> m
@@ -749,8 +749,8 @@ value mk_env ~{only} ~{except} env =
     determines what is unrolled.
  *)
 
-value unroll ?{only} ?{except} (env : SYN.environ_t) qc =
-  let genv = mk_env ~{only=only} ~{except=except} env in
+value unroll ~{only} ~{except} (envitems, qc) =
+  let genv = mk_env ~{only=only} ~{except=except} envitems in
   let counter = Fresh.(mk ~{base=1 + MaxID.qcircuit qc} ()) in
   let qc = Fresh.Internal.qcircuit ~{counter=counter} ~{qvmap=QVMap.empty} ~{cvmap=CVMap.empty} qc in
   let rec unrec qc = match qc with [
@@ -769,6 +769,14 @@ value unroll ?{only} ?{except} (env : SYN.environ_t) qc =
     | QRESET _ _) -> qc
   ]
   in unrec qc
+;
+
+value qcircuit ?{only} ?{except} (envitems, qc) =
+  unroll ~{only=only} ~{except=except} (envitems, qc) ;
+
+value program ?{only} ?{except} (envitems, qc) =
+  let qc = unroll ~{only=only} ~{except=except} (envitems, qc) in
+  (envitems, qc)
 ;
 
 end ;
@@ -1085,13 +1093,33 @@ value mk syntax =
   ; syntax = syntax
   } ;
 
-value has_pair it v1 v2 = DAG.mem_edge it.dag.underlying v1 v2 ;
+value has_pair ?{undirected=False} it v1 v2 =
+  if undirected then
+    G.mem_edge it.g.underlying v1 v2
+  else
+    DAG.mem_edge it.dag.underlying v1 v2 ;
+
+value neighbors ?{undirected=False} it v : list int =
+  if undirected then
+    G.fold_succ (fun n acc ->  [n::acc]) it.g.underlying v []
+  else
+    DAG.fold_succ (fun n acc ->  [n::acc]) it.dag.underlying v []
+;
+
 value has_path ?{undirected=False} it v1 v2 =
   if undirected then
     G.mem_edge it.g.tclosure v1 v2
   else
     DAG.mem_edge it.dag.tclosure v1 v2
 ;
+value distance ?{undirected=False} it v1 v2 =
+  match if undirected then G.find_edge it.g.tclosure v1 v2
+        else DAG.find_edge it.dag.tclosure v1 v2 with [
+      exception Not_found -> None
+    | (_,  d, _) -> Some d
+    ]
+;
+
 value path ?{undirected=False} it v1 v2 =
   let (edges, _) =
     if undirected then
@@ -1159,13 +1187,27 @@ module LO = struct
     } ;
   value mk l = List.fold_left assign empty l.Layout.it ;
 
+  value logical_bits l = l.logical ;
+  value physical_bits l = l.physical ;
+
   value logical_to_physical l lbit = M.find lbit l.layout ;
   value physical_to_logical l phybit = M.find_rng phybit l.layout ;
+  value physical_to_logical_opt l phybit =
+    match physical_to_logical l phybit with [
+        exception Not_found -> None
+      | x -> Some x
+      ] ;
 
-  value has_logical_pair l cmap l1 l2 =
+  value has_logical_pair ?{undirected=False} l cmap l1 l2 =
     let pq1 = logical_to_physical l l1 in
     let pq2 = logical_to_physical l l2 in
-    CM.has_pair cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
+    CM.has_pair ~{undirected=False} cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
+
+    value logical_neighbors ?{undirected=False} l cmap lb =
+      let pq = logical_to_physical l lb in
+      let nlist = CM.neighbors ~{undirected=undirected} cmap (PQ.toInt pq) in
+      List.filter_map (fun n ->  n |> PQ.ofInt |>  physical_to_logical_opt l) nlist
+    ;
 
   value has_logical_path ?{undirected=False} l cmap l1 l2 =
     let pq1 = logical_to_physical l l1 in
@@ -1177,6 +1219,11 @@ module LO = struct
     let pq2 = logical_to_physical l l2 in
     let physpath = CM.path ~{undirected=undirected} cmap (PQ.toInt pq1) (PQ.toInt pq2) in
     List.map (fun n -> physical_to_logical l (PQ.ofInt n)) physpath ;
+
+  value logical_distance ?{undirected=False} l cmap l1 l2 =
+    let pq1 = logical_to_physical l l1 in
+    let pq2 = logical_to_physical l l2 in
+    CM.distance ~{undirected=undirected} cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
 
   value swap l (logical_i,logical_j) =
     let m = l.layout in
@@ -1688,6 +1735,15 @@ value program ?{env0=[]} (environ, qc) =
   let (genv, ty) = TYCHK.program ~{env0=env0} p in
   let (genv, p) = Upgrade.program  ~{env0=env0} genv p in
   (genv, p)
+;
+
+end ;
+
+module Lower = struct
+value qcircuit qc = lower_circuit qc ;
+
+value program (environ, qc) =
+  (environ, lower_circuit qc)
 ;
 
 end ;
@@ -2253,7 +2309,7 @@ value check_layout genv0 ?{env0=[]} ~{coupling_map=cm} ~{layout=l} (envitems, qc
 ;
 
 end ;
-
+(*
 module SabreSwap = struct
 (** SabreSwap
 
@@ -2292,16 +2348,137 @@ module SabreSwap = struct
 
  *)
 
+(** The SabreSwap evaluation function:
 
-(** sabre_swap_cx_layer
+    (1) starting with a candidate swap of two logical qubits
+
+    (2) apply the swap to the current layout
+
+    (3) sum up distance for each gate in front-set, divided by size of front-set => FSDISTSUM
+
+    (4) sum up distance for each gate in extended-set, divided by size of extended set => ESDISTSUM
+
+    (5) compute max decay_weight of qubits in #! => DECAY_WEIGHT
+
+    (6) result: DECAY_WEIGHT * (FSDISTSUM + EXTENDED_WEIGHT * ESDISTSUM)
+
 
  *)
+
+value gate_distance cm l (lbit1, lbit2) =
+  match LO.logical_distance ~{undirected=True} cm l lbit1 lbit2 with [
+      None -> max_int
+    | Some d -> d
+    ]
+;
+
+value safe_add n m =
+  if n = max_int then max_int
+  else if m = max_int then max_int
+  else n+m
+;
+
+value safe_div n m =
+  if n = max_int then max_int
+  else n/m
+;
+value gate_set_distance_sum cm l pairs =
+  List.fold_left (fun sum p -> safe_add sum (gate_distance cm l p)) 0 pairs ;
+
+value _EXTENDED_WEIGHT = 0.5 ;
+
+value evaluate_swap cm l decay (lbit1, lbit2) (fs,  es) =
+  let fs_distsum = Float.of_int (gate_set_distance_sum cm l fs) in
+  let es_distsum = Float.of_int (gate_set_distance_sum cm l es) in
+  let max_decay_weight = max (PQMap.swap_find decay lbit1) (PQMap.swap_find decay lbit2) in
+  let fs_size = Float.of_int (List.length fs) in
+  let es_size = Float.of_int (List.length es) in
+  max_decay_weight *. (fs_distsum /. fs_size +. _EXTENDED_WEIGHT *. es_distsum /. es_size)
+;
+
+(** available_swaps:
+
+    computes all the swaps available from lbit1 and lbit2, except for
+    the swap between these two, if that is otherwise available.
+
+
+    To compute the otherwise-available swaps from a logical qubit:
+
+    (1) map to a physical qubit (via LO)
+
+    (2) find all neighbor physical qubits (via CM)
+
+    (3) map those back to logical qubits
+
+
+    THEN remove the one we already know about (lbit1, lbit2)
+
+ *)
+value available_swaps_from cm l ~{except} lb =
+  let nlist = LO.logical_neighbors ~{undirected=True} cm l lb in
+  let nlist = List.filter (fun lb ->  not (BI.equal lb except)) nlist in
+  List.map (fun lb2 -> (lb,  lb2)) nlist
+;
+
+value available_swaps cm l (lbit1, lbit2) =
+  (available_swaps_from cm l ~{except=lbit2} lbit1)
+  @(available_swaps_from cm l ~{except=lbit1} lbit2)
+;
+
+(** select_swap
+
+    selects a swap to apply that reduces the evaluation function of
+    the current front-set
+
+    (0) evaluate the current front-set with the current layout
+
+    (1) calculate all available swaps for front-set
+
+    (2) remove duplicates
+
+    (3) for each swap, compute the evaluation function
+
+    (4) choose the lowest-evaluated swap: if there are two that are
+    identical, then raise a warning and choose the one that sorts
+    lowest.
+
+    (5) if that lowest-evaluated is worse than the value from #0, fail noisily.
+
+    (5) return that swap
+
+ *)
+type pair_t = (BI.t * BI.t) [@@deriving (to_yojson, show, eq, ord);] ;
+
+value generate_candidate_swaps cm l fs =
+  let all_swaps = List.concat_map (available_swaps cm l) fs in
+  let uniq_swap (lb1, lb2) = match BI.compare lb1 lb2 with [
+        0 -> assert False
+      | -1 -> (lb1, lb2)
+      | 1 -> (lb2, lb1) ] in
+  let all_swaps = List.map uniq_swap all_swaps in
+  let all_swaps = List.sort_uniq compare_pair_t all_swaps in
+  all_swaps
+;
+
+value select_swap aenv cm (l, logical2qvar) decay loc (fs, es) =
+  let all_swaps = generate_candidate_swaps cm l fs in
+  
+  let all_swaps = List.concat_map (available_swaps cm l) fs in
+  let uniq_swap (lb1, lb2) = match BI.compare lb1 lb2 with [
+        0 -> assert False
+      | -1 -> (lb1, lb2)
+      | 1 -> (lb2, lb1) ] in
+  let all_swaps = List.map uniq_swap all_swaps in
+  let all_swaps = List.sort_uniq compare_pair_t all_swaps in
+ () ; 
+
 value sabre_swap_cx_layer aenv cm (l, logical2qvar) (fs, es, (loc, bl)) =
   let _ = assert (List.length fs = List.length bl) in
   let fs_bl = List.map2 (fun varpair b -> (varpair, b)) fs bl in
-
-
+  let physbits = l |> LO.physical_bits |> PQSet.toList in
+  let decay = physbits |> List.map (fun p -> (p, 1.0)) |> PQMap.ofList in
   assert False
+
 ;
 
 value process_bindings aenv cm (l, logical2qvar) (varset, (loc, bl)) =
@@ -2309,7 +2486,7 @@ value process_bindings aenv cm (l, logical2qvar) (varset, (loc, bl)) =
       None ->
       ((l, logical2qvar), [(loc,bl)])
     | Some (fs, es) ->
-       sabre_swap_cx_layer aenv cm (l, logical2qvar) (fs, es, (loc, bl))
+       sabre_swap_cx_layer aenv cm (l, logical2qvar) loc (fs, es)
     ]
 ;
 
@@ -2362,3 +2539,4 @@ value sabre_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
 ;
 
 end ;
+ *)

@@ -216,7 +216,7 @@ let alpha_equality (name, txt1, txt2, expect) =
   name >:: (fun ctxt ->
     let (env, qc1) = txt1 |> Qlam.Prog.of_string in
     let (env, qc2) = txt2 |> Qlam.Prog.of_string in
-    let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
+    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     if expect then
       assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2
@@ -311,7 +311,7 @@ let q0 = h q in
 
 let anorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
+    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
@@ -388,7 +388,7 @@ gate rzz(theta) a b =
 
 let nnorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let cmp qc1 qc2 = Ops.AlphaEq.circuit qc1 qc2 in
+    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit qc1 qc2 in
     let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with

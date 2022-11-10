@@ -78,8 +78,8 @@ module QG = struct
   value qgn pps g = ID.pp_hum pps (toID g) ;
   value pp_hum pps x = Fmt.(pf pps "%a" qgn x) ;
 end ;
-module QGFVS = VarSet(QG) ;
-module QGMap = EntityMap(QG)(QGFVS) ;
+module QGSet = VarSet(QG) ;
+module QGMap = EntityMap(QG)(QGSet) ;
 
 type binop_t = [ ADD | SUB | MUL | DIV | POW ][@@deriving (to_yojson, show, eq, ord);] ;
 type unop_t = [ UMINUS ][@@deriving (to_yojson, show, eq, ord);] ;
@@ -359,7 +359,7 @@ and qbinding pps = fun [
 
 value gate_item pps = fun [
     DEF _ gname ((pvl, qvl, cvl), qc) ->
-    Fmt.(pf pps "@[<v 2>gate %a (%a) %a =@ %a@]@,;"
+    Fmt.(pf pps "@[<v>gate %a (%a) %a =@ @[<v 2>%a@]@]@,;"
            QG.pp_hum gname
            (list ~{sep=(const string ", ")} PV.pp_hum) pvl
            qvars_cvars (qvl, cvl)
