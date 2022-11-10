@@ -674,6 +674,37 @@ let (q22 : c23) = measure q21 and (q24 : c25) = measure q20
 ]
 ;;
 
+let unroll_tests = "unroll tests" >:::
+[
+  "simple1" >:: (fun _ ->
+    let p0 = Qlam.(with_include_path ~path:["testdata"] Prog.of_string {|
+include "qelib1.qli";
+gate bell2 () p q =
+let p = h p in
+let (p, q) = CX p q in
+(p, q)
+;
+
+let q0 = qubit() and q1 = qubit() in
+let (q0, q1) = bell2 q0 q1 in
+(q0, q1)
+|}) in
+    let (genv0, p1) = Ops.Standard.program p0 in
+    let p2 = Ops.Unroll.program ~only:["bell2" |> ID.mk |> SYN.QG.ofID] p1 in
+    let (genv, p3) = Ops.Standard.program p2 in
+    let p4 = Ops.Lower.program p3 in
+    let (_, qc) = p4 in
+    let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
+    assert_equal ~printer ~cmp {|
+let q = qubit () and q0 = qubit () in
+let p = h q in
+let (p0, q1) = CX p q0 in
+(p0, q1)
+|} got
+  )
+]
+;;
+
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
@@ -692,5 +723,6 @@ if not !Sys.interactive then
       ; basic_swap_tests
       ; check_layout_tests
       ; hoist_tests
+      ; unroll_tests
     ])
 ;;
