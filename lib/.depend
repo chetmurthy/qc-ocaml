@@ -85,11 +85,15 @@ qc.cmx : \
     qc1.cmx
 qc1.cmo : \
     qlam_syntax.cmo \
+    qlam_ops.cmo \
     qconvert.cmo \
+    qc_dot.cmo \
     qc0.cmo
 qc1.cmx : \
     qlam_syntax.cmx \
+    qlam_ops.cmx \
     qconvert.cmx \
+    qc_dot.cmx \
     qc0.cmx
 qc_dot.cmo : \
     qc_misc.cmo
@@ -162,6 +166,7 @@ yojson_helpers.cmx :
 qc0.cmo : \
     qlam_syntax.cmo \
     qlam_parser.cmo \
+    qlam_env.cmo \
     qc_misc.cmo \
     qasmpp.cmo \
     qasm_io.cmo \
@@ -170,6 +175,7 @@ qc0.cmo : \
 qc0.cmx : \
     qlam_syntax.cmx \
     qlam_parser.cmx \
+    qlam_env.cmx \
     qc_misc.cmx \
     qasmpp.cmx \
     qasm_io.cmx \

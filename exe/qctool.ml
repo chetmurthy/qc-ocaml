@@ -521,6 +521,33 @@ module Dot = struct
     (term, info)
 end
 
+module XDot = struct
+  open Qasm2_parser
+  type t = {
+
+      debug : bool ;
+      (** turn on all debugging & logging *)
+
+      qasmfile : string ;
+      (** qasmfile to submit *)
+
+      include_path : string list ; [@default []] [@sep ':'] [@aka ["I"]]
+      (** path for finding included QASM files *)
+
+    } [@@deriving cmdliner]
+
+  let do_xdot p =
+    let { debug ; qasmfile ; include_path } = p in
+    let (envs, dag) = with_include_path ~path:include_path full_to_dag0_from_file qasmfile in
+    let _ = Qc_dot.Exec.xdot ~args:[] (DAG.dot ~terse:true dag) in
+    ()
+
+  let cmd =
+    let term = Cmdliner.Term.(const do_xdot $ cmdliner_term ()) in
+    let info = Cmdliner.Term.info "xdot" in
+    (term, info)
+end
+
 module SubmitJob = struct
   open Qasm2_parser
   type t = {
@@ -622,6 +649,7 @@ let _ =
                                AvailableBackends.cmd;
                                CancelJob.cmd;
                                Dot.cmd;
+                               XDot.cmd;
                                ListJobs.cmd;
                                Login.cmd "login";
                                Logout.cmd;

@@ -15,21 +15,26 @@ let generate dir dotobj =
   let _ = dot_to_file dotf dotobj in
   Ok dotf
 
-let xdot_cmd = Cmd.(v "xdot" % "-f" % "fdp")
+let xdot_cmd args =
+  let rec crec c = function
+      [] -> c
+    | (h::t) -> crec Cmd.(c % h) t
+  in
+  crec Cmd.(v "xdot") args
 
-let display dotf =
-  let doit = Cmd.(xdot_cmd % (Fpath.to_string dotf)) in
+let display args dotf =
+  let doit = Cmd.(xdot_cmd args % (Fpath.to_string dotf)) in
   let* _ = OS.Cmd.(run_out doit |> to_string) in
   Ok ()
 
-let generate_and_display dir dotobj =
+let generate_and_display args dir dotobj =
   let* dotf = generate dir dotobj in
-  let* () = display dotf in
+  let* () = display args dotf in
   Ok dotf
 
 
-let xdot ?(preserve=false) ?(display=true) dotobj =
-  in_tmp_dir ~preserve (if display then generate_and_display else generate) dotobj
+let xdot ?(args=["-f"; "fdp"]) ?(preserve=false) ?(display=true) dotobj =
+  in_tmp_dir ~preserve (if display then generate_and_display args else generate) dotobj
 
 
 end
