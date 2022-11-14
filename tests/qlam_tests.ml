@@ -234,6 +234,22 @@ let alpha_equality_tests = "alpha equality tests" >:::
        ; ("1'", {|(x)|}, {|(y)|}, false)
        ; ("1''", {|(x)|}, {|(x)|}, true)
        ; ("2", {|let q = qubit () in (q)|},{|let p = qubit () in (p)|}, true)
+       ; ("permute 1",
+          {|
+let x = cx u v and y = cx v u in (x,y)
+|},
+          {|
+let x = cx v u and y = cx u v in (y,x)
+|},
+          true)
+       ; ("permute 2",
+          {|
+let x = cx u v and y = cx v u in (x,y)
+|},
+          {|
+let x = cx v u and y = cx u v in (x,y)
+|},
+          false)
      ]
   )
 )
@@ -578,19 +594,9 @@ cx q[0],q[4];
 |} |> Layout.of_string in
     let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
     let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
-    let got = Fmt.(str "%a\n%!" Qasm2.pp_hum (Qlam.Prog.to_qasm2 ~env0 p2)) in
-    assert_equal ~cmp ~printer {|
-OPENQASM 2.0;
-include "qelib1.inc";
-qreg q[5];
-cx q[0], q[1];
-cx q[2], q[3];
-h q[0];
-cx q[1], q[2];
-cx q[4], q[3];
-cx q[1], q[0];
-cx q[0], q[4];
-|} got
+    let cmp = Ops.AlphaEq.qcircuit in
+    let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum qc) in
+    assert_equal ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p1))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
   )
 ]
 ;;

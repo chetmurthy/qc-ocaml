@@ -139,9 +139,11 @@ value check_cv_corr loc lr rl v1 v2 =
   with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" CV.pp_hum v1 CV.pp_hum v2)
 ;
 
+
 value qcircuit qc1 qc2 =
   let rec alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
     (QLET _ bl1 qc1, QLET _ bl2 qc2) ->
+    let bl2 = permute_bl (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) in
     (List.length bl1 = List.length bl2)
     && (List.for_all2 (fun (_, qvl1, cvl1, qc1) (_, qvl2, cvl2, qc2) ->
             (List.length qvl1 = List.length qvl2)
@@ -187,7 +189,20 @@ value qcircuit qc1 qc2 =
      check_qv_corr loc qv_lr qv_rl qv1 qv2
     
   | _ -> False
-  ] in
+  ]
+  and permute_bl (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) =
+    let rec permrec bl1 bl2 = match bl1 with [
+          [] -> bl2
+        | [b1 :: bl1] ->
+           let (matching_b2, rest_bl2) =
+             filter_split (fun b2 -> alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qbinding_qc b1,  qbinding_qc b2)) bl2 in
+           match matching_b2 with [
+               ([] | [_; _ ::_]) -> bl2
+             | [b2] -> [b2 :: permrec bl1 rest_bl2]
+             ]
+        ]
+    in permrec bl1 bl2 
+  in
   let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
   let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
   QVFVS.equal qvfvs1 qvfvs2
