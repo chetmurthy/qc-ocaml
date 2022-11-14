@@ -103,3 +103,7 @@ coupling_map ibmq_quito [
 0 @ (0,2)
 2 @ (2,2)
 ] ;
+
+coupling_map ring5 [
+1<->0 2<->1 3<->2 4<->3 4<->0
+] ;

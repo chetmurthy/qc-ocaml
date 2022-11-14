@@ -549,6 +549,52 @@ cx q[3], q[4];
 ]
 ;;
 
+let sabre_swap_tests = "sabre_swap tests" >:::
+[
+  "trivial case" >:: (fun _ ->
+    let p0 = parse_tolam {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[5];
+cx q[0],q[1];
+cx q[2],q[3];
+h q[0];
+cx q[1],q[2];
+cx q[1],q[0];
+cx q[4],q[3];
+cx q[0],q[4];
+|} in
+    let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 in
+    let cm = GEnv.find_mach genv0 (ID.mk"ring5") in
+    let l = {|
+[
+#0 : <physical 0>,
+#1 : <physical 1>,
+#2 : <physical 2>,
+#3 : <physical 3>,
+#4 : <physical 4>,
+#5 : <physical 5>
+]
+|} |> Layout.of_string in
+    let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
+    let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
+    let got = Fmt.(str "%a\n%!" Qasm2.pp_hum (Qlam.Prog.to_qasm2 ~env0 p2)) in
+    assert_equal ~cmp ~printer {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[5];
+cx q[0], q[1];
+cx q[2], q[3];
+h q[0];
+cx q[1], q[2];
+cx q[4], q[3];
+cx q[1], q[0];
+cx q[0], q[4];
+|} got
+  )
+]
+;;
+
 let check_layout_tests = "check_layout tests" >:::
 [
   "ghz-bv.qasm-no-swap" >:: (fun _ ->
@@ -720,9 +766,10 @@ if not !Sys.interactive then
       ; separate_let_tests
       ; name_norm_tests
       ; tychk_tests
-      ; basic_swap_tests
       ; check_layout_tests
       ; hoist_tests
       ; unroll_tests
+      ; basic_swap_tests
+      ; sabre_swap_tests
     ])
 ;;
