@@ -448,7 +448,7 @@ value of_ids (qvl, cvl) = (QVFVS.ofList qvl, CVFVS.ofList cvl) ;
 value pp_hum pps (q, c) = Fmt.(pf pps "{q=%a; c=%a}" QVFVS.pp_hum q CVFVS.pp_hum c) ;
 end ;
 
-value compute_binding_fvs bindingf ((loc, qvl, cvl, qc) : qbinding_t) : (qbinding_t * FVS.t) =
+value compute_binding_fvs bindingf (loc, qvl, cvl, qc) =
   let (qc, fvs) = bindingf qc in
   ((loc, qvl, cvl, qc), fvs)
 ;
@@ -1221,6 +1221,7 @@ module LO = struct
     List.map (fun n -> physical_to_logical l (PQ.ofInt n)) physpath ;
 
   value logical_distance ?{undirected=False} l cmap l1 l2 =
+    let _ = assert (not (BI.equal l1 l2)) in
     let pq1 = logical_to_physical l l1 in
     let pq2 = logical_to_physical l l2 in
     CM.distance ~{undirected=undirected} cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
@@ -2104,8 +2105,12 @@ value update_layout aenv l (loc, qvl, _, qc) = match qc with [
     | _ -> l
 ] ;
 
+value swap_binding loc (qv1, qv2) =
+  (loc,  [qv2;qv1], [], QGATEAPP loc (SYN.SWAP loc) [] [qv1;qv2] [])
+;
+
 value layout_swap aenv cm l loc (qv1, qv2) =
-  let b = (loc,  [qv2;qv1], [], QGATEAPP loc (SYN.SWAP loc) [] [qv1;qv2] []) in
+  let b = swap_binding loc (qv1, qv2) in
   let l = update_layout aenv l b in
   ((loc, [b]), l)
 ;
@@ -2309,7 +2314,7 @@ value check_layout genv0 ?{env0=[]} ~{coupling_map=cm} ~{layout=l} (envitems, qc
 ;
 
 end ;
-(*
+
 module SabreSwap = struct
 (** SabreSwap
 
@@ -2366,7 +2371,7 @@ module SabreSwap = struct
  *)
 
 value gate_distance cm l (lbit1, lbit2) =
-  match LO.logical_distance ~{undirected=True} cm l lbit1 lbit2 with [
+  match LO.logical_distance ~{undirected=True} l cm lbit1 lbit2 with [
       None -> max_int
     | Some d -> d
     ]
@@ -2382,19 +2387,38 @@ value safe_div n m =
   if n = max_int then max_int
   else n/m
 ;
-value gate_set_distance_sum cm l pairs =
+value gate_set_distance_sum cm l (pairs : list (BI.t * BI.t)) =
   List.fold_left (fun sum p -> safe_add sum (gate_distance cm l p)) 0 pairs ;
 
 value _EXTENDED_WEIGHT = 0.5 ;
+value _DECAY_INCREMENT = 0.001 ;
 
-value evaluate_swap cm l decay (lbit1, lbit2) (fs,  es) =
+type pair_t = (BI.t * BI.t) [@@deriving (to_yojson, show, eq, ord);] ;
+
+value evaluate_state cm l decay ((fs,  es) : (list (BI.t * BI.t) * list (BI.t * BI.t))) =
   let fs_distsum = Float.of_int (gate_set_distance_sum cm l fs) in
   let es_distsum = Float.of_int (gate_set_distance_sum cm l es) in
-  let max_decay_weight = max (PQMap.swap_find decay lbit1) (PQMap.swap_find decay lbit2) in
   let fs_size = Float.of_int (List.length fs) in
   let es_size = Float.of_int (List.length es) in
-  max_decay_weight *. (fs_distsum /. fs_size +. _EXTENDED_WEIGHT *. es_distsum /. es_size)
+  (fs_distsum /. fs_size +. _EXTENDED_WEIGHT *. es_distsum /. es_size)
 ;
+
+value evaluate_swap cm l decay (fs,  es) ((lbit1, lbit2) as sw) =
+  let l = LO.swap l (lbit1, lbit2) in
+  let evaluated = evaluate_state cm l decay (fs, es) in
+  let pqbit1 = LO.logical_to_physical l lbit1 in
+  let pqbit2 = LO.logical_to_physical l lbit2 in
+  let max_decay_weight = max (PQMap.swap_find decay pqbit1) (PQMap.swap_find decay pqbit2) in
+  (max_decay_weight *. evaluated, (l, sw))
+;
+
+value qbinding_lbits aenv b = match qbinding_qc b with [
+  QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [qv1;qv2] _ ->
+  let lbit1 = BasicSwap.logical_to_explicit_qubit loc (AB.Env.qv_swap_find aenv qv1) in
+  let lbit2 = BasicSwap.logical_to_explicit_qubit loc (AB.Env.qv_swap_find aenv qv2) in
+  (lbit1, lbit2)
+| _ -> assert False
+] ;
 
 (** available_swaps:
 
@@ -2415,7 +2439,7 @@ value evaluate_swap cm l decay (lbit1, lbit2) (fs,  es) =
 
  *)
 value available_swaps_from cm l ~{except} lb =
-  let nlist = LO.logical_neighbors ~{undirected=True} cm l lb in
+  let nlist = LO.logical_neighbors ~{undirected=True} l cm lb in
   let nlist = List.filter (fun lb ->  not (BI.equal lb except)) nlist in
   List.map (fun lb2 -> (lb,  lb2)) nlist
 ;
@@ -2447,7 +2471,6 @@ value available_swaps cm l (lbit1, lbit2) =
     (5) return that swap
 
  *)
-type pair_t = (BI.t * BI.t) [@@deriving (to_yojson, show, eq, ord);] ;
 
 value generate_candidate_swaps cm l fs =
   let all_swaps = List.concat_map (available_swaps cm l) fs in
@@ -2460,64 +2483,86 @@ value generate_candidate_swaps cm l fs =
   all_swaps
 ;
 
-value select_swap aenv cm (l, logical2qvar) decay loc (fs, es) =
+value select_swap aenv cm l decay loc (fs, es) =
   let all_swaps = generate_candidate_swaps cm l fs in
-  
-  let all_swaps = List.concat_map (available_swaps cm l) fs in
-  let uniq_swap (lb1, lb2) = match BI.compare lb1 lb2 with [
-        0 -> assert False
-      | -1 -> (lb1, lb2)
-      | 1 -> (lb2, lb1) ] in
-  let all_swaps = List.map uniq_swap all_swaps in
-  let all_swaps = List.sort_uniq compare_pair_t all_swaps in
- () ; 
-
-value sabre_swap_cx_layer aenv cm (l, logical2qvar) (fs, es, (loc, bl)) =
-  let _ = assert (List.length fs = List.length bl) in
-  let fs_bl = List.map2 (fun varpair b -> (varpair, b)) fs bl in
-  let physbits = l |> LO.physical_bits |> PQSet.toList in
-  let decay = physbits |> List.map (fun p -> (p, 1.0)) |> PQMap.ofList in
-  assert False
-
+  let eval_all_swaps = List.map (evaluate_swap cm l decay (fs, es)) all_swaps in
+  let state_cost = evaluate_state cm l decay (fs, es) in
+  let eval_all_swaps = List.filter (fun (cost, _) ->  cost < state_cost) eval_all_swaps in
+  if eval_all_swaps = [] then
+    Fmt.(raise_failwithf loc "no swap found that decreased the cost-function")
+  else
+    let (_, rv) =
+      List.fold_left (fun (c1, s1) (c2, s2) -> if c1 < c2 then (c1,s1) else (c2, s2))
+        (List.hd eval_all_swaps) (List.tl eval_all_swaps) in
+    rv
 ;
 
-value process_bindings aenv cm (l, logical2qvar) (varset, (loc, bl)) =
-  match varset with [
-      None ->
-      ((l, logical2qvar), [(loc,bl)])
-    | Some (fs, es) ->
-       sabre_swap_cx_layer aenv cm (l, logical2qvar) loc (fs, es)
-    ]
+value compute_cx_varset aenv l (loc, bl) =
+  let l = bl |> List.map (qbinding_lbits aenv) in
+  let _ = assert (BISet.distinct (List.concat_map (fun (b1, b2) -> [b1;b2]) l)) in
+  l
 ;
 
-value compute_varset aenv l (loc, bl) =
+value compute_varset aenv l (loc, bl) : option (list (BI.t * BI.t))=
   if not (List.for_all SabreHoist.is_cx_binding bl) then
     let _ = assert (not (List.exists SabreHoist.is_cx_binding bl)) in
     None
-  else
-    let l =
-      bl
-      |> List.map (fun b ->
-             match qbinding_qc b with [
-                 QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [qv1;qv2] _ ->
-                 let lbit1 = AB.Env.qv_swap_find aenv qv1 in
-                 let lbit2 = AB.Env.qv_swap_find aenv qv2 in
-                 (lbit1, lbit2)
-               | _ -> assert False
-           ]) in
-    let _ = assert (AB.QUBSet.distinct (List.concat_map (fun (b1, b2) -> [b1;b2]) l)) in
-    Some l
+  else Some (compute_cx_varset aenv l (loc, bl))
 ;
 
-value add_bothsets_to_letlist aenv l ll =
+value initial_decay l =
+  let physbits = l |> LO.physical_bits |> PQSet.toList in
+  physbits |> List.map (fun p -> (p, 1.0)) |> PQMap.ofList
+;
+
+value increase_decay l lbit decay =
+  let physbit = LO.logical_to_physical l lbit in
+  let oldval = PQMap.swap_find decay physbit in
+  PQMap.add physbit (oldval +. _DECAY_INCREMENT) decay
+;
+
+value qbinding_available aenv cm l b =
+  let (lbit1, lbit2) = qbinding_lbits aenv b in
+  let dist = gate_distance cm l (lbit1, lbit2) in
+  dist = 1
+;
+
+value sabre_swap_layer aenv cm (l, logical2qvar) (es, (loc, bl)) =
+  let decay = initial_decay l in
+  match compute_varset aenv l (loc, bl) with [
+      None -> ((l, logical2qvar), [(loc, bl)])
+    | Some fs ->
+       let rec swaprec ((l, logical2qvar), ll_acc) decay fs bl =
+         if bl = [] then
+           ((l, logical2qvar), List.rev ll_acc)
+         else
+           let (l, (lbit1, lbit2)) = select_swap aenv cm l decay loc (fs, es) in
+           let decay = decay |> increase_decay l lbit1 |> increase_decay l lbit2 in
+           let qv1 = BIMap.swap_find logical2qvar lbit1 in
+           let qv2 = BIMap.swap_find logical2qvar lbit2 in
+           let swapb = BasicSwap.swap_binding loc (qv1, qv2) in
+           let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, [swapb]) in
+           let ll_acc = [(loc, [swapb]) :: ll_acc] in
+           let (available_bl, rest_bl) = filter_split (qbinding_available aenv cm l) bl in
+           let fs = compute_cx_varset aenv l (loc, rest_bl) in
+           let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, available_bl) in
+           swaprec ((l, logical2qvar), [(loc, available_bl) :: ll_acc]) decay fs rest_bl
+       in swaprec ((l, logical2qvar),  []) decay fs bl
+    ]
+;
+
+value process_bindings aenv cm (l, logical2qvar) (extset, (loc, bl)) =
+  sabre_swap_layer aenv cm (l, logical2qvar) (extset, (loc, bl))
+;
+
+value add_extset_to_letlist aenv l ll =
   let (_, rv) =
     List.fold_right (fun (loc, bl) (curset, rest) ->
         let newset = compute_varset aenv l (loc, bl) in
-        match (newset, curset) with [
-            (None, _) -> (None, [(None, (loc, bl)) :: rest])
-          | (Some fs,  None) -> (Some fs,  [(Some (fs, []), (loc, bl)) :: rest])
-          | (Some fs,  Some es) -> (Some fs, [(Some (fs, es), (loc, bl)) :: rest])
-      ]) ll (None, []) in
+        match newset with [
+            None -> (curset, [(curset, (loc, bl)) :: rest])
+          | Some fs -> (fs,  [(curset, (loc, bl)) :: rest])
+      ]) ll ([], []) in
   rv
 ;
 
@@ -2525,11 +2570,11 @@ value sabre_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
   let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
   let qc = SabreHoist.hoist qc in
   let (ll, qc) = SYN.to_letlist qc in
-  let ll = add_bothsets_to_letlist qc_assign_env l ll in
+  let ll = add_extset_to_letlist qc_assign_env l ll in
   let logical2qvar = BIMap.empty in
   let (_,  rev_ll) =
-    List.fold_left (fun ((l, logical2qvar), acc_rev_ll) (varsets, (loc, bl)) ->
-        let ((l, logicalqvar), ll) = process_bindings qc_assign_env coupling_map (l, logical2qvar) (varsets, (loc, bl)) in
+    List.fold_left (fun ((l, logical2qvar), acc_rev_ll) (extset, (loc, bl)) ->
+        let ((l, logicalqvar), ll) = process_bindings qc_assign_env coupling_map (l, logical2qvar) (extset, (loc, bl)) in
         ((l, logicalqvar), [ll :: acc_rev_ll])
       )
       ((l,  logical2qvar), []) ll in
@@ -2539,4 +2584,3 @@ value sabre_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
 ;
 
 end ;
- *)
