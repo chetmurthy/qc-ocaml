@@ -2550,6 +2550,11 @@ value sabre_swap_layer aenv cm (l, logical2qvar) (es, (loc, bl)) =
        let rec swaprec ((l, logical2qvar), ll_acc) decay fs bl =
          if bl = [] then
            ((l, logical2qvar), List.rev ll_acc)
+         else if List.exists (qbinding_available aenv cm l) bl then
+           let (available_bl, rest_bl) = filter_split (qbinding_available aenv cm l) bl in
+           let fs = compute_cx_varset aenv l (loc, rest_bl) in
+           let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, available_bl) in
+           swaprec ((l, logical2qvar), [(loc, available_bl) :: ll_acc]) decay fs rest_bl
          else
            let (l, (lbit1, lbit2)) = select_swap aenv cm l decay loc (fs, es) in
            let decay = decay |> increase_decay l lbit1 |> increase_decay l lbit2 in
@@ -2558,10 +2563,7 @@ value sabre_swap_layer aenv cm (l, logical2qvar) (es, (loc, bl)) =
            let swapb = BasicSwap.swap_binding loc (qv1, qv2) in
            let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, [swapb]) in
            let ll_acc = [(loc, [swapb]) :: ll_acc] in
-           let (available_bl, rest_bl) = filter_split (qbinding_available aenv cm l) bl in
-           let fs = compute_cx_varset aenv l (loc, rest_bl) in
-           let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, available_bl) in
-           swaprec ((l, logical2qvar), [(loc, available_bl) :: ll_acc]) decay fs rest_bl
+           swaprec ((l, logical2qvar), ll_acc) decay fs bl
        in swaprec ((l, logical2qvar),  []) decay fs bl
     ]
 ;
