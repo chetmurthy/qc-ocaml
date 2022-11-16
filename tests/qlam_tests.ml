@@ -777,7 +777,7 @@ barrier q;
 measure q->c;
 measure r->d;
 |} in
-    let (genv0, (envitems, qc)) = Ops.Standard.program ~env0:env0 p0 in
+    let (genv0, (envitems, qc)) = Ops.Standard.program ~env0 p0 in
     let qc = Ops.Hoist.hoist qc in
     let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     assert_equal ~printer ~cmp {|
@@ -823,6 +823,44 @@ let p = h q in
 let (p0, q1) = CX p q0 in
 (p0, q1)
 |} got
+  )
+; "ccx" >:: (fun _ ->
+    let p0 = parse_tolam {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[3];
+ccx q[0], q[1], q[2] ;
+|} in
+    let (genv0, p1) = Ops.Standard.program ~env0 p0 in
+    let p2 = Ops.Unroll.program ~only:["ccx" |> ID.mk |> SYN.QG.ofID] p1 in
+    let (genv, p3) = Ops.Standard.program ~env0 p2 in
+    let p4 = Ops.Lower.program p3 in
+    let (_, qc) = p4 in
+    let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
+    let expected = parse_tolam {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[3];
+h q[2];
+cx q[1],q[2];
+tdg q[2];
+cx q[0],q[2];
+t q[2];
+cx q[1],q[2];
+tdg q[2];
+cx q[0],q[2];
+t q[1];
+t q[2];
+h q[2];
+cx q[0],q[1];
+t q[0];
+tdg q[1];
+cx q[0],q[1];
+|} in
+    let (genv0, expected1) = Ops.Standard.program ~env0 expected in
+    let cmp = Ops.AlphaEq.qcircuit in
+    let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
+    assert_equal ~cmp ~printer qc (snd expected1)
   )
 ]
 ;;
