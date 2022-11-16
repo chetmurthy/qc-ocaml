@@ -33,8 +33,12 @@ module JSON = struct
   let mk_basis envs =
     envs.TYCHK.Env.gates
     |> LM.toList 
-    |> List.fold_left (fun basis (gateid, (_, formal_params, formal_qubits, _)) ->
-           LM.add basis (gateid, (List.length formal_qubits, 0, List.length formal_params)))
+    |> List.fold_left (fun basis -> function
+             (gateid, TYCHK.Env.DEF (_, formal_params, formal_qubits, _)) ->
+              LM.add basis (gateid, (List.length formal_qubits, 0, List.length formal_params))
+           | (gateid, TYCHK.Env.OPAQUE (_, formal_params, formal_qubits)) ->
+              LM.add basis (gateid, (List.length formal_qubits, 0, List.length formal_params))
+         )
          (LM.ofList () Defaults._DEFAULT_DAG0_BASIS)
 
   let mk envs =

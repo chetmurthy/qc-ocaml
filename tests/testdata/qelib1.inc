@@ -1,6 +1,10 @@
 // Quantum Experience (QE) Standard Header
 // file: qelib1.inc
 
+// Opaque gate for layout
+
+opaque SWAP () p, q ;
+
 // --- QE Hardware primitives ---
 
 // 3-parameter 2-pulse single qubit gate

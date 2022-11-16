@@ -630,19 +630,44 @@ cx q[1],q[3];
 #4 : <physical 4>
 ]
 |} |> Layout.of_string in
+    let cmp = Ops.AlphaEq.qcircuit in
+    let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
     begin
       let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
       let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
-      let cmp = Ops.AlphaEq.qcircuit in
-      let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum qc) in
-      assert_equal ~msg:"basic swap failed" ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p1))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
+    let expected_qc = Qlam.Circ.of_string {|
+let q0 = qubit #0 () and q1 = qubit #1 () and q2 = qubit #2 ()
+    and q3 = qubit #3 () and q4 = qubit #4 () in
+let (q0, q1) = cx q0 q1 and (q2, q3) = cx q2 q3 in
+let q0 = h q0 and (q1, q2) = cx q1 q2 in
+let (q2, q1) = SWAP q1 q2 in
+let (q1, q3) = cx q1 q3 in
+let (q1, q2) = SWAP q2 q1 in
+let (q2, q3) = cx q2 q3 in
+let (q2, q1) = SWAP q1 q2 in
+let (q1, q3) = cx q1 q3 in
+(q0, q1, q2, q3, q4)
+|} in
+
+      assert_equal ~msg:"basic swap failed" ~cmp ~printer expected_qc (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
     end ;
     begin
       let p2 = Ops.SabreSwap.sabre_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
       let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
-      let cmp = Ops.AlphaEq.qcircuit in
-      let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum qc) in
-      assert_equal ~msg:"sabre swap failed" ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p1))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
+      let expected_qc = {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[5];
+cx q[0],q[1];
+h q[0];
+cx q[2],q[3];
+cx q[1],q[2];
+SWAP q[2],q[3];
+cx q[1],q[2];
+cx q[3],q[2];
+cx q[1],q[2];
+|} |> parse_tolam |> snd in
+      assert_equal ~msg:"sabre swap failed" ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (Ops.Fresh.qcircuit expected_qc))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
     end
   )
 ]

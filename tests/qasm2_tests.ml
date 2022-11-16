@@ -597,9 +597,10 @@ let compile_tests = "compile tests" >:::
                                  measure q[1] -> c0[1];
                                  measure q[0] -> c0[0];
                                  |} in
-      let expected_basis = [("U", (1, 0, 3)); ("CX", (2, 0, 0)); ("measure", (1, 1, 0)); ("reset", (1, 0, 0)); ("barrier", (-1, 0, 0)); ("u3", (1, 0, 3)); ("u2", (1, 0, 2)); ("u1", (1, 0, 1)); ("cx", (2, 0, 0)); ("id", (1, 0, 0)); ("u0", (1, 0, 1)); ("x", (1, 0, 0)); ("y", (1, 0, 0)); ("z", (1, 0, 0)); ("h", (1, 0, 0)); ("s", (1, 0, 0)); ("sdg", (1, 0, 0)); ("t", (1, 0, 0)); ("tdg", (1, 0, 0)); ("rx", (1, 0, 1)); ("ry", (1, 0, 1)); ("rz", (1, 0, 1)); ("cz", (2, 0, 0)); ("cy", (2, 0, 0)); ("swap", (2, 0, 0)); ("ch", (2, 0, 0)); ("ccx", (3, 0, 0)); ("cswap", (3, 0, 0)); ("crz", (2, 0, 1)); ("cu1", (2, 0, 1)); ("cu3", (2, 0, 3)); ("rzz", (2, 0, 1))] in
+      let expected_basis = [("U", (1, 0, 3)); ("CX", (2, 0, 0)); ("SWAP", (2, 0, 0)); ("measure", (1, 1, 0)); ("reset", (1, 0, 0)); ("barrier", (-1, 0, 0)); ("u3", (1, 0, 3)); ("u2", (1, 0, 2)); ("u1", (1, 0, 1)); ("cx", (2, 0, 0)); ("id", (1, 0, 0)); ("u0", (1, 0, 1)); ("x", (1, 0, 0)); ("y", (1, 0, 0)); ("z", (1, 0, 0)); ("h", (1, 0, 0)); ("s", (1, 0, 0)); ("sdg", (1, 0, 0)); ("t", (1, 0, 0)); ("tdg", (1, 0, 0)); ("rx", (1, 0, 1)); ("ry", (1, 0, 1)); ("rz", (1, 0, 1)); ("cz", (2, 0, 0)); ("cy", (2, 0, 0)); ("swap", (2, 0, 0)); ("ch", (2, 0, 0)); ("ccx", (3, 0, 0)); ("cswap", (3, 0, 0)); ("crz", (2, 0, 1)); ("cu1", (2, 0, 1)); ("cu3", (2, 0, 3)); ("rzz", (2, 0, 1))] in
       let canon l = List.sort Stdlib.compare l in
-      assert_equal (canon (JSON.mk_basis envs)) (canon expected_basis) ;
+      let printer = [%show: (string * (int * int * int)) list] in
+      assert_equal ~printer (canon (JSON.mk_basis envs)) (canon expected_basis) ;
     ) ;
 
     "emit 0" >:: (fun ctxt ->

@@ -92,6 +92,7 @@ and body_token0 wscom =
 | "sqrt" { locate ~comments:wscom lexbuf T_SQRT }
 | "tan" { locate ~comments:wscom lexbuf T_TAN }
 | "U" { locate ~comments:wscom lexbuf T_U }
+| "SWAP" { locate ~comments:wscom lexbuf (T_SWAPGATE (Lexing.lexeme lexbuf)) }
 | "measure" { locate ~comments:wscom lexbuf T_MEASURE }
 | "opaque" { locate ~comments:wscom lexbuf T_OPAQUE }
 | "reset" { locate ~comments:wscom lexbuf T_RESET }

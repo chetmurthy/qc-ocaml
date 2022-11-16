@@ -119,7 +119,7 @@ value rec env_item = fun [
    let qc = gate_circuit qvl [] instrs in
    SYN.QGATE loc (DEF loc (SYN.QG.ofID (ID.mk gname)) ((pvl, qvl, []), qc))
 
-| (loc, STMT_OPAQUEDECL gname pvl qvl) ->
+| (loc, STMT_OPAQUEDECL (gname, pvl, qvl)) ->
    let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
    let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
    SYN.QGATE loc (OPAQUE loc (SYN.QG.ofID (ID.mk gname)) (pvl, qvl, []))
@@ -222,7 +222,7 @@ value env stmts =
 
 value program (qasm2env, stmts) =
   let (gates, instrs) =
-    stmts |> filter_split (fun [ (_, (STMT_INCLUDE _ _ _ | STMT_GATEDECL _ | STMT_OPAQUEDECL _ _ _)) -> True | _ -> False ]) in
+    stmts |> filter_split (fun [ (_, (STMT_INCLUDE _ _ _ | STMT_GATEDECL _ | STMT_OPAQUEDECL _)) -> True | _ -> False ]) in
 
   let qlam_env = List.map env_item gates in
   let (regs, instrs) =
