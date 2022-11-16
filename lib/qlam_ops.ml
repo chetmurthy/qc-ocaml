@@ -128,6 +128,113 @@ value program (environ, qc) =
 
 end ;
 
+
+module UnsafeLower = struct
+(** [UnsafeLower.qcircuit qc] does something similar to
+    [Lower.qcircuit qc], but instead of guaranteeing an alpha-equal
+    circuit, it reuses qubit-names aggressively, and for a circuit
+    where qubits aren't used linearly (single-use), will produce
+    incorrect output.
+
+    We *assume* that the circuit has been typechecked, which will
+    verify linearity.
+
+ *)
+
+      
+value rebind_qv (rev_qvs, (fv_qvs, ren_qv)) (newqv_opt, qv) =
+  let fresh_qv = match newqv_opt with [
+        Some newqv  -> newqv
+      | _ -> QVSet.fresh fv_qvs qv
+      ] in
+  let fv_qvs = QVSet.add fv_qvs fresh_qv in
+  let ren_qv = 
+    if equal_qvar_t qv fresh_qv then ren_qv
+    else QVMap.add qv fresh_qv ren_qv in
+  ([fresh_qv :: rev_qvs], (fv_qvs, ren_qv)) ;
+
+value rebind_qvl ~{rhs} (fv_qvs, ren_qv) qvl =
+  let new_qvl =
+    match (rhs, qvl) with [
+        (QCREATE _ (BI.EXPLICIT n), [qv]) ->
+        let newqv = QV.ofID (fst(QV.toID qv), n) in
+        if not (QVSet.mem fv_qvs newqv) then
+          [(Some newqv, qv)]
+        else [(None, qv)]
+
+      | (QGATEAPP loc ((SYN.SWAP _|SYN.GENGATE _ ("swap",-1)) as gn) [] [qvactual1;qvactual2] [], [qv1;qv2]) ->
+         [(Some qvactual2, qv1);(Some qvactual1, qv2)]
+      | (QGATEAPP loc _ [] qvactuals [], qvformals) ->
+         let _ = assert (List.length qvactuals = List.length qvformals) in
+         List.map2 (fun a f -> (Some a, f)) qvactuals qvformals
+      | _ -> List.map (fun qv -> (None, qv)) qvl
+      ] in
+
+  let (rev_qvl, (fv_qvs, ren_qv)) =
+    List.fold_left rebind_qv ([], (fv_qvs, ren_qv)) new_qvl in
+  let qvl = List.rev rev_qvl in
+  (qvl, fv_qvs, ren_qv) ;
+
+value qcircuit qc =
+  let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
+  let rec lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc =
+    let rename_qv qv =
+      match QVMap.find qv ren_qv with [
+          exception Not_found -> qv
+        | x -> x
+        ] in
+    let rename_cv cv =
+      match CVMap.find cv ren_cv with [
+          exception Not_found -> cv
+        | x -> x
+        ] in
+    match qc with [
+      QLET loc bl qc ->
+      let bl = bl |> List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc)) in
+
+      let rebind_cv (rev_cvs, (fv_cvs, ren_cv)) cv =
+        let fresh_cv = CVSet.fresh fv_cvs cv in
+        let fv_cvs = CVSet.add fv_cvs fresh_cv in
+        let ren_cv = 
+          if equal_cvar_t cv fresh_cv then ren_cv
+          else CVMap.add cv fresh_cv ren_cv in
+        ([fresh_cv :: rev_cvs], (fv_cvs, ren_cv)) in
+
+      let rebind_cvl (fv_cvs, ren_cv) cvl =
+        let (rev_cvl, (fv_cvs, ren_cv)) =
+          List.fold_left rebind_cv ([], (fv_cvs, ren_cv)) cvl in
+        let qvl = List.rev rev_cvl in
+        (cvl, fv_cvs, ren_cv) in
+      
+      let (rev_bl,(fv_qvs, fv_cvs, ren_qv, ren_cv)) =
+        List.fold_left (fun (rev_bl, (fv_qvs, fv_cvs, ren_qv, ren_cv)) (loc, qvl, cvl, qc) ->
+            let (qvl, fv_qvs, ren_qv) = rebind_qvl ~{rhs=qc} (fv_qvs, ren_qv) qvl in
+            let (cvl, fv_cvs, ren_cv) = rebind_cvl (fv_cvs, ren_cv) cvl in
+            ([ (loc, qvl, cvl, qc) :: rev_bl ], (fv_qvs, fv_cvs, ren_qv, ren_cv)))
+          ([], (fv_qvs, fv_cvs, ren_qv, ren_cv)) bl in
+      let bl = List.rev rev_bl in
+      let qc = lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc in
+      QLET loc bl qc
+
+    | QWIRES loc qvl cvl ->
+       QWIRES loc (List.map rename_qv qvl) (List.map rename_cv cvl)
+
+    | QGATEAPP loc g pel qvl cvl -> QGATEAPP loc g pel (List.map rename_qv qvl) (List.map rename_cv cvl)
+    | QBARRIER loc qvl -> QBARRIER loc (List.map rename_qv qvl)
+    | QCREATE loc u -> QCREATE loc u
+    | QDISCARD loc qv -> QDISCARD loc (rename_qv qv)
+    | QMEASURE loc qv -> QMEASURE loc (rename_qv qv)
+    | QRESET loc qv -> QRESET loc (rename_qv qv)
+    ] in
+  lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
+;
+
+value program (environ, qc) =
+  (environ, qcircuit qc)
+;
+
+end ;
+
 module AlphaEq = struct
 value add_qvs m l1 l2 =
   List.fold_left2 (fun m v1 v2 -> QVMap.add v1 v2 m) m l1 l2
