@@ -46,6 +46,7 @@ value circuit_freevars qc =
   fvrec qc
 ;
 
+module Lower = struct
 (** [lower_circuit qc] will return an alpha-equal (in the sense of lambda-calculus,
     to be sure) circuit where ids of the form (s, n) have been renamed to the least
     value of "n" that is greater than all other ids of the form (s, m) for that same
@@ -61,7 +62,7 @@ value circuit_freevars qc =
 
  *)
 
-value lower_circuit qc =
+value qcircuit qc =
   let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
   let rec lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc =
     let rename_qv qv =
@@ -120,6 +121,12 @@ value lower_circuit qc =
     ] in
   lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
 ;
+
+value program (environ, qc) =
+  (environ, qcircuit qc)
+;
+
+end ;
 
 module AlphaEq = struct
 value add_qvs m l1 l2 =
@@ -1751,15 +1758,6 @@ value program ?{env0=[]} (environ, qc) =
   let (genv, ty) = TYCHK.program ~{env0=env0} p in
   let (genv, p) = Upgrade.program  ~{env0=env0} genv p in
   (genv, p)
-;
-
-end ;
-
-module Lower = struct
-value qcircuit qc = lower_circuit qc ;
-
-value program (environ, qc) =
-  (environ, lower_circuit qc)
 ;
 
 end ;

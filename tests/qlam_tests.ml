@@ -120,7 +120,7 @@ let lower_qlam (name, txt, expect) =
     let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
       Left expect ->
-       let qc' = Ops.lower_circuit qc in
+       let qc' = Ops.Lower.qcircuit qc in
        let txt = Fmt.(str "%a" Qlam.Circ.pp_hum qc') in
        let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
        let printer = (fun x -> "<<"^x^">>") in
@@ -128,7 +128,7 @@ let lower_qlam (name, txt, expect) =
     | Right exnpat ->
        assert_raises_exn_pattern ~msg:("should match "^exnpat)
          exnpat
-         (fun () -> Ops.lower_circuit qc)
+         (fun () -> Ops.Lower.qcircuit qc)
   )
 ;;
 
