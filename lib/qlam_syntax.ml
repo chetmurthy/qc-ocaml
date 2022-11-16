@@ -26,8 +26,8 @@ module PV = struct
   value pp_hum pps x = Fmt.(pf pps "%a" pvar x) ;
 end ;
 
-module PVFVS = VarSet(PV) ;
-module PVMap = EntityMap(PV)(PVFVS) ;
+module PVSet = VarSet(PV) ;
+module PVMap = EntityMap(PV)(PVSet) ;
 
 type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module QV = struct
@@ -38,8 +38,8 @@ module QV = struct
   value qvar pps = fun [ (QV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
 end ;
-module QVFVS = VarSet(QV) ;
-module QVMap = EntityMap(QV)(QVFVS) ;
+module QVSet = VarSet(QV) ;
+module QVMap = EntityMap(QV)(QVSet) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module CV = struct
@@ -50,8 +50,8 @@ module CV = struct
   value cvar pps = fun [ (CV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
 end ;
-module CVFVS = VarSet(CV) ;
-module CVMap = EntityMap(CV)(CVFVS) ;
+module CVSet = VarSet(CV) ;
+module CVMap = EntityMap(CV)(CVSet) ;
 
 type qgn_t = [
     CX of loc | U of loc | SWAP of loc

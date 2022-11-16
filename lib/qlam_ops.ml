@@ -12,9 +12,9 @@ open SYN ;
 
 value pe_freevars pe =
   let rec fvrec = fun [
-        ID _ pv ->  (PVFVS.ofList [pv])
-      | CONST _ _ -> PVFVS.mt
-      | BINOP _ _ pe1 pe2 -> PVFVS.union (fvrec pe1) (fvrec pe2)
+        ID _ pv ->  (PVSet.ofList [pv])
+      | CONST _ _ -> PVSet.mt
+      | BINOP _ _ pe1 pe2 -> PVSet.union (fvrec pe1) (fvrec pe2)
       | UNOP _ _ pe -> fvrec pe
       | UFUN _ _ pe -> fvrec pe
       ] in
@@ -25,23 +25,23 @@ value circuit_freevars qc =
   let rec fvrec = fun [
         QLET loc bl qc ->
         let (pvs, qvs, cvs) = fvrec qc in
-        let qvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> qvl) |> QVFVS.ofList in
-        let cvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> cvl) |> CVFVS.ofList in
-        let qvs = QVFVS.subtract qvs qvars in
-        let cvs = CVFVS.subtract cvs cvars in
+        let qvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> qvl) |> QVSet.ofList in
+        let cvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> cvl) |> CVSet.ofList in
+        let qvs = QVSet.subtract qvs qvars in
+        let cvs = CVSet.subtract cvs cvars in
         List.fold_left (fun (pvs, qvs,  cvs) (_, _, _, qc) ->
             let (pvs', qvs', cvs') = fvrec qc in
-            (PVFVS.union pvs pvs', QVFVS.union qvs qvs', CVFVS.union cvs cvs'))
-          (PVFVS.mt,  qvs, cvs) bl
-      | QWIRES _ qvl cvl -> (PVFVS.mt,  QVFVS.ofList qvl, CVFVS.ofList cvl)
+            (PVSet.union pvs pvs', QVSet.union qvs qvs', CVSet.union cvs cvs'))
+          (PVSet.mt,  qvs, cvs) bl
+      | QWIRES _ qvl cvl -> (PVSet.mt,  QVSet.ofList qvl, CVSet.ofList cvl)
       | QGATEAPP _ _ pel qvl  cvl ->
-         let pvl = List.fold_left (fun pvl pe -> PVFVS.union pvl (pe_freevars pe)) PVFVS.mt pel in
-         (pvl, QVFVS.ofList qvl, CVFVS.ofList cvl)
-      | QBARRIER _ qvl  -> (PVFVS.mt,  QVFVS.ofList qvl, CVFVS.mt)
-      | QCREATE _ _ -> (PVFVS.mt, QVFVS.mt, CVFVS.mt)
-      | QDISCARD _ qv -> (PVFVS.mt,  QVFVS.ofList [qv],  CVFVS.mt)
-      | QMEASURE _ qv -> (PVFVS.mt, QVFVS.ofList [qv], CVFVS.mt)
-      | QRESET _ qv -> (PVFVS.mt, QVFVS.ofList [qv], CVFVS.mt)
+         let pvl = List.fold_left (fun pvl pe -> PVSet.union pvl (pe_freevars pe)) PVSet.mt pel in
+         (pvl, QVSet.ofList qvl, CVSet.ofList cvl)
+      | QBARRIER _ qvl  -> (PVSet.mt,  QVSet.ofList qvl, CVSet.mt)
+      | QCREATE _ _ -> (PVSet.mt, QVSet.mt, CVSet.mt)
+      | QDISCARD _ qv -> (PVSet.mt,  QVSet.ofList [qv],  CVSet.mt)
+      | QMEASURE _ qv -> (PVSet.mt, QVSet.ofList [qv], CVSet.mt)
+      | QRESET _ qv -> (PVSet.mt, QVSet.ofList [qv], CVSet.mt)
   ] in
   fvrec qc
 ;
@@ -80,16 +80,16 @@ value qcircuit qc =
       let bl = bl |> List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc)) in
       
       let rebind_qv (rev_qvs, (fv_qvs, ren_qv)) qv =
-        let fresh_qv = QVFVS.fresh fv_qvs qv in
-        let fv_qvs = QVFVS.add fv_qvs fresh_qv in
+        let fresh_qv = QVSet.fresh fv_qvs qv in
+        let fv_qvs = QVSet.add fv_qvs fresh_qv in
         let ren_qv = 
           if equal_qvar_t qv fresh_qv then ren_qv
           else QVMap.add qv fresh_qv ren_qv in
         ([fresh_qv :: rev_qvs], (fv_qvs, ren_qv)) in
       
       let rebind_cv (rev_cvs, (fv_cvs, ren_cv)) cv =
-        let fresh_cv = CVFVS.fresh fv_cvs cv in
-        let fv_cvs = CVFVS.add fv_cvs fresh_cv in
+        let fresh_cv = CVSet.fresh fv_cvs cv in
+        let fv_cvs = CVSet.add fv_cvs fresh_cv in
         let ren_cv = 
           if equal_cvar_t cv fresh_cv then ren_cv
           else CVMap.add cv fresh_cv ren_cv in
@@ -212,10 +212,10 @@ value qcircuit qc1 qc2 =
   in
   let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
   let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
-  QVFVS.equal qvfvs1 qvfvs2
-  && CVFVS.equal cvfvs1 cvfvs2
-  && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVFVS.toList qvfvs1) in
-      let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVFVS.toList cvfvs1) in
+  QVSet.equal qvfvs1 qvfvs2
+  && CVSet.equal cvfvs1 cvfvs2
+  && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVSet.toList qvfvs1) in
+      let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVSet.toList cvfvs1) in
       alpharec (qvmap, qvmap, cvmap, cvmap) (qc1, qc2))
 ;
 end ;
@@ -388,15 +388,15 @@ value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
   let rec substrec = fun [
     QLET loc bl qc -> do {
       bl |> List.iter (fun (loc, qvl, cvl, _) ->
-                if qvl |> List.exists (QVFVS.mem qvfvs) then
+                if qvl |> List.exists (QVSet.mem qvfvs) then
                   Fmt.(raise_failwithf loc "BetaReduce.subst: internal error: binding qvars %a clash with subst %a"
                          (list ~{sep=const string " "} QV.pp_hum) qvl
-                         QVFVS.pp_hum qvfvs
+                         QVSet.pp_hum qvfvs
                   )
-                else if cvl |> List.exists (CVFVS.mem cvfvs) then
+                else if cvl |> List.exists (CVSet.mem cvfvs) then
                   Fmt.(raise_failwithf loc "BetaReduce.subst: internal error: binding cvars %a clash with subst %a"
                          (list ~{sep=const string " "} CV.pp_hum) cvl
-                         CVFVS.pp_hum cvfvs
+                         CVSet.pp_hum cvfvs
                   )
                 else ());
       let bl = bl |> List.map (fun (loc, qvl,cvl, qc) -> (loc, qvl, cvl, substrec qc)) in
@@ -430,7 +430,7 @@ value qcircuit ~{counter} genv = fun [
   let pvmap = List.fold_left2 (fun pvmap pv pe -> PVMap.add pv pe pvmap) PVMap.empty pvl pel in
   let qvmap = List.fold_left2 (fun qvmap qv qe -> QVMap.add qv qe qvmap) QVMap.empty qvl qel in
   let cvmap = List.fold_left2 (fun cvmap cv ce -> CVMap.add cv ce cvmap) CVMap.empty cvl cel in
-  subst (pvmap, qvmap, cvmap, QVFVS.ofList qel, CVFVS.ofList cel) qc
+  subst (pvmap, qvmap, cvmap, QVSet.ofList qel, CVSet.ofList cel) qc
 
 | x -> Fmt.(raise_failwithf (loc_of_qcirc x) "BetaReduce.qcircuit: can only be applied to gate-application, not %a" PP.qcirc x)
 ] ;
@@ -456,18 +456,18 @@ module ANorm = struct
  *)
 
 module FVS = struct
-type t = (QVFVS.t * CVFVS.t) ;
-value mt = (QVFVS.mt, CVFVS.mt) ;
-value union (q1, c1) (q2, c2) = (QVFVS.union q1 q2, CVFVS.union c1 c2) ;
+type t = (QVSet.t * CVSet.t) ;
+value mt = (QVSet.mt, CVSet.mt) ;
+value union (q1, c1) (q2, c2) = (QVSet.union q1 q2, CVSet.union c1 c2) ;
 value concat l = List.fold_left union mt l ;
 value subtract_ids (q, c) (qvl, cvl) = 
-  (QVFVS.(subtract q (ofList qvl)), CVFVS.(subtract c (ofList cvl))) ;
+  (QVSet.(subtract q (ofList qvl)), CVSet.(subtract c (ofList cvl))) ;
 value subtract (q1, c1) (q2, c2) = 
-  (QVFVS.(subtract q1 q2), CVFVS.(subtract c1 c2)) ;
+  (QVSet.(subtract q1 q2), CVSet.(subtract c1 c2)) ;
 value intersect (q1, c1) (q2, c2) = 
-  (QVFVS.(intersect q1 q2), CVFVS.(intersect c1 c2)) ;
-value of_ids (qvl, cvl) = (QVFVS.ofList qvl, CVFVS.ofList cvl) ;
-value pp_hum pps (q, c) = Fmt.(pf pps "{q=%a; c=%a}" QVFVS.pp_hum q CVFVS.pp_hum c) ;
+  (QVSet.(intersect q1 q2), CVSet.(intersect c1 c2)) ;
+value of_ids (qvl, cvl) = (QVSet.ofList qvl, CVSet.ofList cvl) ;
+value pp_hum pps (q, c) = Fmt.(pf pps "{q=%a; c=%a}" QVSet.pp_hum q CVSet.pp_hum c) ;
 end ;
 
 value compute_binding_fvs bindingf (loc, qvl, cvl, qc) =
@@ -939,8 +939,8 @@ value make_dag loc ll =
   let g = G.empty in
   let g = List.fold_left (fun g (node, _) -> G.add_vertex g node) g numbered_bl_fvs in
   let g = List.fold_left (fun g (node, ((_, qvl, cvl, _), fvs)) ->
-    let free_ids = (fvs |> fst |> QVFVS.toList |> List.map QV.toID)
-                   @(fvs |> snd |> CVFVS.toList |> List.map CV.toID) in
+    let free_ids = (fvs |> fst |> QVSet.toList |> List.map QV.toID)
+                   @(fvs |> snd |> CVSet.toList |> List.map CV.toID) in
     List.fold_left (fun g id ->
         let e = G.E.create (IDMap.find id var2node) id node in
         G.add_edge_e g e)
@@ -1458,15 +1458,15 @@ value top_circuit env qc = do {
 value gate_item genv gitem = match gitem with [
   DEF loc gn (((pvl, qvl, cvl) as glam), qc) -> do {
     let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
-    let fv_pvs = PVFVS.subtract fv_pvs (PVFVS.ofList pvl) in
-    let fv_qvs = QVFVS.subtract fv_qvs (QVFVS.ofList qvl) in
-    let fv_cvs = CVFVS.subtract fv_cvs (CVFVS.ofList cvl) in
-    if PVFVS.mt <> fv_pvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free param-vars %a" QG.pp_hum gn PVFVS.pp fv_pvs)
-    else if QVFVS.mt <> fv_qvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free qvars %a" QG.pp_hum gn QVFVS.pp fv_qvs)
-    else if CVFVS.mt <> fv_cvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free cvars %a" QG.pp_hum gn CVFVS.pp fv_cvs)
+    let fv_pvs = PVSet.subtract fv_pvs (PVSet.ofList pvl) in
+    let fv_qvs = QVSet.subtract fv_qvs (QVSet.ofList qvl) in
+    let fv_cvs = CVSet.subtract fv_cvs (CVSet.ofList cvl) in
+    if PVSet.mt <> fv_pvs then
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free param-vars %a" QG.pp_hum gn PVSet.pp fv_pvs)
+    else if QVSet.mt <> fv_qvs then
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free qvars %a" QG.pp_hum gn QVSet.pp fv_qvs)
+    else if CVSet.mt <> fv_cvs then
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free cvars %a" QG.pp_hum gn CVSet.pp fv_cvs)
     else
     let env' = Env.mk genv in
     let qvbl = qvl |> List.map (fun qv -> (qv, { Env.used = False ; loc = loc ; it = None })) in
@@ -1787,8 +1787,8 @@ open Qc_latex ;
 
 value binding_wire_range aenv (qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
   let (_, qvfvs, cvfvs) = circuit_freevars qc in
-  let qvl = QVFVS.(toList (union qvfvs (ofList qvl))) in
-  let cvl = CVFVS.(toList (union cvfvs (ofList cvl))) in
+  let qvl = QVSet.(toList (union qvfvs (ofList qvl))) in
+  let cvl = CVSet.(toList (union cvfvs (ofList cvl))) in
   let qubits = List.map (AB.Env.qv_swap_find aenv) qvl in
   let clbits = List.map (AB.Env.cv_swap_find aenv) cvl in
   let qwires = qubits |> List.map (AB.QUBMap.swap_find qubit2wire) |> List.map snd in
@@ -2308,7 +2308,7 @@ value check_bindings aenv cm l bl =
                QGATEAPP _ _ _ qvl _ -> qvl
              | _ -> []
              ]) in
-  let _ = assert (QVFVS.distinct qv_args) in
+  let _ = assert (QVSet.distinct qv_args) in
   let qubits = List.map (AB.Env.qv_swap_find aenv) qv_args in
   let _ = assert (AB.QUBSet.distinct qubits) in
   let l = List.fold_left (check_binding aenv cm) l bl in

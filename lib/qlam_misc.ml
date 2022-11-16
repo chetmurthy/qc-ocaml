@@ -243,8 +243,8 @@ module Bijection(M1 : ENTITY_SIG)(S1 : SETSIG with module M = M1)
   value pp_hum pps (dm, _) = DOMMap.pp_hum RNG.pp_hum pps dm ;
 end ;
 
-module IDFVS = VarSet(ID) ;
-module IDMap = EntityMap(ID)(IDFVS) ;
+module IDSet = VarSet(ID) ;
+module IDMap = EntityMap(ID)(IDSet) ;
 module IntEntity = struct
   type t = int[@@deriving (to_yojson, show, eq, ord);] ;
   value pp_hum = pp ;
