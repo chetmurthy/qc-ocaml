@@ -588,8 +588,46 @@ cx q[0],q[4];
 #1 : <physical 1>,
 #2 : <physical 2>,
 #3 : <physical 3>,
-#4 : <physical 4>,
-#5 : <physical 5>
+#4 : <physical 4>
+]
+|} |> Layout.of_string in
+    begin
+      let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
+      let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
+      let cmp = Ops.AlphaEq.qcircuit in
+      let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum qc) in
+      assert_equal ~msg:"basic swap failed" ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p1))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
+    end ;
+    begin
+      let p2 = Ops.SabreSwap.sabre_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
+      let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
+      let cmp = Ops.AlphaEq.qcircuit in
+      let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum qc) in
+      assert_equal ~msg:"sabre swap failed" ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p1))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
+    end
+  )
+; "lookahead-one-swap" >:: (fun _ ->
+    let p0 = parse_tolam {|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[5];
+cx q[0],q[1];
+cx q[2],q[3];
+h q[0];
+cx q[1],q[2];
+cx q[1],q[3];
+cx q[2],q[3];
+cx q[1],q[3];
+|} in
+    let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 in
+    let cm = GEnv.find_mach genv0 (ID.mk"ring5") in
+    let l = {|
+[
+#0 : <physical 0>,
+#1 : <physical 1>,
+#2 : <physical 2>,
+#3 : <physical 3>,
+#4 : <physical 4>
 ]
 |} |> Layout.of_string in
     begin
