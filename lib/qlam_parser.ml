@@ -76,7 +76,7 @@ EXTEND
   direction: [ [ "->" -> CouplingMap.LR | "<-" -> CouplingMap.RL | "<->" -> CouplingMap.BIDI ] ] ;
   position: [ [ n=INT ; "@" ; "(" ; x=signed_int; ","; y=signed_int ; ")" -> (int_of_string n, (x,y)) ] ] ;
   signed_int: [ [ n= INT -> int_of_string n  | "-" ; n=INT -> - (int_of_string n) ] ] ;
-  layout: [ [ "[" ; l = LIST1 layout_item SEP "," ; "]" -> Layout.mk l ] ] ;
+  layout: [ [ "[" ; l = LIST1 layout_item SEP "," OPT_SEP ; "]" -> Layout.mk l ] ] ;
   layout_item: [ [
         OPT "logical" ; lbit = explicit_bit ; ":"  ; pbit = physical_bit -> (lbit, pbit)
       | pbit = physical_bit ; ":" ; OPT "logical" ; lbit = explicit_bit -> (lbit, pbit)

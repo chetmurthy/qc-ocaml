@@ -672,60 +672,39 @@ let (q1, q3) = cx q1 q3 in
     let p0 = parse_tolam {|
 OPENQASM 2.0;
 include "qelib1.inc";
-qreg q[5];
-cx q[0],q[1];
-cx q[2],q[3];
-h q[0];
-cx q[1],q[2];
-cx q[1],q[3];
-cx q[2],q[3];
-cx q[1],q[3];
+qreg q[3];
+creg c[1] ;
+ccx q[0], q[1], q[2] ;
+h q[0] ;
+measure q[0] -> c[0] ;
+measure q[1] -> c[0] ;
 |} in
-    let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 in
-    let cm = GEnv.find_mach genv0 (ID.mk"ring5") in
+    let (genv0, p1) = Ops.Standard.program ~env0 p0 in
+    let p2 = Ops.Unroll.program ~only:["ccx" |> ID.mk |> SYN.QG.ofID] p1 in
+    let (genv, p3) = Ops.Standard.program ~env0 p2 in
+    let cm = Ops.CM.mkFromEdges [(0, 2); (2, 0); (1, 2); (2, 1)] in
     let l = {|
 [
 #0 : <physical 0>,
 #1 : <physical 1>,
 #2 : <physical 2>,
-#3 : <physical 3>,
-#4 : <physical 4>
 ]
 |} |> Layout.of_string in
     let cmp = Ops.AlphaEq.qcircuit in
     let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
     begin
-      let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
-      let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
-    let expected_qc = Qlam.Circ.of_string {|
-let q0 = qubit #0 () and q1 = qubit #1 () and q2 = qubit #2 ()
-    and q3 = qubit #3 () and q4 = qubit #4 () in
-let (q0, q1) = cx q0 q1 and (q2, q3) = cx q2 q3 in
-let q0 = h q0 and (q1, q2) = cx q1 q2 in
-let (q2, q1) = SWAP q1 q2 in
-let (q1, q3) = cx q1 q3 in
-let (q1, q2) = SWAP q2 q1 in
-let (q2, q3) = cx q2 q3 in
-let (q2, q1) = SWAP q1 q2 in
-let (q1, q3) = cx q1 q3 in
-(q0, q1, q2, q3, q4)
+      let p4 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p3 in
+      let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p4 in
+      let expected_qc = Qlam.Circ.of_string {|
+()
 |} in
-
-      assert_equal ~msg:"basic swap failed" ~cmp ~printer expected_qc (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
+      assert_equal ~msg:"basic swap failed" ~cmp ~printer expected_qc (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p4)))
     end ;
     begin
       let p2 = Ops.SabreSwap.sabre_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
       let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
       let expected_qc = Qlam.Circ.of_string {|
-let q0 = qubit #0 () and q1 = qubit #1 () and q2 = qubit #2 ()
-    and q3 = qubit #3 () and q4 = qubit #4 () in
-let (q0, q1) = cx q0 q1 and (q2, q3) = cx q2 q3 in
-let q0 = h q0 and (q1, q2) = cx q1 q2 in
-let (q3, q2) = SWAP q2 q3 in
-let (q1, q3) = cx q1 q3 in
-let (q2, q3) = cx q2 q3 in
-let (q1, q3) = cx q1 q3 in
-(q0, q1, q2, q3, q4)
+()
 |} in
       assert_equal ~msg:"sabre swap failed" ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (Ops.Fresh.qcircuit expected_qc))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
     end

@@ -1211,8 +1211,8 @@ type t = {
   ; syntax : SYN.CouplingMap.t
   } ;
 
-value mk syntax =
-  let {SYN.CouplingMap.edges=edges; positions=positions} = syntax in
+value mkFromEdges ?{positions=[]} edges =
+  let syntax = {SYN.CouplingMap.edges=edges; positions=positions} in
   let g = GX.of_edges edges in
   let dag = DAGX.of_edges edges in
   let positions = IntMap.ofList positions in
@@ -1221,6 +1221,11 @@ value mk syntax =
   ; positions = positions
   ; syntax = syntax
   } ;
+
+value mk syntax =
+  let {SYN.CouplingMap.edges=edges; positions=positions} = syntax in
+  mkFromEdges ~{positions=positions} edges
+;
 
 value has_pair ?{undirected=False} it v1 v2 =
   if undirected then
