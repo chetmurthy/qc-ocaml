@@ -2178,6 +2178,16 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
 
 end ;
 
+module NaiveLayout = struct
+
+value mk n =
+  (Std.interval 0 (n-1))
+  |> List.map (fun i -> (BI.EXPLICIT i, PQ.Physical i))
+  |> Layout.mk
+;
+
+end ;
+
 module BasicSwap = struct
 (** BasicSwap
 
