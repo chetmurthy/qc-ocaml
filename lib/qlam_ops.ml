@@ -167,6 +167,10 @@ value rebind_qvl ~{rhs} (fv_qvs, ren_qv) qvl =
       | (QGATEAPP loc _ [] qvactuals [], qvformals) ->
          let _ = assert (List.length qvactuals = List.length qvformals) in
          List.map2 (fun a f -> (Some a, f)) qvactuals qvformals
+      | (QMEASURE _ qvactual, [qv]) ->
+         [(Some qvactual, qv)]
+      | (QBARRIER _ qactuals, qvl) when List.length qactuals = List.length qvl ->
+         List.map2 (fun a v -> (Some a, v)) qactuals qvl
       | _ -> List.map (fun qv -> (None, qv)) qvl
       ] in
 
@@ -253,27 +257,36 @@ value check_cv_corr loc lr rl v1 v2 =
   with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" CV.pp_hum v1 CV.pp_hum v2)
 ;
 
+value rec letbindings (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 =
+  let bl2 = permute_bl (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) in
+  if (List.length bl1 = List.length bl2)
+     && (List.for_all2 (fun (_, qvl1, cvl1, qc1) (_, qvl2, cvl2, qc2) ->
+             (List.length qvl1 = List.length qvl2)
+             && (List.length cvl1 = List.length cvl2)
+             && alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
+           bl1 bl2) then
+    let (qv_lr, qv_rl, cv_lr, cv_rl) =
+        List.fold_left2 (fun (qv_lr, qv_rl, cv_lr, cv_rl)
+                             (_, qvl1, cvl1, _) (_, qvl2, cvl2, _) ->
+            let qv_lr = add_qvs qv_lr qvl1 qvl2 in
+            let qv_rl = add_qvs qv_rl qvl2 qvl1 in
+            let cv_lr = add_cvs cv_lr cvl1 cvl2 in
+            let cv_rl = add_cvs cv_rl cvl2 cvl1 in
+            (qv_lr, qv_rl, cv_lr, cv_rl))
+          (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 in
+    Some (qv_lr, qv_rl, cv_lr, cv_rl)
+  else None
 
-value qcircuit qc1 qc2 =
-  let rec alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
+and letlist1_opt maps_opt (_, bl1) (_, bl2) =
+  match maps_opt with [ None -> None | Some maps -> letbindings maps bl1 bl2 ]
+
+and alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
     (QLET _ bl1 qc1, QLET _ bl2 qc2) ->
-    let bl2 = permute_bl (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) in
-    (List.length bl1 = List.length bl2)
-    && (List.for_all2 (fun (_, qvl1, cvl1, qc1) (_, qvl2, cvl2, qc2) ->
-            (List.length qvl1 = List.length qvl2)
-            && (List.length cvl1 = List.length cvl2)
-            && alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
-          bl1 bl2)
-    && (let (qv_lr, qv_rl, cv_lr, cv_rl) =
-          List.fold_left2 (fun (qv_lr, qv_rl, cv_lr, cv_rl)
-                               (_, qvl1, cvl1, _) (_, qvl2, cvl2, _) ->
-              let qv_lr = add_qvs qv_lr qvl1 qvl2 in
-              let qv_rl = add_qvs qv_rl qvl2 qvl1 in
-              let cv_lr = add_cvs cv_lr cvl1 cvl2 in
-              let cv_rl = add_cvs cv_rl cvl2 cvl1 in
-              (qv_lr, qv_rl, cv_lr, cv_rl))
-            (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 in
-        alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
+    match letbindings (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 with [
+        None -> False
+      | Some (qv_lr, qv_rl, cv_lr, cv_rl) ->
+         alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2)
+      ]
 
   | (QWIRES loc qvl1 cvl1, QWIRES _ qvl2 cvl2) ->
      (List.length qvl1 = List.length qvl2)
@@ -316,7 +329,8 @@ value qcircuit qc1 qc2 =
              ]
         ]
     in permrec bl1 bl2 
-  in
+
+and qcircuit qc1 qc2 =
   let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
   let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
   QVSet.equal qvfvs1 qvfvs2
@@ -324,6 +338,33 @@ value qcircuit qc1 qc2 =
   && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVSet.toList qvfvs1) in
       let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVSet.toList cvfvs1) in
       alpharec (qvmap, qvmap, cvmap, cvmap) (qc1, qc2))
+
+and top_qcircuit qc1 qc2 =
+  let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
+  let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
+  QVSet.equal qvfvs1 qvfvs2
+  && CVSet.equal cvfvs1 cvfvs2
+  && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVSet.toList qvfvs1) in
+      let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVSet.toList cvfvs1) in
+      let (ll1, qc1) = SYN.to_letlist qc1 in
+      let (ll2, qc2) = SYN.to_letlist qc2 in
+      List.length ll1 = List.length ll2
+      && (match List.fold_left2 letlist1_opt (Some (qvmap, qvmap, cvmap, cvmap)) ll1 ll2 with [
+              Some maps -> top_qc maps qc1 qc2
+            | None -> False ]))
+and top_qc (qv_lr, qv_rl, cv_lr, cv_rl) qc1 qc2 =
+  match (qc1, qc2) with [
+      (QWIRES _ qvl1 cvl1, QWIRES _ qvl2 cvl2) ->
+      List.length qvl1 = List.length qvl2
+      && List.length cvl1 = List.length cvl2
+      && qvl1 |> List.for_all (fun v -> QVMap.mem v qv_lr)
+      && cvl1 |> List.for_all (fun v -> CVMap.mem v cv_lr)
+      && (let qvl2' = List.map (QVMap.swap_find qv_lr) qvl1 in
+          let cvl2' = List.map (CVMap.swap_find cv_lr) cvl1 in
+          List.sort QV.compare qvl2 = List.sort QV.compare qvl2'
+          && List.sort CV.compare cvl2 = List.sort CV.compare cvl2')
+    | _ -> False
+    ]
 ;
 end ;
 
@@ -2627,7 +2668,7 @@ value select_swap aenv cm l decay loc (fs, es) =
     Fmt.(raise_failwithf loc "no swap found that decreased the cost-function")
   else
     let (_, rv) =
-      List.fold_left (fun (c1, s1) (c2, s2) -> if c1 < c2 then (c1,s1) else (c2, s2))
+      List.fold_left (fun (c1, s1) (c2, s2) -> if c1 < c2 || c1 = c2 && [%ord: (BI.t * BI.t)] (snd s1) (snd s2) <= 0 then (c1,s1) else (c2, s2))
         (List.hd eval_all_swaps) (List.tl eval_all_swaps) in
     rv
 ;
@@ -2665,7 +2706,9 @@ value qbinding_available aenv cm l b =
 value sabre_swap_layer aenv cm (l, logical2qvar) (es, (loc, bl)) =
   let decay = initial_decay l in
   match compute_varset aenv l (loc, bl) with [
-      None -> ((l, logical2qvar), [(loc, bl)])
+      None ->
+      let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, bl) in
+      ((l, logical2qvar), [(loc, bl)])
     | Some fs ->
        let rec swaprec ((l, logical2qvar), ll_acc) decay fs bl =
          if bl = [] then
