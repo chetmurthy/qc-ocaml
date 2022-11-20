@@ -12,17 +12,17 @@ LAUNCH=env TOP=$(TOP) $(TOP)/tools/LAUNCH
 OCAMLFIND=$(LAUNCH) ocamlfind
 NOT_OCAMLFIND=$(LAUNCH) not-ocamlfind
 MKCAMLP5=$(LAUNCH) mkcamlp5
-PACKAGES := $(PACKAGES),vector,bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.sexp,pa_ppx.deriving_plugins.yojson,pcre,ocamlgraph,dot,yojson,inifiles,pa_ppx.deriving_plugins.std,camlp-streams,camlp5.extend,pa_ppx.runtime_fat
+PACKAGES := $(PACKAGES),vector,bos,rresult,uuidm,nettls-gnutls,netclient,pa_ppx.base,pa_ppx.utils,pa_ppx.deriving_plugins.sexp,pa_ppx.deriving_plugins.yojson,pcre,ocamlgraph,dot,yojson,inifiles,pa_ppx.deriving_plugins.std,camlp-streams,camlp5.extend,pa_ppx.runtime_fat,gg
 
 TARGET := qc_ocaml.cma
 OML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
-	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
+	qc_misc.ml qc_quat.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml \
 	qlam_migrate.ml qc_latex.ml qc_dot.ml qc1.ml qc.ml
 RML = qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_parser.ml qlam_ops.ml qlam_analyze.ml qconvert.ml qc0.ml
 ML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
-	qc_misc.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
+	qc_misc.ml qc_quat.ml qc_environment.ml qasm2syntax.ml qc_symbolic.ml qasm2_lexer.ml \
 	qasm2_parser.ml qasmpp.ml qasmdag0.ml qasm_io.ml \
 	qc_latex.ml qc_dot.ml qlam_misc.ml qlam_syntax.ml qlam_env.ml qlam_migrate.ml \
 	qlam_parser.ml qc0.ml \
