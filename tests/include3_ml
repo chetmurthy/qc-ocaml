@@ -110,65 +110,35 @@ open Qlam_tests ;;
 #load "qclatex_tests.cmo";;
 open Qclatex_tests ;;
 
-    let p0 = parse_tolam {|
+
+let p0 = Qlam.Circ.of_string {|
+let q1 = qubit #0 () in
+let q4 = 
+  let a3 = 
+    let q2 = U (pi / 2, 0, pi) q1 in
+    (q2) in
+  (a3) in
+(q4)
+|} ;;
+#trace Qlam_ops.ANorm.qcircuit ;;
+#trace Qlam_ops.ANorm.anrec ;;
+#trace Qlam_ops.ANorm.program ;;
+(*
+#trace Qlam_ops.ANorm.anormalize_let ;;
+ *)
+let (genv0, p1) = Ops.ANorm.program ([], p0) ;;
+
+
+let p0 = parse_tolam {|
 OPENQASM 2.0;
 include "qelib1.inc";
-qreg q[3];
-creg c[1] ;
-ccx q[0], q[1], q[2] ;
+qreg q[1];
 h q[0] ;
-barrier q[0],q[1],q[2];
-measure q[0] -> c[0] ;
-measure q[1] -> c[0] ;
+h q[0] ;
 |} ;;
-    let (genv0, p1) = Ops.Standard.program ~env0 p0 ;;
-    let p2 = Ops.Unroll.program ~only:["ccx" |> ID.mk |> SYN.QG.ofID] p1 ;;
-    let (genv, p3) = Ops.Standard.program ~env0 p2 ;;
-    let cm = Ops.CM.mkFromEdges [(0, 2); (2, 0); (1, 2); (2, 1)] ;;
-    let l = Ops.NaiveLayout.mk 3 ;;
-    let cmp = Ops.AlphaEq.top_qcircuit ;;
-    let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) ;;
-#trace Ops.SabreHoist.hoist ;;
-#trace Ops.SabreSwap.process_bindings ;;
-#trace Ops.SabreSwap.sabre_swap ;;
-#trace Ops.SabreSwap.generate_candidate_swaps ;;
-#trace Ops.SabreSwap.evaluate_swap ;;
-#trace Ops.SabreSwap.evaluate_state ;;
-#trace Ops.SabreSwap.select_swap ;;
-#trace Fresh.fresh ;;
-      let p4 = Ops.SabreSwap.sabre_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p3 ;;
-      let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p4 ;;
-      let expected0 = parse_tolam {|
-OPENQASM 2.0;
-include "qelib1.inc";
-qreg q[3];
-creg c[1];
-h q[2];
-cx q[1],q[2];
-tdg q[2];
-cx q[0],q[2];
-t q[2];
-cx q[1],q[2];
-t q[1];
-tdg q[2];
-cx q[0],q[2];
-t q[2];
-h q[2];
-SWAP q[0],q[2];
-cx q[2],q[1];
-tdg q[1];
-t q[2];
-cx q[2],q[1];
-h q[2];
-barrier q[2],q[1],q[0];
-measure q[2] -> c[0];
-measure q[1] -> c[0];
-|} ;;
-      let (_, expected1) = Ops.Standard.program ~env0 expected0 ;;
-      assert_equal ~msg:"sabre swap failed" ~cmp ~printer
-        (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd expected1)))
-        (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p4)))
-;;
+let (genv0, p1) = Ops.Standard.program ~env0 p0 ;;
+let p2 = Ops.Unroll.program ~only:(["h";"u2"] |> List.map ID.mk |> List.map SYN.QG.ofID) p1 ;;
+let (genv, p3) = Ops.Standard.program ~env0 p2 ;;
 
 (* Local Variables: *)
 (* mode: tuareg *)

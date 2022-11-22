@@ -688,7 +688,7 @@ value rebuild_letlist_fvs (b, b_fvs) (qc, qc_fvs) =
 
  *)
 
-(** [anormalizable loc bindings_and_fvs qc_and_fvs]
+(** [anormalize_let loc bindings_and_fvs qc_and_fvs]
 
     a LET with a collection of top-level bindings  is A-normalizable if:
 
@@ -756,15 +756,18 @@ value anormalize_let loc bl_fvs (qc, qc_fvs) = do {
     List.fold_right rebuild_letlist_fvs letbindings_fvs (qc,qc_fvs)
   } ;
 
-value qcircuit qc =
-  let rec anrec qc = match qc with [
-    SYN.QLET loc bl qc ->
+value rec qcircuit qc =
+  let (qc, _) = anormrec qc in
+  qc
+
+and anormrec qc = match qc with [
+    SYN.QLET loc bl0 qc0 ->
      let bl_fvs =
-       bl |> List.map (fun (loc, qvl, cvl, qc) ->
-                 let (qc, fvs) = anrec qc in
+       bl0 |> List.map (fun (loc, qvl, cvl, qc) ->
+                 let (qc, fvs) = anormrec qc in
                  ((loc, qvl, cvl, qc), fvs)
                ) in
-     let (qc, qc_fvs) = anrec qc in
+     let (qc, qc_fvs) = anormrec qc0 in
      anormalize_let loc bl_fvs (qc, qc_fvs)
 
   | QWIRES _ qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
@@ -774,9 +777,7 @@ value qcircuit qc =
   | QDISCARD _ qv -> (qc, FVS.(of_ids ([qv], [])))
   | QMEASURE _ qv -> (qc, FVS.(of_ids ([qv], [])))
   | QRESET _ qv -> (qc, FVS.(of_ids ([qv], [])))
-  ] in
-  let (qc, _) = anrec qc in
-  qc
+  ]
 ;
 
 
@@ -2761,6 +2762,60 @@ value sabre_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
   let ll = List.concat (List.rev rev_ll) in
   let qc = SYN.of_letlist (ll, qc) in
   (envitems, Fresh.qcircuit qc)
+;
+
+end ;
+
+module Optimize1q = struct
+
+(** Optimize1q assumes that the circuit is in ANF/NNF, and
+
+
+    (1) We're writing a recursive function over circuits. It takes an
+    environment mapping qvars to binding+removed-flag.
+
+    (2) To optimize a circuit, if it's not a LET, then just return it.
+
+    (3) If it's a let:
+
+        (3a) process each 1q binding against the current env, possibly modifying it
+
+        (3b) remove all qvars used in bindings, from the environment (if present)
+
+        (3c) build list of 1q bindings as binding+removed-flag
+
+        (3d) add 1q bindings to env
+
+        (3d) recurse on body of circuit
+
+        (3e) rebuild let-bindings, skipping any in the 1q-list from #3c that are removed=true.
+
+ *)
+
+type one1_binding_t = {
+    removed : mutable bool
+  ; it : SYN.qbinding_t
+  } ;
+
+value rec qcircuit env qc = match qc with [
+    SYN.QLET loc bl qc ->
+    let (bl, qc) = optimize_1q_qlet env bl qc in
+    SYN.QLET loc bl qc
+  | _ -> qc
+  ]
+
+and optimize_1q_qlet env bl qc =
+  let (oneq_bl, rest_bl) =
+    filter_split (fun b -> 1 = List.length (qbinding_qvl b)) bl in
+  let oneq_bl = List.map (optimize_1q env) oneq_bl in
+  (oneq_bl@rest_bl, qc)
+
+and optimize_1q env b =
+  b
+;
+
+value optimize_1q genv0 ?{env0=[]} (envitems,qc) =
+  (envitems, qcircuit QVMap.empty qc)
 ;
 
 end ;

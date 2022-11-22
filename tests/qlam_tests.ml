@@ -490,6 +490,14 @@ let q60 = qubit #0 () in
 )
 ;;
 
+let anorm_tests = "A-norm tests" >:::
+[
+  "simple" >:: (fun _ ->
+    ()
+  )
+]
+;;
+
 let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) ;;
 let printer s = s ;;
 
@@ -964,6 +972,7 @@ if not !Sys.interactive then
       ; alpha_equality_tests
       ; separate_let_tests
       ; name_norm_tests
+      ; anorm_tests
       ; tychk_tests
       ; check_layout_tests
       ; hoist_tests
