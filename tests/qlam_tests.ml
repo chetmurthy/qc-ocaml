@@ -490,10 +490,32 @@ let q60 = qubit #0 () in
 )
 ;;
 
+let cmp (qc1, (qvs1,cvs1)) (qc2, (qvs2, cvs2)) =
+  let open SYN in
+  Ops.AlphaEq.qcircuit qc1 qc2
+  && QVSet.equal qvs1 qvs2
+  && CVSet.equal cvs1 cvs2
+;;
+let printer (qc, (qvs, cvs)) =
+  let open SYN in
+  Fmt.(str "(%a, [%a, %a])" Qlam.Circ.pp_hum qc QVSet.pp_hum qvs CVSet.pp_hum cvs)
+;;
+
 let anorm_tests = "A-norm tests" >:::
+let open SYN in
 [
   "simple" >:: (fun _ ->
-    ()
+    let p0 = Qlam.Circ.of_string {|
+let a3 = 
+  let q2 = U (pi / 2, 0, pi) q1 in (q2) in
+(a3)|} in
+    let expect_qc = Qlam.Circ.of_string {|
+let q2 = U (pi / 2, 0, pi) q1 in
+let a3 = (q2) in
+(a3)|} in
+    let expect_vs = (QVSet.ofList[QV.of_string "q1"], CVSet.mt) in 
+    let (p1, fvs) = Ops.ANorm.anormrec p0 in
+    assert_equal ~cmp ~printer (expect_qc,expect_vs) (p1,fvs)
   )
 ]
 ;;

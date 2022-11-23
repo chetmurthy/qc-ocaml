@@ -20,6 +20,7 @@ module PV = struct
   type t = pvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ PV _ x -> x ] ;
   value ofID ?{loc=Ploc.dummy} x = PV loc x ;
+  value of_string s = ofID(ID.mk s) ;
   value to_loc = fun [ PV loc _ -> loc ] ;
 
   value pvar pps = fun [ (PV _ id) -> ID.pp_hum pps id ] ;
@@ -34,6 +35,7 @@ module QV = struct
   type t = qvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ QV _ x -> x ] ;
   value ofID ?{loc=Ploc.dummy} x = QV loc x ;
+  value of_string s = ofID(ID.mk s) ;
   value to_loc = fun [ QV loc _ -> loc ] ;
   value qvar pps = fun [ (QV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
@@ -46,6 +48,7 @@ module CV = struct
   type t = cvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ CV _ x -> x ] ;
   value ofID ?{loc=Ploc.dummy} x = CV loc x ;
+  value of_string s = ofID(ID.mk s) ;
   value to_loc = fun [ CV loc _ -> loc ] ;
   value cvar pps = fun [ (CV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
@@ -71,6 +74,7 @@ module QG = struct
   | ("SWAP",-1) -> SWAP loc
   | x -> GENGATE loc x
   ] ;
+  value of_string s = ofID(ID.mk s) ;
   value to_loc = fun [
     CX loc -> loc | U loc -> loc | SWAP loc -> loc
   | GENGATE loc _ -> loc
