@@ -133,13 +133,9 @@ h q[0] ;
 |} ;;
 let (genv0, p1) = Ops.Standard.program ~env0 p0 ;;
 let p2 = Ops.Unroll.program ~only:(["h";"u2"] |> List.map SYN.QG.of_string) p1 ;;
-let p3 = Fresh.program p2 ;;
-let p4 = ANorm.program p3 ;;
-let p5 = NameNorm.program p4 ;;
-let (genv, ty) = TYCHK.program ~env0 p5 ;;
-(*
+
 let (genv, p3) = Ops.Standard.program ~env0 p2 ;;
- *)
+
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)
