@@ -2269,8 +2269,8 @@ value logical_to_explicit_qubit loc q =
     ]
 ;
 
-value make_h loc qv = QGATEAPP loc (QG.ofID (ID.mk "h")) [] [qv] [] ;
-value make_cx loc c t = QGATEAPP loc (QG.ofID (ID.mk "CX")) [] [c; t] [] ;
+value make_h loc qv = QGATEAPP loc (QG.of_string "h") [] [qv] [] ;
+value make_cx loc c t = QGATEAPP loc (QG.of_string "CX") [] [c; t] [] ;
 
 value update_layout aenv l (loc, qvl, _, qc) = match qc with [
       QGATEAPP loc (SYN.SWAP _) _ [qv1;qv2] [] ->

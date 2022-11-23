@@ -13,7 +13,7 @@ open Qlam_env ;
 module ToLam = struct
 open Qasm2syntax.AST ;
 
-value conv_cparamvar = fun [ (CPARAMVAR s) -> SYN.ID Ploc.dummy (PV Ploc.dummy (ID.mk s)) ] ;
+value conv_cparamvar = fun [ (CPARAMVAR s) -> SYN.ID Ploc.dummy (SYN.PV.of_string s) ] ;
 value empty _ = assert False ;
 
 value rec param conv_id = fun [
@@ -36,13 +36,13 @@ value rec param conv_id = fun [
 ] ;
 
 value conv_qreg_or_indexed = fun [
-      IT (QREG s) -> SYN.QV Ploc.dummy (ID.mk s)
+      IT (QREG s) -> SYN.QV.of_string s
     | INDEXED (QREG s) n -> SYN.QV Ploc.dummy (ID.mk0 s n)
     ]
 ;
 
 value conv_qubit = fun [
-      QUBIT s -> SYN.QV Ploc.dummy (ID.mk s)
+      QUBIT s -> SYN.QV.of_string s
     ]
 ;
 
@@ -51,23 +51,23 @@ value wrap_uop loc conv_pv conv_qv ins rhs =
       U pel q ->
       let qv = conv_qv q in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = SYN.QGATEAPP Ploc.dummy (SYN.QG.ofID (ID.mk "U")) pel [qv] [] in
+      let gateapp = SYN.QGATEAPP Ploc.dummy (SYN.QG.of_string "U") pel [qv] [] in
       SYN.QLET loc [(Ploc.dummy,  [qv], [], gateapp)] rhs
     | CX q1 q2 ->
       let qv1 = conv_qv q1 in
       let qv2 = conv_qv q2 in
-      let gateapp = SYN.QGATEAPP Ploc.dummy (SYN.QG.ofID (ID.mk "CX")) [] [qv1;qv2] [] in
+      let gateapp = SYN.QGATEAPP Ploc.dummy (SYN.QG.of_string "CX") [] [qv1;qv2] [] in
       SYN.QLET loc [(Ploc.dummy, [qv1;qv2], [], gateapp)] rhs
     | COMPOSITE_GATE gname pel ql ->
       let qvl = List.map conv_qv ql in
       let pel = List.map (param conv_pv) pel in
-      let gateapp = SYN.QGATEAPP Ploc.dummy (SYN.QG.ofID (ID.mk gname)) pel qvl [] in
+      let gateapp = SYN.QGATEAPP Ploc.dummy (SYN.QG.of_string gname) pel qvl [] in
       SYN.QLET loc [(Ploc.dummy, qvl, [], gateapp)] rhs
     ]
 ;
 
 value wrap_gate_op ins rhs =
-  let to_qvar = fun [ (QUBIT s) -> SYN.QV Ploc.dummy (ID.mk s) ] in
+  let to_qvar = fun [ (QUBIT s) -> SYN.QV.of_string s ] in
   match ins with [
       (loc, GATE_BARRIER ql) ->
       let qvl = List.map to_qvar ql in
@@ -84,11 +84,11 @@ value gate_circuit qubits clbits instrs =
 
 value wrap_stmt conv_pv ins rhs =
   let to_qvar = fun [
-        IT (QREG s) -> SYN.QV Ploc.dummy (ID.mk s)
+        IT (QREG s) -> SYN.QV.of_string s
       | INDEXED (QREG s) n -> SYN.QV Ploc.dummy (ID.mk0 s n)
       ] in
   let to_cvar = fun [
-        IT (CREG s) -> SYN.CV Ploc.dummy (ID.mk s)
+        IT (CREG s) -> SYN.CV.of_string s
       | INDEXED (CREG s) n -> SYN.CV Ploc.dummy (ID.mk0 s n)
       ] in
   match ins with [
@@ -114,15 +114,15 @@ value circuit qubits clbits instrs =
 
 value rec env_item = fun [
   (loc, STMT_GATEDECL (gname, pvl, qvl, instrs)) ->
-   let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
-   let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
+   let pvl = List.map (fun s -> SYN.PV.of_string s) pvl in
+   let qvl = List.map (fun s -> SYN.QV.of_string s) qvl in
    let qc = gate_circuit qvl [] instrs in
-   SYN.QGATE loc (DEF loc (SYN.QG.ofID (ID.mk gname)) ((pvl, qvl, []), qc))
+   SYN.QGATE loc (DEF loc (SYN.QG.of_string gname) ((pvl, qvl, []), qc))
 
 | (loc, STMT_OPAQUEDECL (gname, pvl, qvl)) ->
-   let pvl = List.map (fun s -> SYN.PV Ploc.dummy (ID.mk s)) pvl in
-   let qvl = List.map (fun s -> SYN.QV Ploc.dummy (ID.mk s)) qvl in
-   SYN.QGATE loc (OPAQUE loc (SYN.QG.ofID (ID.mk gname)) (pvl, qvl, []))
+   let pvl = List.map (fun s -> SYN.PV.of_string s) pvl in
+   let qvl = List.map (fun s -> SYN.QV.of_string s) qvl in
+   SYN.QGATE loc (OPAQUE loc (SYN.QG.of_string gname) (pvl, qvl, []))
 
 | (loc, STMT_INCLUDE ty fname (Some l)) ->
    SYN.QINCLUDE loc ty fname (List.map env_item l)

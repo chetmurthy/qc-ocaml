@@ -695,7 +695,7 @@ measure q[0] -> c[0] ;
 measure q[1] -> c[0] ;
 |} in
     let (genv0, p1) = Ops.Standard.program ~env0 p0 in
-    let p2 = Ops.Unroll.program ~only:["ccx" |> ID.mk |> SYN.QG.ofID] p1 in
+    let p2 = Ops.Unroll.program ~only:["ccx" |> SYN.QG.of_string] p1 in
     let (genv, p3) = Ops.Standard.program ~env0 p2 in
     let cm = Ops.CM.mkFromEdges [(0, 2); (2, 0); (1, 2); (2, 1)] in
     let l = Ops.NaiveLayout.mk 3 in
@@ -927,7 +927,7 @@ let (q0, q1) = bell2 q0 q1 in
 (q0, q1)
 |}) in
     let (genv0, p1) = Ops.Standard.program p0 in
-    let p2 = Ops.Unroll.program ~only:["bell2" |> ID.mk |> SYN.QG.ofID] p1 in
+    let p2 = Ops.Unroll.program ~only:["bell2" |> SYN.QG.of_string] p1 in
     let (genv, p3) = Ops.Standard.program p2 in
     let p4 = Ops.Lower.program p3 in
     let (_, qc) = p4 in
@@ -947,7 +947,7 @@ qreg q[3];
 ccx q[0], q[1], q[2] ;
 |} in
     let (genv0, p1) = Ops.Standard.program ~env0 p0 in
-    let p2 = Ops.Unroll.program ~only:["ccx" |> ID.mk |> SYN.QG.ofID] p1 in
+    let p2 = Ops.Unroll.program ~only:["ccx" |> SYN.QG.of_string] p1 in
     let (genv, p3) = Ops.Standard.program ~env0 p2 in
     let p4 = Ops.Lower.program p3 in
     let (_, qc) = p4 in
@@ -966,7 +966,7 @@ qreg q[3];
 ccx q[0], q[1], q[2] ;
 |} in
     let (genv0, p1) = Ops.Standard.program ~env0 p0 in
-    let p2 = Ops.Unroll.program ~except:(["h"; "t"; "tdg"; "cx"] |> List.map ID.mk |> List.map SYN.QG.ofID) p1 in
+    let p2 = Ops.Unroll.program ~except:(["h"; "t"; "tdg"; "cx"] |> List.map SYN.QG.of_string) p1 in
     let (genv, p3) = Ops.Standard.program ~env0 p2 in
     let p4 = Ops.Lower.program p3 in
     let (_, qc) = p4 in
