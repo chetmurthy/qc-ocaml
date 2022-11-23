@@ -485,6 +485,56 @@ let q60 = qubit #0 () in
               let x1 = h q61 in
                  (x1)
 |})
+     ; ("bug2", {|
+let q145 = qubit #0 () in
+            let q146 = U (pi / 2, 0, pi) q145 in
+            let a147 = (q146) in
+            let q148 = (a147) in
+            let q149 = U (pi / 2, 0, pi) q148 in
+            let a150 = (q149) in
+            let q151 = (a150) in
+            (q151)
+|},
+        Left {|
+let q145 = qubit #0 () in
+            let q146 = U (pi / 2, 0, pi) q145 in
+            let q149 = U (pi / 2, 0, pi) q146 in
+            (q149)
+|})
+     ; ("bug2b", {|
+            let q146 = qubit #1 () in
+            let a147 = (q146) in
+            let q148 = (a147) in
+            let q149 = U (pi / 2, 0, pi) q148 in
+            let a150 = (q149) in
+            let q151 = (a150) in
+            (q151)
+|},
+        Left {|
+            let q146 = qubit #1 () in
+            let q149 = U (pi / 2, 0, pi) q146 in
+            (q149)
+|})
+     ; ("bug2c", {|
+            let q149 = U (pi / 2, 0, pi) q146 in
+            let a150 = (q149) in
+            let q151 = (a150) in
+            (q151)
+|},
+        Left {|
+            let q149 = U (pi / 2, 0, pi) q146 in
+            (q149)
+|})
+     ; ("bug2d", {|
+            let q149 = qubit #0 () in
+            let a150 = (q149) in
+            let q151 = (a150) in
+            (q151)
+|},
+        Left {|
+            let q149 = qubit #0 () in
+            (q149)
+|})
      ]
   )
 )

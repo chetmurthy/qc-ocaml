@@ -815,8 +815,8 @@ value qcircuit qc =
     let map_cv cv = match CVMap.find cv cvmap with [ exception Not_found -> cv | x -> x ] in 
     match qc  with [
     SYN.QLET loc bl qc ->
+    let bl = bl |> List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, nnrec (qvmap, cvmap) qc)) in
     let (rename_bindings, rest_bindings) = filter_split is_rename_binding bl in
-    let rest_bindings = List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, nnrec (qvmap, cvmap) qc)) rest_bindings in
     let (qvmap,cvmap) =
       List.fold_left (fun (qvmap,cvmap) b ->
              let (loc, qvl, cvl, qel, cel) = match b with [
