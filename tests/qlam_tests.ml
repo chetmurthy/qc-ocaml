@@ -517,6 +517,27 @@ let a3 = (q2) in
     let (p1, fvs) = Ops.ANorm.anormrec p0 in
     assert_equal ~cmp ~printer (expect_qc,expect_vs) (p1,fvs)
   )
+; "simple-2" >:: (fun _ ->
+    let p0 = Qlam.Circ.of_string {|
+let q1 = qubit #0 () in
+let q4 = 
+  let a3 = 
+    let q2 = U (pi / 2, 0, pi) q1 in
+    (q2) in
+  (a3) in
+(q4)
+|} in
+    let expect_qc = Qlam.Circ.of_string {|
+let q1 = qubit #0 () in
+let q2 = U (pi / 2, 0, pi) q1 in
+let a3 = (q2) in
+let q4 = (a3) in
+(q4)
+|} in
+    let expect_vs = (QVSet.mt, CVSet.mt) in 
+    let (p1, fvs) = Ops.ANorm.anormrec p0 in
+    assert_equal ~cmp ~printer (expect_qc,expect_vs) (p1,fvs)
+  )
 ]
 ;;
 
