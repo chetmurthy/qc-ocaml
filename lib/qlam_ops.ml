@@ -648,16 +648,11 @@ value rebuild_let_fvs loc bl_fvs (qc,fvs) =
 value rebuild_letlist_fvs (b, b_fvs) (qc, qc_fvs) =
   let (ll, b_qc) = SYN.to_letlist (qbinding_qc b) in
   let _ = assert ([] <> ll) in
-  let bl =
-    ll
-    |> List.map snd
-    |> List.concat in
   let qc =
     let (loc, qvl, cvl, _) = b in
     QLET loc [(loc, qvl, cvl, b_qc)] qc  in
-  let qc = List.fold_right (fun b qc ->
-               let loc = qbinding_loc b in
-               QLET loc [b] qc) bl qc in
+  let qc_fvs = FVS.subtract_ids qc_fvs (qbinding_qvl b, qbinding_cvl b) in
+  let qc = SYN.of_letlist (ll, qc) in
   (qc, FVS.union b_fvs qc_fvs)
 ;
 
