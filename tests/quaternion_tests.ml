@@ -34,7 +34,7 @@ let mat1 =
 let quat = Quat.of_euler [X;Z;Y] (Array.to_list rnd)
 let mat2 = Quat.to_m3 quat
 
-let equal_f = Float.equal_tol ~eps:1e-8
+let equal_f = Float.equal_tol ~eps:1e-4
 let cmp_quat q1 q2 = (V4.equal_f equal_f q1 q2) || (V4.equal_f equal_f q1 (V4.neg q2))
 let printer_quat q = Fmt.(str "%a" Quat.pp q)
 let cmp_m3 = M3.equal_f equal_f
@@ -123,11 +123,72 @@ let simple_tests = "simple tests" >:::
 ]
 ;;
 
+let zyz_to_quat (z1, y1, z2) =
+  Quat.(of_euler [Z;Y;Z] [z1;y1;z2])
+
+let zyz_to_quat_test (angles, explicit_q) =
+  let open Quat in
+  let expected_q = of_explicit explicit_q in
+  let name = "zyz->quat:"^(show_explicit_t explicit_q) in
+  [name >:: (fun _ ->
+    assert_equal ~msg:name ~cmp:cmp_quat ~printer:printer_quat
+       expected_q (zyz_to_quat angles))]
+
+let cmp_angles (a1,a2,a3) (b1, b2, b3) =
+  equal_f a1 b1
+  && equal_f a2 b2
+  && equal_f a3 b3
+
+let printer_angles = [%show: (float * float * float)]
+
+let quat_to_zyz_test (expected_angles, explicit_q) =
+  let open Quat in
+  let q = of_explicit explicit_q in
+  let name = "quat->zyz:"^(show_explicit_t explicit_q) in
+  [name >:: (fun _ ->
+    assert_equal ~msg:name ~cmp:cmp_angles ~printer:printer_angles
+       expected_angles (Quat.to_zyz q))]
+
+let zyz_quat_test (angles,  q) =
+  (zyz_to_quat_test (angles,  q))
+  @(quat_to_zyz_test (angles,  q))
+
+let zyz_quat_tests = "zyz to quat tests" >:::
+(
+  List.concat_map zyz_to_quat_test
+    Quat.[
+    ((0.000000,0.000000,0.100000), {w=0.998750;x=0.000000;y=0.000000;z=0.049979})
+  ; ((0.000000,0.000000,0.300000), {w=0.988771;x=0.000000;y=0.000000;z=0.149438})
+  ; ((0.000000,0.000000,0.400000), {w=0.980067;x=0.000000;y=0.000000;z=0.198669})
+  ]
+)
+@(
+  List.concat_map quat_to_zyz_test
+    Quat.[
+    ((0.100000,0.000000,0.000000), {w=0.998750;x=0.000000;y=0.000000;z=0.049979})
+  ; ((0.300000,0.000000,0.000000), {w=0.988771;x=0.000000;y=0.000000;z=0.149438})
+  ; ((0.400000,0.000000,0.000000), {w=0.980067;x=0.000000;y=0.000000;z=0.198669})
+  ]
+)
+@(
+  List.concat_map zyz_quat_test
+    Quat.[
+    ((0.000000,0.000000,0.000000), {w=1.000000;x=0.000000;y=0.000000;z=0.000000})
+  ; ((0.000000,0.100000,0.000000), {w=0.998750;x=0.000000;y=0.049979;z=0.000000})
+  ; ((0.000000,0.300000,0.000000), {w=0.988771;x=0.000000;y=0.149438;z=0.000000})
+  ; ((0.000000,0.400000,0.300000), {w=0.969061;x=0.029689;y=0.196438;z=0.146459})
+  ; ((0.100000,0.200000,0.300000), {w=0.975170;x=0.009967;y=0.099335;z=0.197677})
+  ; ((0.100000,0.200000,0.400000), {w=0.964072;x=0.014919;y=0.098712;z=0.246168})
+  ]
+)
+;;
+
 
 (* Run the tests in test suite *)
 let _ =
 if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
         simple_tests
+      ; zyz_quat_tests
     ])
 ;;

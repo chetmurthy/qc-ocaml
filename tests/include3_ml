@@ -132,10 +132,9 @@ h q[0] ;
 h q[0] ;
 |} ;;
 let (genv0, p1) = Ops.Standard.program ~env0 p0 ;;
-let p2 = Ops.Unroll.program ~only:(["h";"u2"] |> List.map SYN.QG.of_string) p1 ;;
-
+let p2 = Ops.Unroll.program ~except:(["U";"u";"u1";"u2";"u3";"CX";"cx"] |> List.map SYN.QG.of_string) p1 ;;
 let (genv, p3) = Ops.Standard.program ~env0 p2 ;;
-
+let p4 = Ops.Optimize1q.optimize_1q genv0 ~env0 p3 ;;
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)

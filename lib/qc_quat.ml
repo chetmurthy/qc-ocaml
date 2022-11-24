@@ -71,21 +71,17 @@ module Quat = struct
     let m = to_m3 q in
     if M3.e22 m < 1. then
       if M3.e22 m > -1. then
-        Q.v (Float.atan2 (M3.e12 m) (M3.e02 m))
-          (Float.acos (M3.e22 m))
-          (Float.atan2 (M3.e21 m) (-. (M3.e20 m)))
-          0.
+        (Float.atan2 (M3.e12 m) (M3.e02 m),
+         Float.acos (M3.e22 m),
+         Float.atan2 (M3.e21 m) (-. (M3.e20 m)))
       else
-        Q.v (-. (Float.atan2 (M3.e10 m) (M3.e11 m)))
-          Float.pi
-          0.
-          0.
+        (-. (Float.atan2 (M3.e10 m) (M3.e11 m)),
+         Float.pi,
+         0.)
     else
-      Q.v
-        (Float.atan2 (M3.e10 m) (M3.e11 m))
-        0.
-        0.
-        0.
+      (Float.atan2 (M3.e10 m) (M3.e11 m),
+       0.,
+       0.)
 
   include ExtendedQuat
 
