@@ -110,6 +110,9 @@ open Qlam_tests ;;
 #load "qclatex_tests.cmo";;
 open Qclatex_tests ;;
 
+#load "quaternion_tests.cmo";;
+open Quaternion_tests ;;
+
 (* Local Variables: *)
 (* mode: tuareg *)
 (* End: *)

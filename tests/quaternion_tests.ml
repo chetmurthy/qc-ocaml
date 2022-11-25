@@ -35,6 +35,7 @@ let quat = Quat.of_euler [X;Z;Y] (Array.to_list rnd)
 let mat2 = Quat.to_m3 quat
 
 let equal_f = Float.equal_tol ~eps:1e-4
+let compare_f = Float.compare_tol ~eps:1e-4
 let cmp_quat q1 q2 = (V4.equal_f equal_f q1 q2) || (V4.equal_f equal_f q1 (V4.neg q2))
 let printer_quat q = Fmt.(str "%a" Quat.pp q)
 let cmp_m3 = M3.equal_f equal_f
@@ -134,7 +135,18 @@ let zyz_to_quat_test (angles, explicit_q) =
     assert_equal ~msg:name ~cmp:cmp_quat ~printer:printer_quat
        expected_q (zyz_to_quat angles))]
 
+let twopi = 2. *. Float.pi
+let rec norm_angle a =
+  if compare_f a 0. < 0 then norm_angle (a +. twopi)
+  else if compare_f twopi a <= 0 then norm_angle (a -. twopi)
+  else a
 let cmp_angles (a1,a2,a3) (b1, b2, b3) =
+  let a1 = norm_angle a1 in
+  let a2 = norm_angle a2 in
+  let a3 = norm_angle a3 in
+  let b1 = norm_angle b1 in
+  let b2 = norm_angle b2 in
+  let b3 = norm_angle b3 in
   equal_f a1 b1
   && equal_f a2 b2
   && equal_f a3 b3
@@ -153,7 +165,7 @@ let zyz_quat_test (angles,  q) =
   (zyz_to_quat_test (angles,  q))
   @(quat_to_zyz_test (angles,  q))
 
-let zyz_quat_tests = "zyz to quat tests" >:::
+let zyz_quat_tests = "zyz/quat tests" >:::
 (
   List.concat_map zyz_to_quat_test
     Quat.[
@@ -184,11 +196,48 @@ let zyz_quat_tests = "zyz to quat tests" >:::
 ;;
 
 
+let compose_zyz_test (zyz1, zyz2, expected_zyz) =
+  let open Quat in
+  let name = "compose-zyz:"^(printer_angles zyz1)^"*"^(printer_angles zyz2) in
+  [name >:: (fun _ ->
+    assert_equal ~msg:name ~cmp:cmp_angles ~printer:printer_angles
+       expected_zyz (Quat.to_zyz (Quat.mul (zyz_to_quat zyz1) (zyz_to_quat zyz2))))]
+
+
+let compose_tests = "compose zyz tests" >:::
+(
+  List.concat_map compose_zyz_test
+    [
+      ((0.000000,0.000000,0.100000), (0.000000,0.000000,0.000000), (0.100000,0.000000,0.000000))
+    ; ((0.000000,0.000000,0.300000), (0.000000,0.000000,0.000000), (0.300000,0.000000,0.000000))
+    ; ((0.000000,0.000000,0.400000), (0.000000,0.000000,0.300000), (0.700000,0.000000,0.000000))
+    ; ((0.000000,0.000000,0.785398), (0.000000,0.000000,0.000000), (0.785398,0.000000,0.000000))
+    ; ((0.000000,0.000000,1.570796), (0.000000,0.000000,0.000000), (1.570796,0.000000,0.000000))
+    ; ((0.000000,0.000000,1.570796), (0.000000,0.000000,4.712389), (0.000000,0.000000,0.000000))
+    ; ((0.000000,0.000000,3.141593), (0.000000,0.000000,0.000000), (3.141593,0.000000,0.000000))
+    ; ((0.000000,0.000000,3.141593), (0.000000,0.000000,1.570796), (-1.570796,0.000000,0.000000))
+    ; ((0.000000,0.000000,3.141593), (0.000000,0.000000,3.141593), (0.000000,0.000000,0.000000))
+    ; ((0.000000,0.000000,6.283185), (0.000000,0.000000,0.000000), (0.000000,0.000000,0.000000))
+    ; ((0.100000,0.000000,0.000000), (0.000000,0.000000,0.000000), (0.100000,0.000000,0.000000))
+    ; ((0.100000,0.200000,0.300000), (0.000000,0.000000,0.100000), (0.100000,0.200000,0.400000))
+    ; ((0.200000,0.000000,0.000000), (0.100000,0.000000,0.000000), (0.300000,0.000000,0.000000))
+    ; ((1.570796,0.000000,0.785398), (0.000000,0.000000,0.000000), (2.356194,0.000000,0.000000))
+    ; ((1.570796,0.000000,3.141593), (0.000000,0.000000,0.000000), (-1.570796,0.000000,0.000000))
+    ; ((1.570796,0.000000,3.141593), (0.000000,0.000000,6.283185), (-1.570796,0.000000,0.000000))
+    ; ((1.570796,0.000000,3.141593), (1.570796,0.000000,3.141593), (3.141593,0.000000,0.000000))
+    ; ((1.570796,1.047198,0.785398), (0.000000,0.000000,0.000000), (1.570796,1.047198,0.785398))
+
+    ]
+)
+;;
+
+
 (* Run the tests in test suite *)
 let _ =
 if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
         simple_tests
       ; zyz_quat_tests
+      ; compose_tests
     ])
 ;;
