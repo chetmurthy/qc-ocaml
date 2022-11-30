@@ -1,6 +1,14 @@
 open Pa_ppx_utils
 
 let sqr x = x *. x
+let twopi = 2. *. Gg.Float.pi
+let d2r d = d *. twopi /. 360.
+let r2d r = r *. 360. /. twopi
+let rec norm1_tol ~eps a =
+  if Gg.Float.is_nan a then a
+  else if Gg.Float.compare_tol ~eps a 0. < 0 then norm1_tol ~eps (a +. twopi)
+  else if Gg.Float.compare_tol ~eps twopi a <= 0 then norm1_tol ~eps (a -. twopi)
+  else a
 
 module type EXTENDED_QUAT_SIG = sig
   type t = Gg.Quat.t [@@deriving to_yojson, show, eq]
@@ -27,50 +35,65 @@ module ExtendedQuat : EXTENDED_QUAT_SIG = struct
 
 end
 
-module Angles = struct
-let twopi = 2. *. Gg.Float.pi
-let d2r d = d *. twopi /. 360.
-let r2d r = r *. 360. /. twopi
-let rec norm1_tol ~eps a =
-  if Gg.Float.is_nan a then a
-  else if Gg.Float.compare_tol ~eps a 0. < 0 then norm1_tol ~eps (a +. twopi)
-  else if Gg.Float.compare_tol ~eps twopi a <= 0 then norm1_tol ~eps (a -. twopi)
-  else a
 
-  module ZYZ = struct
-    type t = { z_0 : float ; y_1 : float ; z_2 : float }[@@deriving (to_yojson, show, eq, ord);]
-    let norm_tol ~eps x = { z_2 = norm1_tol ~eps x.z_2 ; y_1 = norm1_tol ~eps x.y_1 ; z_0 = norm1_tol ~eps x.z_0 }
-    let cmp_tol ~eps a b =
-      let a = norm_tol ~eps a in
-      let b = norm_tol ~eps b in
-      Gg.Float.equal_tol ~eps a.z_0 b.z_0
-      && Gg.Float.equal_tol ~eps a.y_1 b.y_1
-      && Gg.Float.equal_tol ~eps a.z_2 b.z_2
+module ZYZ = struct
+  type t = { z_0 : float ; y_1 : float ; z_2 : float }[@@deriving (to_yojson, show, eq, ord);]
+  let norm_tol ~eps x = { z_2 = norm1_tol ~eps x.z_2 ; y_1 = norm1_tol ~eps x.y_1 ; z_0 = norm1_tol ~eps x.z_0 }
+  let cmp_tol ~eps a b =
+    let a = norm_tol ~eps a in
+    let b = norm_tol ~eps b in
+    Gg.Float.equal_tol ~eps a.z_0 b.z_0
+    && Gg.Float.equal_tol ~eps a.y_1 b.y_1
+    && Gg.Float.equal_tol ~eps a.z_2 b.z_2
 
-    let to_quat {z_0=theta1; y_1=theta2; z_2=theta3} =
-      let open ExtendedQuat in
-      { w = (cos (0.5 *. theta2)) *. (cos (0.5 *. (theta1 +. theta3)))
-      ; x = -. (sin (0.5 *. theta2)) *. (sin (0.5 *. (theta1 -. theta3)))
-      ; y = (sin (0.5 *. theta2)) *. (cos (0.5 *. (theta1 -. theta3)))
-      ; z = (cos (0.5 *. theta2)) *. (sin (0.5 *. (theta1 +. theta3)))
-      }
+  let to_quat {z_0=theta1; y_1=theta2; z_2=theta3} =
+    let open ExtendedQuat in
+    { w = (cos (0.5 *. theta2)) *. (cos (0.5 *. (theta1 +. theta3)))
+    ; x = -. (sin (0.5 *. theta2)) *. (sin (0.5 *. (theta1 -. theta3)))
+    ; y = (sin (0.5 *. theta2)) *. (cos (0.5 *. (theta1 -. theta3)))
+    ; z = (cos (0.5 *. theta2)) *. (sin (0.5 *. (theta1 +. theta3)))
+    } |> of_explicit
 
-    let of_m3 m =
-      let open Gg in
-      let open ExtendedQuat in
-      let m23 = M3.e12 m in
-      let m13 = M3.e02 m in
-      let m33 = M3.e22 m in
-      let m32 = M3.e21 m in
-      let m31 = M3.e20 m in
-      let theta1 = atan2 m23 m13 in
-      let theta2 = atan2 (sqrt (1. -. (sqr m33))) m33 in
-      let theta3 = atan2 m32 (-. m31) in
-      {z_0 = theta1 ; y_1 = theta2 ; z_2 = theta3}
+  let to_m3 {z_0=theta1; y_1=theta2; z_2=theta3} =
+    let costheta1 = cos theta1 in
+    let costheta2 = cos theta2 in
+    let costheta3 = cos theta3 in
+    let sintheta1 = sin theta1 in
+    let sintheta2 = sin theta2 in
+    let sintheta3 = sin theta3 in
+    let m00 = costheta1 *. costheta2 *. costheta3 -. sintheta1 *. sintheta3 in
+    let m01 = -. (costheta1 *. costheta2 *. sintheta3) -. sintheta1 *. costheta3 in
+    let m02 = costheta1 *. sintheta2 in
+    let m10 = sintheta1 *. costheta2 *. costheta3 +. costheta1 *. sintheta3 in
+    let m11 = -. (sintheta1 *. costheta2 *. sintheta3) +. costheta1 *. costheta3 in
+    let m12 = -. (sintheta1 *. sintheta2) in
+    let m20 = sintheta2 *. costheta3 in
+    let m21 = sintheta2 *. sintheta3 in
+    let m22 = costheta2 in
+    let open Gg in
+    M3.of_rows
+      V3.(v m00 m01 m02)
+      V3.(v m10 m11 m12)
+      V3.(v m20 m21 m22)
 
-  end
+  let of_m3 m =
+    let open Gg in
+    let open ExtendedQuat in
+    let m23 = M3.e12 m in
+    let m13 = M3.e02 m in
+    let m33 = M3.e22 m in
+    let m32 = M3.e21 m in
+    let m31 = M3.e20 m in
+    let theta1 = atan2 m23 m13 in
+    let theta2 = atan2 (sqrt (1. -. (sqr m33))) m33 in
+    let theta3 = atan2 m32 (-. m31) in
+    {z_0 = theta1 ; y_1 = theta2 ; z_2 = theta3}
 
-  type generic_euler_t = { theta : float ; phi : float ; lambda : float }[@@deriving (to_yojson, show, eq, ord);]
+end
+
+module Euler = struct
+
+  type generic_t = { theta : float ; phi : float ; lambda : float }[@@deriving (to_yojson, show, eq, ord);]
 
   type t =
     ZYZ of ZYZ.t[@@deriving (to_yojson, show, eq, ord);]
@@ -84,7 +107,6 @@ let rec norm1_tol ~eps a =
       (ZYZ a, ZYZ b) ->
       ZYZ.cmp_tol ~eps a b
     | _ -> false
-
 end
 
 module Quat = struct
@@ -113,11 +135,10 @@ module Quat = struct
       of_rotations pairs
 
   let of_zyz a =
-    let open Angles in
     of_rotations ZYZ.[(Z,a.z_0); (Y,a.y_1); (Z,a.z_2)]
 
   let of_angles = function
-      Angles.ZYZ a -> of_zyz a
+      Euler.ZYZ a -> of_zyz a
 
   let to_m3 q =
     let q = Q.unit q in
@@ -150,7 +171,7 @@ EA <- cbind(atan2((2*(Q[,3]*Q[,4] - Q[,1]*Q[,2])),(2*(Q[,2]*Q[,4] + Q[,1]*Q[,3])
 let sqr x = x *. x
 
 let to_zyz q =
-  let open Angles.ZYZ in
+  let open ZYZ in
   let q = Q.to_explicit q in
   
   let z_0 = atan2 (2. *. (q.y *. q.z -. q.w *. q.x)) (2. *. (q.x *. q.z +. q.w *. q.y)) in
@@ -159,9 +180,9 @@ let to_zyz q =
   {z_0 ; y_1 ; z_2}
 
   let to_zyz0 q =
-    let open Angles.ZYZ in
     let open Gg in
     let m = to_m3 q in
+    let open ZYZ in
     if M3.e22 m < 1. then
       if M3.e22 m > -1. then
         {
