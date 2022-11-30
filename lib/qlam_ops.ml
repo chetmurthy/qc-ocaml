@@ -2829,7 +2829,7 @@ value fuse_1q_pair upstream_b downstream_b =
    * turns into GATE2 * GATE1 * ....
    *)
   let fused_q = Quat.mul downstream_q upstream_q in
-  let ZYZ.{z_0 = theta; y_1 = phi; z_2 = lambda} = Quat.to_zyz fused_q in
+  let ZYZ.{z_0 = theta; y_1 = phi; z_2 = lambda} = ZYZ.of_quat ~eps:1e-10 fused_q in
   let loc = qbinding_loc downstream_b in
   let theta = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string theta)))) in
   let phi = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string phi)))) in

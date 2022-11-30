@@ -185,10 +185,10 @@ let m3_tests = "m3 tests" >:::
 ]
 ;;
 
-let quat_to_zyz_tests = "quat -> zyz0 (OLD VERSION)" >:::
+let quat_to_zyz_tests = "quat -> zyz" >:::
   [
     (* check that an M3 rotation and a Quaternion rotation achieve the same effect *)
-    "Quat->zyz0 (OLD VERSION)" >:: (fun _ ->
+    "quat->zyz" >:: (fun _ ->
       let open ZYZ in
       let cmp = ZYZ.cmp_tol ~eps in
       let printer = ZYZ.show in
@@ -196,7 +196,7 @@ let quat_to_zyz_tests = "quat -> zyz0 (OLD VERSION)" >:::
         let msg = Fmt.(str "X %d degrees" i) in
         let i = d2r (float_of_int i) in
         let q = Quat.of_rotation X i in
-        assert_equal ~msg ~cmp ~printer {z_0=i; y_1=0.; z_2=0.} (Quat.to_zyz0 q)
+        assert_equal ~msg ~cmp ~printer {z_0=i; y_1=0.; z_2=0.} (ZYZ.of_quat ~eps q)
       done ;
     )
 
@@ -210,37 +210,28 @@ let zyz_tests = "zyz tests" >:::
      *)
     "m3->zyz" >:: (fun _ ->
       let open ZYZ in
-      let cmp = ZYZ.cmp_tol ~eps in
-      let printer = ZYZ.show in
-      for i = 0 to 359 do
+      let cmp = cmp_m3 in
+      let printer = printer_m3 in
+      for i = -359 to 359 do
         let msg = Fmt.(str "Z %d degrees" i) in
         let i = d2r (float_of_int i) in
-        let m = m3_rotation_matrix i X in
-        assert_equal ~msg ~cmp ~printer {z_0=i; y_1=0.; z_2=0.} (ZYZ.of_m3 m)
+        let m = m3_rotation_matrix i Z in
+        let zyz = ZYZ.of_m3 ~eps m in
+        let m' = ZYZ.to_m3 zyz in
+        assert_equal ~msg ~cmp ~printer m m'
       done ;
-    )
-
-]
-;;
-
-let quat_to_zyz0_tests = "quat -> zyz0 (OLD VERSION)" >:::
-  [
-    (* check that an M3 rotation and a Quaternion rotation achieve the same effect *)
-    "Quat->zyz0 (OLD VERSION)" >:: (fun _ ->
-      let open ZYZ in
-      let cmp = ZYZ.cmp_tol ~eps in
-      let printer = ZYZ.show in
-      for i = 0 to 359 do
-        let msg = Fmt.(str "X %d degrees" i) in
+      for i = -359 to 359 do
+        let msg = Fmt.(str "Y %d degrees" i) in
         let i = d2r (float_of_int i) in
-        let q = Quat.of_rotation X i in
-        assert_equal ~msg ~cmp ~printer {z_0=i; y_1=0.; z_2=0.} (Quat.to_zyz0 q)
+        let m = m3_rotation_matrix i Y in
+        let zyz = ZYZ.of_m3 ~eps m in
+        let m' = ZYZ.to_m3 zyz in
+        assert_equal ~msg ~cmp ~printer m m'
       done ;
     )
 
 ]
 ;;
-
 
 let rnd_array = [| 0.5 ; 0.8 ; 0.9 ; -0.3 |]
 let quat_unnormalized = Quat.v rnd_array.(1) rnd_array.(2) rnd_array.(3) rnd_array.(0) 
@@ -363,7 +354,7 @@ let quat_to_zyz_test (expected_angles, explicit_q) =
   let name = "quat->zyz:"^(show_explicit_t explicit_q) in
   [name >:: (fun _ ->
     assert_equal ~msg:name ~cmp:cmp_zyz ~printer:printer_zyz
-       expected_angles (Quat.to_zyz q))]
+       expected_angles (ZYZ.of_quat ~eps q))]
 
 let zyz_quat_test ((zyz : ZYZ.t),  q) =
   (zyz_to_quat_test (zyz,  q))
@@ -407,7 +398,7 @@ let compose_zyz_test (zyz1, zyz2, expected_zyz) =
   let name = "compose-zyz:"^(printer_zyz zyz1)^"*"^(printer_zyz zyz2) in
   [name >:: (fun _ ->
     assert_equal ~msg:name ~cmp:cmp_zyz ~printer:printer_zyz
-       expected_zyz (Quat.to_zyz (Quat.mul (Quat.of_zyz zyz1) (Quat.of_zyz zyz2))))]
+       expected_zyz (ZYZ.of_quat ~eps (Quat.mul (Quat.of_zyz zyz1) (Quat.of_zyz zyz2))))]
 
 
 let compose_tests = "compose zyz tests" >:::
@@ -446,7 +437,6 @@ if not !Sys.interactive then
       ; zyz_tests
       ; simple_tests
 (*
-  ; quat_to_zyz0_tests
       ; zyz_quat_tests
       ; compose_tests
  *)
