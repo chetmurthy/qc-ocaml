@@ -98,6 +98,56 @@ type pexpr_t = [
   ][@@deriving (to_yojson, show, eq, ord);]
 ;
 
+module PE = struct
+type t = pexpr_t [@@deriving (to_yojson, show, eq, ord);]
+;
+
+value eval penv pe =
+  let rec erec = fun [
+        ID loc pv ->
+        (match PVMap.swap_find penv pv with [
+             exception Not_found ->
+                       Fmt.(raise_failwithf loc "PE.eval: cannot find param-var %a in environment" PV.pp_hum pv)
+           | x -> x ])
+
+      | CONST loc (REAL r) ->
+         (match Float.of_string_opt r with [
+              None ->
+              Fmt.(raise_failwithf loc "PE.eval: (probable internal error) malformed real constant expression: %s" r)
+            | Some r -> r
+         ])
+      | CONST loc (NNINT n) -> Float.of_int n
+      | CONST loc PI -> Float.pi
+      | BINOP _ bop e1 e2 ->
+         let v1 = erec e1 in
+         let v2 = erec e2 in
+         (match bop with [
+              ADD -> v1 +. v2
+            | SUB -> v1 -. v2
+            | MUL ->  v1 *. v2
+            | DIV -> v1 /. v2
+            | POW -> Float.pow v1 v2
+         ])
+      | UNOP _ uop e1 ->
+         let v1 = erec e1 in
+         (match uop with [
+              UMINUS -> -. v1
+         ])
+      | UFUN _ uf e1 ->
+         let v1 = erec e1 in
+         (match uf with [
+              SIN -> Float.sin v1
+            | COS -> Float.cos v1
+            | TAN -> Float.tan v1
+            | EXP -> Float.exp v1
+            | LN -> Float.log v1
+            | SQRT -> Float.sqrt v1
+         ])
+      ] in
+  erec pe
+;
+end ;
+
 module Unique = struct
   value ctr = Counter.mk () ;
   type t = int [@@deriving (to_yojson, show, eq, ord);] ;

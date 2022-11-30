@@ -9,6 +9,7 @@
 #require "oUnit";;
 #print_length 1048576 ;;
 
+open Gg ;;
 open Asttools ;;
 open Pa_ppx_utils ;;
 open Coll ;;
@@ -18,6 +19,7 @@ open Qc_misc ;;
 open Qc ;;
 open Qasm2syntax ;;
 open OUnit2 ;;
+open Qc_quat ;;
 
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
@@ -97,6 +99,15 @@ let pp_logical2qvar m = Fmt.(pf stdout "<:logical2qvar< %a >>" (SYN.BIMap.pp_hum
 
 let pp_ab_env x = Fmt.(pf stdout "<:abenv< %a >>" Qlam_ops.AB.Env.pp_hum x) ;;
 #install_printer pp_ab_env ;;
+
+let pp_quat x = Fmt.(pf stdout "<:quat< %a >>" Quat.pp x) ;;
+#install_printer pp_quat ;;
+
+let pp_m3 x = Fmt.(pf stdout "<:m3< %a >>" M3.pp x) ;;
+#install_printer pp_m3 ;;
+
+let pp_v3 x = Fmt.(pf stdout "<:v3< %a >>" V3.pp x) ;;
+#install_printer pp_v3 ;;
 
 #load "test_helpers.cmo";;
 #load "qasm2_tests.cmo";;

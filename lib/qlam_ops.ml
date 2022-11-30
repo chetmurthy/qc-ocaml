@@ -2787,15 +2787,74 @@ module Optimize1q = struct
 
  *)
 
-type one1_binding_t = {
+open Qc_quat ;
+
+type oneq_binding_t = {
     removed : mutable bool
   ; it : SYN.qbinding_t
   } ;
 
+value pp_hum pps b =
+  Fmt.(pf pps "{it=%a; removed=%b}" PP.qbinding b.it b.removed)
+;
+
+value env_pp_hum pps env = QVMap.pp_hum pp_hum pps env ;
+
+value fuse_1q_pair upstream_b downstream_b =
+  let ((theta1,phi1,lambda1), (upstream_bound, upstream_arg)) = match upstream_b with [
+        (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [qv_arg] []) ->
+        let theta = PE.eval PVMap.empty theta in
+        let phi = PE.eval PVMap.empty phi in
+        let lambda = PE.eval PVMap.empty lambda in
+        ((theta,phi,lambda), (qv_bound, qv_arg))
+
+      | _ -> assert False
+      ] in
+  let ((theta2,phi2,lambda2), (downstream_bound, downstream_arg)) = match downstream_b with [
+        (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [qv_arg] []) ->
+        let theta = PE.eval PVMap.empty theta in
+        let phi = PE.eval PVMap.empty phi in
+        let lambda = PE.eval PVMap.empty lambda in
+        ((theta,phi,lambda), (qv_bound, qv_arg))
+
+      | _ -> assert False
+      ] in
+
+  let _ = assert (QV.equal downstream_arg upstream_bound) in
+  let upstream_q = Quat.(of_euler [Z;Y;Z] [theta1; phi1; lambda1]) in
+  let downstream_q = Quat.(of_euler [Z;Y;Z] [theta2; phi2; lambda2]) in
+  (*
+   * -> gate1 -> gate2 -> ....
+   *
+   * turns into GATE2 * GATE1 * ....
+   *)
+  let fused_q = Quat.mul downstream_q upstream_q in
+  let Angles.ZYZ.{z_0 = theta; y_1 = phi; z_2 = lambda} = Quat.to_zyz fused_q in
+  let loc = qbinding_loc downstream_b in
+  let theta = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string theta)))) in
+  let phi = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string phi)))) in
+  let lambda = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string lambda)))) in
+  (loc, [downstream_bound], [],
+   QGATEAPP loc (SYN.U loc) [theta;phi;lambda] [upstream_arg] [])
+;
+
+value is_U_binding = fun [
+  (_, [_],[], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) [_;_;_] [_] []) -> True
+| _ -> False
+] ;
+
+value oneq_binding_qvarg = fun [
+  (_, [_],[], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) [_;_;_] [qv] []) -> qv
+| (loc, _, _, _) as b -> 
+   Fmt.(raise_failwithf loc "oneq_binding_qvarg: internal error: not a 1Q binding: %a"
+        PP.qbinding b)
+] ;
+
 value rec qcircuit env qc = match qc with [
     SYN.QLET loc bl qc ->
     let (bl, qc) = optimize_1q_qlet env bl qc in
-    SYN.QLET loc bl qc
+    if [] = bl then qc else
+      SYN.QLET loc bl qc
   | _ -> qc
   ]
 
@@ -2803,13 +2862,36 @@ and optimize_1q_qlet env bl qc =
   let (oneq_bl, rest_bl) =
     filter_split (fun b -> 1 = List.length (qbinding_qvl b)) bl in
   let oneq_bl = List.map (optimize_1q env) oneq_bl in
+  let oneq_bindings =
+    oneq_bl |> List.map (fun b ->
+                   let qv = List.hd (qbinding_qvl b) in
+                   (qv, { it = b ; removed = False })) in
+  let qc_env = List.fold_left (fun env (qv, it) -> QVMap.add qv it env) env oneq_bindings in
+  let qc = qcircuit qc_env qc in
+  let oneq_bl = 
+    oneq_bindings |> List.filter_map (fun (_, it) ->
+                         if it.removed then None else Some it.it) in
   (oneq_bl@rest_bl, qc)
 
-and optimize_1q env b =
-  b
+and optimize_1q (env : SYN.QVMap.t oneq_binding_t) b =
+  if is_U_binding b then
+    let qv = oneq_binding_qvarg b in
+    let upstream_it =
+      match  QVMap.swap_find env qv with [
+          exception Not_found ->
+                    Fmt.(raise_failwithf (qbinding_loc b) "optimize_1q: internal error: cannot find qvar %a in env"
+                           QV.pp_hum qv)
+        | it -> it
+        ] in
+    if is_U_binding upstream_it.it then
+      let fused_b = fuse_1q_pair upstream_it.it b in
+      let _ = upstream_it.removed := True in
+      fused_b
+    else b
+  else b
 ;
 
-value optimize_1q genv0 ?{env0=[]} (envitems,qc) =
+value program genv0 ?{env0=[]} (envitems,qc) =
   (envitems, qcircuit QVMap.empty qc)
 ;
 

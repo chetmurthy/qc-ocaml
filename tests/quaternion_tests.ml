@@ -8,7 +8,14 @@ Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
-let rotation_matrix angle axis =
+let equal_f = Float.equal_tol ~eps:1e-4
+let compare_f = Float.compare_tol ~eps:1e-4
+let cmp_quat q1 q2 = (V4.equal_f equal_f q1 q2) || (V4.equal_f equal_f q1 (V4.neg q2))
+let printer_quat q = Fmt.(str "%a" Quat.pp q)
+let cmp_m3 = M3.equal_f equal_f
+let printer_m3 m = Fmt.(str "%a" M3.pp m)
+
+let m3_rotation_matrix angle axis =
   let open Quat in
   let direction = match axis with
       X -> V3.ox
@@ -16,9 +23,52 @@ let rotation_matrix angle axis =
     | Z -> V3.oz in
   M3.rot3_axis direction angle
 
+let expected_m3_rotation_matrix angle axis =
+  let open Quat in
+  let cosa = cos angle in
+  let sina = sin angle in
+  match axis with
+    X ->
+     M3.of_rows
+       (V3.v 1. 0. 0.)
+       (V3.v 0. cosa (-. sina))
+       (V3.v 0. sina cosa)
+  | Y ->
+     M3.of_rows
+       (V3.v cosa 0. sina)
+       (V3.v 0. 1. 0.)
+       (V3.v (-. sina) 0. cosa)
+  | Z -> 
+     M3.of_rows
+       (V3.v cosa (-. sina) 0.)
+       (V3.v sina cosa 0.)
+       (V3.v 0. 0. 1.)
 
-let r2d r = 360. *. r /. (2. *. Float.pi)
-let d2r d = (2. *. Float.pi) *. (d /. 360.)
+let m3_tests = "m3 tests" >:::
+  [
+    "simple" >:: (fun _ ->
+      let cmp = cmp_m3 in
+      let printer = printer_m3 in
+      for i = 0 to 359 do
+        let msg = Fmt.(str "X %d degrees" i) in
+        let i = float_of_int i in
+        assert_equal ~msg ~cmp ~printer (expected_m3_rotation_matrix i X) (m3_rotation_matrix i X)
+      done ;
+      for i = 0 to 359 do
+        let msg = Fmt.(str "Y %d degrees" i) in
+        let i = float_of_int i in
+        assert_equal ~msg ~cmp ~printer (expected_m3_rotation_matrix i Y) (m3_rotation_matrix i Y)
+      done ;
+      for i = 0 to 359 do
+        let msg = Fmt.(str "Z %d degrees" i) in
+        let i = float_of_int i in
+        assert_equal ~msg ~cmp ~printer (expected_m3_rotation_matrix i Z) (m3_rotation_matrix i Z)
+      done
+    )
+
+]
+;;
+
 
 let rnd_array = [| 0.5 ; 0.8 ; 0.9 ; -0.3 |]
 let quat_unnormalized = Quat.v rnd_array.(1) rnd_array.(2) rnd_array.(3) rnd_array.(0) 
@@ -27,19 +77,12 @@ let rnd = [| -0.92545003 ; -2.19985357 ; 6.01761209 |]
 let idx = [| 0; 2; 1 |]
 let mat1 =
   M3.mul
-    (rotation_matrix rnd.(0)  axes.(idx.(0)))
+    (m3_rotation_matrix rnd.(0)  axes.(idx.(0)))
     (M3.mul
-       (rotation_matrix rnd.(1) axes.(idx.(1)))
-       (rotation_matrix rnd.(2) axes.(idx.(2))))
+       (m3_rotation_matrix rnd.(1) axes.(idx.(1)))
+       (m3_rotation_matrix rnd.(2) axes.(idx.(2))))
 let quat = Quat.of_euler [X;Z;Y] (Array.to_list rnd)
 let mat2 = Quat.to_m3 quat
-
-let equal_f = Float.equal_tol ~eps:1e-4
-let compare_f = Float.compare_tol ~eps:1e-4
-let cmp_quat q1 q2 = (V4.equal_f equal_f q1 q2) || (V4.equal_f equal_f q1 (V4.neg q2))
-let printer_quat q = Fmt.(str "%a" Quat.pp q)
-let cmp_m3 = M3.equal_f equal_f
-let printer_m3 m = Fmt.(str "%a" M3.pp m)
 
 let simple_tests = "simple tests" >:::
   [
@@ -124,74 +167,64 @@ let simple_tests = "simple tests" >:::
 ]
 ;;
 
-let zyz_to_quat (z1, y1, z2) =
-  Quat.(of_euler [Z;Y;Z] [z1;y1;z2])
-
-let zyz_to_quat_test (angles, explicit_q) =
+let zyz_to_quat_test (zyz, explicit_q) =
   let open Quat in
   let expected_q = of_explicit explicit_q in
   let name = "zyz->quat:"^(show_explicit_t explicit_q) in
   [name >:: (fun _ ->
     assert_equal ~msg:name ~cmp:cmp_quat ~printer:printer_quat
-       expected_q (zyz_to_quat angles))]
+       expected_q (Quat.of_zyz zyz))]
 
 let twopi = 2. *. Float.pi
 let rec norm_angle a =
   if compare_f a 0. < 0 then norm_angle (a +. twopi)
   else if compare_f twopi a <= 0 then norm_angle (a -. twopi)
   else a
-let cmp_angles (a1,a2,a3) (b1, b2, b3) =
-  let a1 = norm_angle a1 in
-  let a2 = norm_angle a2 in
-  let a3 = norm_angle a3 in
-  let b1 = norm_angle b1 in
-  let b2 = norm_angle b2 in
-  let b3 = norm_angle b3 in
-  equal_f a1 b1
-  && equal_f a2 b2
-  && equal_f a3 b3
+  
+let cmp_zyz a b = Angles.ZYZ.cmp_tol ~eps:1e-4 a b
 
-let printer_angles = [%show: (float * float * float)]
+let printer_zyz = [%show: Angles.ZYZ.t]
 
 let quat_to_zyz_test (expected_angles, explicit_q) =
   let open Quat in
   let q = of_explicit explicit_q in
   let name = "quat->zyz:"^(show_explicit_t explicit_q) in
   [name >:: (fun _ ->
-    assert_equal ~msg:name ~cmp:cmp_angles ~printer:printer_angles
+    assert_equal ~msg:name ~cmp:cmp_zyz ~printer:printer_zyz
        expected_angles (Quat.to_zyz q))]
 
-let zyz_quat_test (angles,  q) =
-  (zyz_to_quat_test (angles,  q))
-  @(quat_to_zyz_test (angles,  q))
+let zyz_quat_test ((zyz : Angles.ZYZ.t),  q) =
+  (zyz_to_quat_test (zyz,  q))
+  @(quat_to_zyz_test (zyz,  q))
 
 let zyz_quat_tests = "zyz/quat tests" >:::
+let open Quat in
+let open Angles.ZYZ in
 (
-  List.concat_map zyz_to_quat_test
-    Quat.[
-    ((0.000000,0.000000,0.000000), {w=1.0;x=0.000000;y=0.000000;z=0.000000})
-  ; ((0.000000,0.000000,0.100000), {w=0.998750;x=0.000000;y=0.000000;z=0.049979})
-  ; ((0.000000,0.000000,0.300000), {w=0.988771;x=0.000000;y=0.000000;z=0.149438})
-  ; ((0.000000,0.000000,0.400000), {w=0.980067;x=0.000000;y=0.000000;z=0.198669})
-  ]
+  List.concat_map zyz_to_quat_test [
+      ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {w=1.0;x=0.000000;y=0.000000;z=0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.100000}, {w=0.998750;x=0.000000;y=0.000000;z=0.049979})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.300000}, {w=0.988771;x=0.000000;y=0.000000;z=0.149438})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.400000}, {w=0.980067;x=0.000000;y=0.000000;z=0.198669})
+    ]
 )
 @(
   List.concat_map quat_to_zyz_test
     Quat.[
-    ((0.100000,0.000000,0.000000), {w=0.998750;x=0.000000;y=0.000000;z=0.049979})
-  ; ((0.300000,0.000000,0.000000), {w=0.988771;x=0.000000;y=0.000000;z=0.149438})
-  ; ((0.400000,0.000000,0.000000), {w=0.980067;x=0.000000;y=0.000000;z=0.198669})
+    ({z_0 = 0.100000; y_1 = 0.000000; z_2 = 0.000000}, {w=0.998750;x=0.000000;y=0.000000;z=0.049979})
+  ; ({z_0 = 0.300000; y_1 = 0.000000; z_2 = 0.000000}, {w=0.988771;x=0.000000;y=0.000000;z=0.149438})
+  ; ({z_0 = 0.400000; y_1 = 0.000000; z_2 = 0.000000}, {w=0.980067;x=0.000000;y=0.000000;z=0.198669})
   ]
 )
 @(
   List.concat_map zyz_quat_test
     Quat.[
-    ((0.000000,0.000000,0.000000), {w=1.000000;x=0.000000;y=0.000000;z=0.000000})
-  ; ((0.000000,0.100000,0.000000), {w=0.998750;x=0.000000;y=0.049979;z=0.000000})
-  ; ((0.000000,0.300000,0.000000), {w=0.988771;x=0.000000;y=0.149438;z=0.000000})
-  ; ((0.000000,0.400000,0.300000), {w=0.969061;x=0.029689;y=0.196438;z=0.146459})
-  ; ((0.100000,0.200000,0.300000), {w=0.975170;x=0.009967;y=0.099335;z=0.197677})
-  ; ((0.100000,0.200000,0.400000), {w=0.964072;x=0.014919;y=0.098712;z=0.246168})
+    ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {w=1.000000;x=0.000000;y=0.000000;z=0.000000})
+  ; ({z_0 = 0.000000; y_1 = 0.100000; z_2 = 0.000000}, {w=0.998750;x=0.000000;y=0.049979;z=0.000000})
+  ; ({z_0 = 0.000000; y_1 = 0.300000; z_2 = 0.000000}, {w=0.988771;x=0.000000;y=0.149438;z=0.000000})
+  ; ({z_0 = 0.000000; y_1 = 0.400000; z_2 = 0.300000}, {w=0.969061;x=0.029689;y=0.196438;z=0.146459})
+  ; ({z_0 = 0.100000; y_1 = 0.200000; z_2 = 0.300000}, {w=0.975170;x=0.009967;y=0.099335;z=0.197677})
+  ; ({z_0 = 0.100000; y_1 = 0.200000; z_2 = 0.400000}, {w=0.964072;x=0.014919;y=0.098712;z=0.246168})
   ]
 )
 ;;
@@ -199,34 +232,34 @@ let zyz_quat_tests = "zyz/quat tests" >:::
 
 let compose_zyz_test (zyz1, zyz2, expected_zyz) =
   let open Quat in
-  let name = "compose-zyz:"^(printer_angles zyz1)^"*"^(printer_angles zyz2) in
+  let name = "compose-zyz:"^(printer_zyz zyz1)^"*"^(printer_zyz zyz2) in
   [name >:: (fun _ ->
-    assert_equal ~msg:name ~cmp:cmp_angles ~printer:printer_angles
-       expected_zyz (Quat.to_zyz (Quat.mul (zyz_to_quat zyz1) (zyz_to_quat zyz2))))]
+    assert_equal ~msg:name ~cmp:cmp_zyz ~printer:printer_zyz
+       expected_zyz (Quat.to_zyz (Quat.mul (Quat.of_zyz zyz1) (Quat.of_zyz zyz2))))]
 
 
 let compose_tests = "compose zyz tests" >:::
 (
   List.concat_map compose_zyz_test
     [
-      ((0.000000,0.000000,0.100000), (0.000000,0.000000,0.000000), (0.100000,0.000000,0.000000))
-    ; ((0.000000,0.000000,0.300000), (0.000000,0.000000,0.000000), (0.300000,0.000000,0.000000))
-    ; ((0.000000,0.000000,0.400000), (0.000000,0.000000,0.300000), (0.700000,0.000000,0.000000))
-    ; ((0.000000,0.000000,0.785398), (0.000000,0.000000,0.000000), (0.785398,0.000000,0.000000))
-    ; ((0.000000,0.000000,1.570796), (0.000000,0.000000,0.000000), (1.570796,0.000000,0.000000))
-    ; ((0.000000,0.000000,1.570796), (0.000000,0.000000,4.712389), (0.000000,0.000000,0.000000))
-    ; ((0.000000,0.000000,3.141593), (0.000000,0.000000,0.000000), (3.141593,0.000000,0.000000))
-    ; ((0.000000,0.000000,3.141593), (0.000000,0.000000,1.570796), (-1.570796,0.000000,0.000000))
-    ; ((0.000000,0.000000,3.141593), (0.000000,0.000000,3.141593), (0.000000,0.000000,0.000000))
-    ; ((0.000000,0.000000,6.283185), (0.000000,0.000000,0.000000), (0.000000,0.000000,0.000000))
-    ; ((0.100000,0.000000,0.000000), (0.000000,0.000000,0.000000), (0.100000,0.000000,0.000000))
-    ; ((0.100000,0.200000,0.300000), (0.000000,0.000000,0.100000), (0.100000,0.200000,0.400000))
-    ; ((0.200000,0.000000,0.000000), (0.100000,0.000000,0.000000), (0.300000,0.000000,0.000000))
-    ; ((1.570796,0.000000,0.785398), (0.000000,0.000000,0.000000), (2.356194,0.000000,0.000000))
-    ; ((1.570796,0.000000,3.141593), (0.000000,0.000000,0.000000), (-1.570796,0.000000,0.000000))
-    ; ((1.570796,0.000000,3.141593), (0.000000,0.000000,6.283185), (-1.570796,0.000000,0.000000))
-    ; ((1.570796,0.000000,3.141593), (1.570796,0.000000,3.141593), (3.141593,0.000000,0.000000))
-    ; ((1.570796,1.047198,0.785398), (0.000000,0.000000,0.000000), (1.570796,1.047198,0.785398))
+      ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.100000}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 0.100000; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.300000}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 0.300000; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.400000}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.300000}, {z_0 = 0.700000; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.785398}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 0.785398; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 1.570796}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 1.570796; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 1.570796}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 4.712389}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 3.141593}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 3.141593; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 3.141593}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 1.570796}, {z_0 = -1.570796; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 3.141593}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 3.141593}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.000000; y_1 = 0.000000; z_2 = 6.283185}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.100000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 0.100000; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 0.100000; y_1 = 0.200000; z_2 = 0.300000}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.100000}, {z_0 = 0.100000; y_1 = 0.200000; z_2 = 0.400000})
+    ; ({z_0 = 0.200000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 0.100000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 0.300000; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 1.570796; y_1 = 0.000000; z_2 = 0.785398}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 2.356194; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 1.570796; y_1 = 0.000000; z_2 = 3.141593}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = -1.570796; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 1.570796; y_1 = 0.000000; z_2 = 3.141593}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 6.283185}, {z_0 = -1.570796; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 1.570796; y_1 = 0.000000; z_2 = 3.141593}, {z_0 = 1.570796; y_1 = 0.000000; z_2 = 3.141593}, {z_0 = 3.141593; y_1 = 0.000000; z_2 = 0.000000})
+    ; ({z_0 = 1.570796; y_1 = 1.047198; z_2 = 0.785398}, {z_0 = 0.000000; y_1 = 0.000000; z_2 = 0.000000}, {z_0 = 1.570796; y_1 = 1.047198; z_2 = 0.785398})
 
     ]
 )
@@ -237,8 +270,11 @@ let compose_tests = "compose zyz tests" >:::
 let _ =
 if not !Sys.interactive then
   run_test_tt_main ("all_tests" >::: [
-        simple_tests
+        m3_tests
+      ; simple_tests
+(*
       ; zyz_quat_tests
       ; compose_tests
+ *)
     ])
 ;;

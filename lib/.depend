@@ -230,6 +230,7 @@ qlam_ops.cmo : \
     qlam_misc.cmo \
     qlam_migrate.cmo \
     qlam_env.cmo \
+    qc_quat.cmo \
     qc_misc.cmo \
     qc_latex.cmo \
     misc_functions.cmo
@@ -238,6 +239,7 @@ qlam_ops.cmx : \
     qlam_misc.cmx \
     qlam_migrate.cmx \
     qlam_env.cmx \
+    qc_quat.cmx \
     qc_misc.cmx \
     qc_latex.cmx \
     misc_functions.cmx
