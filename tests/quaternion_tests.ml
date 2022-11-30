@@ -146,16 +146,6 @@ let m3_tests = "m3 tests" >:::
 ]
 ;;
 
-(** More tests 
-
-    (1) test action of M3 on vectors
-
-    (2) check that action of Quat and M3 on vectors is the same
-
- *)
-
-
-
 
 let rnd_array = [| 0.5 ; 0.8 ; 0.9 ; -0.3 |]
 let quat_unnormalized = Quat.v rnd_array.(1) rnd_array.(2) rnd_array.(3) rnd_array.(0) 
