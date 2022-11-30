@@ -160,9 +160,9 @@ let to_zyz q =
 
   include ExtendedQuat
 
-  let oper x q =
+  let oper q x =
     let open Gg in
-    let x = v 0. (V3.x x) (V3.y x) (V3.z x) in
+    let x = of_explicit {x=(V3.x x); y=(V3.y x); z=(V3.z x); w=0.} in
     let w = Quat.(mul (mul q x) (conj q)) in
     let w = to_explicit w in
     V3.v w.x w.y w.z
