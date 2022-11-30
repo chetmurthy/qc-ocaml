@@ -14,6 +14,8 @@ let cmp_quat q1 q2 = (V4.equal_f equal_f q1 q2) || (V4.equal_f equal_f q1 (V4.ne
 let printer_quat q = Fmt.(str "%a" Quat.pp q)
 let cmp_m3 = M3.equal_f equal_f
 let printer_m3 m = Fmt.(str "%a" M3.pp m)
+let cmp_v3 = V3.equal_f equal_f
+let printer_v3 m = Fmt.(str "%a" V3.pp m)
 
 let m3_rotation_matrix angle axis =
   let open Quat in
@@ -49,25 +51,71 @@ let m3_tests = "m3 tests" >:::
     "simple" >:: (fun _ ->
       let cmp = cmp_m3 in
       let printer = printer_m3 in
+      let open Angles in
       for i = 0 to 359 do
         let msg = Fmt.(str "X %d degrees" i) in
-        let i = float_of_int i in
+        let i = d2r (float_of_int i) in
         assert_equal ~msg ~cmp ~printer (expected_m3_rotation_matrix i X) (m3_rotation_matrix i X)
       done ;
       for i = 0 to 359 do
         let msg = Fmt.(str "Y %d degrees" i) in
-        let i = float_of_int i in
+        let i = d2r (float_of_int i) in
         assert_equal ~msg ~cmp ~printer (expected_m3_rotation_matrix i Y) (m3_rotation_matrix i Y)
       done ;
       for i = 0 to 359 do
         let msg = Fmt.(str "Z %d degrees" i) in
-        let i = float_of_int i in
+        let i = d2r (float_of_int i) in
         assert_equal ~msg ~cmp ~printer (expected_m3_rotation_matrix i Z) (m3_rotation_matrix i Z)
       done
+    )
+  ; "action" >:: (fun _ ->
+      let cmp = cmp_v3 in
+      let printer = printer_v3 in
+      let open Angles in
+      for i = 0 to 359 do
+        let msg = Fmt.(str "X %d degrees" i) in
+        let i = d2r (float_of_int i) in
+        let cosi = cos i in
+        let sini = sin i in
+        let m = m3_rotation_matrix i X in
+        assert_equal ~msg ~cmp ~printer V3.ox (V3.ltr m V3.ox)
+        ; assert_equal ~msg ~cmp ~printer (V3.v 0. cosi sini) (V3.ltr m V3.oy)
+        ; assert_equal ~msg ~cmp ~printer (V3.v 0. (-. sini) cosi) (V3.ltr m V3.oz)
+      done ;
+      for i = 0 to 359 do
+        let msg = Fmt.(str "Y %d degrees" i) in
+        let i = d2r (float_of_int i) in
+        let cosi = cos i in
+        let sini = sin i in
+        let m = m3_rotation_matrix i Y in
+        assert_equal ~msg ~cmp ~printer V3.oy (V3.ltr m V3.oy)
+        ; assert_equal ~msg ~cmp ~printer (V3.v sini 0. cosi) (V3.ltr m V3.oz)
+        ; assert_equal ~msg ~cmp ~printer (V3.v cosi 0. (-. sini)) (V3.ltr m V3.ox)
+      done ;
+      for i = 0 to 359 do
+        let msg = Fmt.(str "Z %d degrees" i) in
+        let i = d2r (float_of_int i) in
+        let cosi = cos i in
+        let sini = sin i in
+        let m = m3_rotation_matrix i Z in
+        assert_equal ~msg ~cmp ~printer V3.oz (V3.ltr m V3.oz)
+        ; assert_equal ~msg ~cmp ~printer (V3.v (-. sini) cosi 0.) (V3.ltr m V3.oy)
+        ; assert_equal ~msg ~cmp ~printer (V3.v cosi sini 0.) (V3.ltr m V3.ox)
+      done ;
     )
 
 ]
 ;;
+
+(** More tests 
+
+    (1) test action of M3 on vectors
+
+    (2) check that action of Quat and M3 on vectors is the same
+
+ *)
+
+
 
 
 let rnd_array = [| 0.5 ; 0.8 ; 0.9 ; -0.3 |]
