@@ -1,42 +1,6 @@
 open Pa_ppx_utils
 
-module Angles = struct
-let twopi = 2. *. Gg.Float.pi
-let d2r d = d *. twopi /. 360.
-let r2d r = r *. 360. /. twopi
-let rec norm1_tol ~eps a =
-  if Gg.Float.is_nan a then a
-  else if Gg.Float.compare_tol ~eps a 0. < 0 then norm1_tol ~eps (a +. twopi)
-  else if Gg.Float.compare_tol ~eps twopi a <= 0 then norm1_tol ~eps (a -. twopi)
-  else a
-
-  module ZYZ = struct
-    type t = { z_0 : float ; y_1 : float ; z_2 : float }[@@deriving (to_yojson, show, eq, ord);]
-    let norm_tol ~eps x = { z_2 = norm1_tol ~eps x.z_2 ; y_1 = norm1_tol ~eps x.y_1 ; z_0 = norm1_tol ~eps x.z_0 }
-    let cmp_tol ~eps a b =
-      let a = norm_tol ~eps a in
-      let b = norm_tol ~eps b in
-      Gg.Float.equal_tol ~eps a.z_0 b.z_0
-      && Gg.Float.equal_tol ~eps a.y_1 b.y_1
-      && Gg.Float.equal_tol ~eps a.z_2 b.z_2
-  end
-
-  type generic_euler_t = { theta : float ; phi : float ; lambda : float }[@@deriving (to_yojson, show, eq, ord);]
-
-  type t =
-    ZYZ of ZYZ.t[@@deriving (to_yojson, show, eq, ord);]
-
-  let norm_tol ~eps = function
-      ZYZ x -> ZYZ (ZYZ.norm_tol ~eps x)
-
-  let of_zyz x = ZYZ ZYZ.{z_0 = x.theta ; y_1 = x.phi ; z_2 = x.lambda }
-
-  let cmp_tol ~eps a b = match (a,b) with
-      (ZYZ a, ZYZ b) ->
-      ZYZ.cmp_tol ~eps a b
-    | _ -> false
-
-end
+let sqr x = x *. x
 
 module type EXTENDED_QUAT_SIG = sig
   type t = Gg.Quat.t [@@deriving to_yojson, show, eq]
@@ -60,6 +24,66 @@ module ExtendedQuat : EXTENDED_QUAT_SIG = struct
 
   let to_yojson q =
     q |> to_explicit |> explicit_t_to_yojson
+
+end
+
+module Angles = struct
+let twopi = 2. *. Gg.Float.pi
+let d2r d = d *. twopi /. 360.
+let r2d r = r *. 360. /. twopi
+let rec norm1_tol ~eps a =
+  if Gg.Float.is_nan a then a
+  else if Gg.Float.compare_tol ~eps a 0. < 0 then norm1_tol ~eps (a +. twopi)
+  else if Gg.Float.compare_tol ~eps twopi a <= 0 then norm1_tol ~eps (a -. twopi)
+  else a
+
+  module ZYZ = struct
+    type t = { z_0 : float ; y_1 : float ; z_2 : float }[@@deriving (to_yojson, show, eq, ord);]
+    let norm_tol ~eps x = { z_2 = norm1_tol ~eps x.z_2 ; y_1 = norm1_tol ~eps x.y_1 ; z_0 = norm1_tol ~eps x.z_0 }
+    let cmp_tol ~eps a b =
+      let a = norm_tol ~eps a in
+      let b = norm_tol ~eps b in
+      Gg.Float.equal_tol ~eps a.z_0 b.z_0
+      && Gg.Float.equal_tol ~eps a.y_1 b.y_1
+      && Gg.Float.equal_tol ~eps a.z_2 b.z_2
+
+    let to_quat {z_0=theta1; y_1=theta2; z_2=theta3} =
+      let open ExtendedQuat in
+      { w = (cos (0.5 *. theta2)) *. (cos (0.5 *. (theta1 +. theta3)))
+      ; x = -. (sin (0.5 *. theta2)) *. (sin (0.5 *. (theta1 -. theta3)))
+      ; y = (sin (0.5 *. theta2)) *. (cos (0.5 *. (theta1 -. theta3)))
+      ; z = (cos (0.5 *. theta2)) *. (sin (0.5 *. (theta1 +. theta3)))
+      }
+
+    let of_m3 m =
+      let open Gg in
+      let open ExtendedQuat in
+      let m23 = M3.e12 m in
+      let m13 = M3.e02 m in
+      let m33 = M3.e22 m in
+      let m32 = M3.e21 m in
+      let m31 = M3.e20 m in
+      let theta1 = atan2 m23 m13 in
+      let theta2 = atan2 (sqrt (1. -. (sqr m33))) m33 in
+      let theta3 = atan2 m32 (-. m31) in
+      {z_0 = theta1 ; y_1 = theta2 ; z_2 = theta3}
+
+  end
+
+  type generic_euler_t = { theta : float ; phi : float ; lambda : float }[@@deriving (to_yojson, show, eq, ord);]
+
+  type t =
+    ZYZ of ZYZ.t[@@deriving (to_yojson, show, eq, ord);]
+
+  let norm_tol ~eps = function
+      ZYZ x -> ZYZ (ZYZ.norm_tol ~eps x)
+
+  let of_zyz x = ZYZ ZYZ.{z_0 = x.theta ; y_1 = x.phi ; z_2 = x.lambda }
+
+  let cmp_tol ~eps a b = match (a,b) with
+      (ZYZ a, ZYZ b) ->
+      ZYZ.cmp_tol ~eps a b
+    | _ -> false
 
 end
 

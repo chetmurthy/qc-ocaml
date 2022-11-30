@@ -8,8 +8,10 @@ Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
 
-let equal_f = Float.equal_tol ~eps:1e-4
-let compare_f = Float.compare_tol ~eps:1e-4
+let eps = 1e-4
+let equal_f = Float.equal_tol ~eps
+let compare_f = Float.compare_tol ~eps
+let printer_f f = Fmt.(str "%f" f)
 let cmp_quat q1 q2 = (V4.equal_f equal_f q1 q2) || (V4.equal_f equal_f q1 (V4.neg q2))
 let printer_quat q = Fmt.(str "%a" Quat.pp q)
 let cmp_m3 = M3.equal_f equal_f
@@ -187,6 +189,25 @@ let m3_tests = "m3 tests" >:::
 ]
 ;;
 
+let quat_to_zyz_tests = "quat -> zyz0 (OLD VERSION)" >:::
+  [
+    (* check that an M3 rotation and a Quaternion rotation achieve the same effect *)
+    "Quat->zyz0 (OLD VERSION)" >:: (fun _ ->
+      let open Angles in
+      let open ZYZ in
+      let cmp = ZYZ.cmp_tol ~eps in
+      let printer = ZYZ.show in
+      for i = 0 to 359 do
+        let msg = Fmt.(str "X %d degrees" i) in
+        let i = d2r (float_of_int i) in
+        let q = Quat.of_rotation X i in
+        assert_equal ~msg ~cmp ~printer {z_0=i; y_1=0.; z_2=0.} (Quat.to_zyz0 q)
+      done ;
+    )
+
+]
+;;
+
 
 let rnd_array = [| 0.5 ; 0.8 ; 0.9 ; -0.3 |]
 let quat_unnormalized = Quat.v rnd_array.(1) rnd_array.(2) rnd_array.(3) rnd_array.(0) 
@@ -299,7 +320,7 @@ let rec norm_angle a =
   else if compare_f twopi a <= 0 then norm_angle (a -. twopi)
   else a
   
-let cmp_zyz a b = Angles.ZYZ.cmp_tol ~eps:1e-4 a b
+let cmp_zyz a b = Angles.ZYZ.cmp_tol ~eps a b
 
 let printer_zyz = [%show: Angles.ZYZ.t]
 
