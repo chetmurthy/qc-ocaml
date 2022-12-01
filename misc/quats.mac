@@ -13,3 +13,13 @@ rotZ(theta):= matrix(
 		     [ sin(theta), cos(theta), 0 ],
 		     [ 0, 0, 1 ]
 ) ;
+
+U(theta,phi,lambda) :=
+ rotZ(phi + 3 * %pi) .
+ rotX(%pi/2) .
+ rotZ(theta + %pi) .
+ rotX(%pi/2) .
+ rotZ(lambda) ;
+
+U3_ZYZ(theta,phi,lambda) :=
+ rotZ(phi) . rotY(theta) . rotZ(lambda) ;
