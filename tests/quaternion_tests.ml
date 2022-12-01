@@ -224,7 +224,7 @@ let zyz_tests = "zyz tests" >:::
         let msg = Fmt.(str "Y %d degrees" i) in
         let i = d2r (float_of_int i) in
         let m = m3_rotation_matrix i Y in
-        let zyz = ZYZ.of_m3 ~eps m in
+        let zyz = ZYZ.of_m3_basic ~eps m in
         let m' = ZYZ.to_m3 zyz in
         assert_equal ~msg ~cmp ~printer m m'
       done ;

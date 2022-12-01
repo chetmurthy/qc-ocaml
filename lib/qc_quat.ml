@@ -128,6 +128,40 @@ module ZYZ = struct
       ; z_2 = 0.
       }
 
+  let of_m3_candidates ~eps m =
+    let open Gg in
+    let check_theta2 t2 = Float.equal_tol ~eps (M3.e22 m) (cos t2) in
+    let check_theta23 (t2,t3) =
+      Float.equal_tol ~eps (M3.e21 m) ((sin t2) *. (sin t3)) in
+    let check_theta123 (t1,t2,t3) =
+      Float.equal_tol ~eps (M3.e12 m) ((sin t1) *. (sin t2))
+      && check_theta23 (t2, t2) in
+
+    let theta2_cand = acos (M3.e22 m) in
+    let theta2_list = [theta2_cand ; 2. *. Float.pi -. theta2_cand] in
+    let theta23_list =
+      theta2_list
+      |> List.concat_map (fun theta2 ->
+             let sin_theta2 = sin theta2 in
+             let sin_theta3 = (M3.e21 m) /. sin_theta2 in
+             let theta3_cand = asin sin_theta3 in
+             [(theta2, theta3_cand); (theta2, Float.pi -. theta3_cand)]) in
+    let theta23_list = List.filter check_theta23 theta23_list in
+    let theta123_list =
+      theta23_list
+      |> List.concat_map (fun (theta2,theta3) ->
+             let sin_theta2 = sin theta2 in
+             let sin_theta1 = (M3.e12 m) /. sin_theta2 in
+             let theta1_cand = asin sin_theta1 in
+             [(theta1_cand, theta2, theta3);(Float.pi -. theta1_cand, theta2, theta3)]) in
+    let theta123_list = List.filter check_theta123 theta123_list in
+    theta123_list
+    |> List.map (fun (t1,t2,t3) ->
+           {z_0=t1; y_1=t2; z_2=t3})
+
+  let of_m3_basic ~eps m = List.hd (of_m3_candidates ~eps m)
+
+
   let to_quat {z_0=theta1; y_1=theta2; z_2=theta3} =
     let open EQ in
     { w = (cos (0.5 *. theta2)) *. (cos (0.5 *. (theta1 +. theta3)))
