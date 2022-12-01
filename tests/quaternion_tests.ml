@@ -456,9 +456,7 @@ if not !Sys.interactive then
         m3_tests
       ; zyz_tests
       ; simple_tests
-(*
       ; zyz_quat_tests
       ; compose_tests
- *)
     ])
 ;;
