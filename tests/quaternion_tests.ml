@@ -215,19 +215,39 @@ let zyz_tests = "zyz tests" >:::
       for i = -359 to 359 do
         let msg = Fmt.(str "Z %d degrees" i) in
         let i = d2r (float_of_int i) in
-        let m = m3_rotation_matrix i Z in
-        let zyz = ZYZ.of_m3 ~eps m in
-        let m' = ZYZ.to_m3 zyz in
+        let zyz = { z_0 = i ; y_1 = 0. ; z_2 = 0. } in
+        let m = ZYZ.to_m3 zyz in
+        let zyz' = ZYZ.of_m3 ~eps m in
+        let m' = ZYZ.to_m3 zyz' in
         assert_equal ~msg ~cmp ~printer m m'
       done ;
-      for i = -359 to 359 do
-        let msg = Fmt.(str "Y %d degrees" i) in
-        let i = d2r (float_of_int i) in
-        let m = m3_rotation_matrix i Y in
-        let zyz = ZYZ.of_m3_basic ~eps m in
-        let m' = ZYZ.to_m3 zyz in
+      for j = -359 to 359 do
+        let msg = Fmt.(str "Y %d degrees" j) in
+        let j = d2r (float_of_int j) in
+        let zyz = { z_0 = 0. ; y_1 = j ; z_2 = 0. } in
+        let m = ZYZ.to_m3 zyz in
+        let zyz' = ZYZ.of_m3 ~eps m in
+        let m' = ZYZ.to_m3 zyz' in
         assert_equal ~msg ~cmp ~printer m m'
       done ;
+      for i = -36 to 36 do
+        for j = -36 to 36 do
+          for k = -36 to 36 do
+            let i = i * 10 in
+            let j = j * 10 in
+            let k = k * 10 in
+            let msg = Fmt.(str "ZYZ (%d,%d,%d) degrees" i j k) in
+            let i = d2r (float_of_int i) in
+            let j = d2r (float_of_int j) in
+            let k = d2r (float_of_int k) in
+            let zyz = { z_0 = i ; y_1 = j ; z_2 = k } in
+            let m = ZYZ.to_m3 zyz in
+            let zyz' = ZYZ.of_m3 ~eps m in
+            let m' = ZYZ.to_m3 zyz' in
+            assert_equal ~msg ~cmp ~printer m m'
+          done
+        done
+      done
     )
 
 ]

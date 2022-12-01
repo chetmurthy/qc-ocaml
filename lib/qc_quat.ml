@@ -83,8 +83,8 @@ module ZYZ = struct
     let m02 = costheta1 *. sintheta2 in
     let m10 = sintheta1 *. costheta2 *. costheta3 +. costheta1 *. sintheta3 in
     let m11 = -. (sintheta1 *. costheta2 *. sintheta3) +. costheta1 *. costheta3 in
-    let m12 = -. (sintheta1 *. sintheta2) in
-    let m20 = sintheta2 *. costheta3 in
+    let m12 = sintheta1 *. sintheta2 in
+    let m20 = -. (sintheta2 *. costheta3) in
     let m21 = sintheta2 *. sintheta3 in
     let m22 = costheta2 in
     let open Gg in
@@ -93,7 +93,7 @@ module ZYZ = struct
       V3.(v m10 m11 m12)
       V3.(v m20 m21 m22)
 
-  let of_m3_busted m =
+  let of_m3_henderson ~eps m =
     let open Gg in
     let open EQ in
     let m23 = M3.e12 m in
@@ -106,7 +106,7 @@ module ZYZ = struct
     let theta3 = atan2 m32 (-. m31) in
     {z_0 = theta1 ; y_1 = theta2 ; z_2 = theta3}
 
-  let of_m3 ~eps m =
+  let of_m3_qiskit ~eps m =
     let open Gg in
     if Float.compare_tol ~eps (M3.e22 m) 1. < 0 then
       if Float.compare_tol ~eps (M3.e22 m) (-1.) > 0 then
@@ -128,17 +128,22 @@ module ZYZ = struct
       ; z_2 = 0.
       }
 
-  let of_m3_candidates ~eps m =
-    let open Gg in
-    let check_theta2 t2 = Float.equal_tol ~eps (M3.e22 m) (cos t2) in
-    let check_theta23 (t2,t3) =
-      Float.equal_tol ~eps (M3.e21 m) ((sin t2) *. (sin t3)) in
-    let check_theta123 (t1,t2,t3) =
+  open Gg
+  let equal_m3 ~eps m m' = M3.equal_f (Float.equal_tol ~eps) m m'
+    let check_theta2 ~eps m t2 = Float.equal_tol ~eps (M3.e22 m) (cos t2)
+    let check_theta23 ~eps m (t2,t3) =
+      Float.equal_tol ~eps (M3.e21 m) ((sin t2) *. (sin t3))
+    let check_theta123 ~eps m (t1,t2,t3) =
       Float.equal_tol ~eps (M3.e12 m) ((sin t1) *. (sin t2))
-      && check_theta23 (t2, t2) in
+      && check_theta23 ~eps m (t2, t3)
+    let check_zyz ~eps m zyz =
+      let m' = to_m3 zyz in
+      equal_m3 ~eps m m'
 
+  let of_m3_candidates ~eps m =
     let theta2_cand = acos (M3.e22 m) in
     let theta2_list = [theta2_cand ; 2. *. Float.pi -. theta2_cand] in
+    let theta2_list = List.filter (check_theta2 ~eps m) theta2_list in
     let theta23_list =
       theta2_list
       |> List.concat_map (fun theta2 ->
@@ -146,7 +151,7 @@ module ZYZ = struct
              let sin_theta3 = (M3.e21 m) /. sin_theta2 in
              let theta3_cand = asin sin_theta3 in
              [(theta2, theta3_cand); (theta2, Float.pi -. theta3_cand)]) in
-    let theta23_list = List.filter check_theta23 theta23_list in
+    let theta23_list = List.filter (check_theta23 ~eps m) theta23_list in
     let theta123_list =
       theta23_list
       |> List.concat_map (fun (theta2,theta3) ->
@@ -154,13 +159,17 @@ module ZYZ = struct
              let sin_theta1 = (M3.e12 m) /. sin_theta2 in
              let theta1_cand = asin sin_theta1 in
              [(theta1_cand, theta2, theta3);(Float.pi -. theta1_cand, theta2, theta3)]) in
-    let theta123_list = List.filter check_theta123 theta123_list in
-    theta123_list
-    |> List.map (fun (t1,t2,t3) ->
-           {z_0=t1; y_1=t2; z_2=t3})
+    let theta123_list = List.filter (check_theta123 ~eps m) theta123_list in
+    let zyz_list =
+      theta123_list
+      |> List.map (fun (t1,t2,t3) ->
+             {z_0=t1; y_1=t2; z_2=t3}) in
+    List.filter (check_zyz ~eps m) zyz_list
 
   let of_m3_basic ~eps m = List.hd (of_m3_candidates ~eps m)
 
+
+  let of_m3 = of_m3_qiskit
 
   let to_quat {z_0=theta1; y_1=theta2; z_2=theta3} =
     let open EQ in
