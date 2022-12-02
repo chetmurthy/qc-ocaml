@@ -55,6 +55,16 @@ module ExtendedQuat : EXTENDED_QUAT_SIG = struct
 end
 module EQ = ExtendedQuat
 
+module type EULER_ANGLE_SIG = sig
+  type t [@@deriving (to_yojson, show, eq, ord);]
+  val norm_tol : eps:float -> t -> t
+  val cmp_tol : eps:float -> t -> t -> bool
+  val to_m3 : t -> Gg.m3
+  val of_m3 : eps:float -> Gg.m3 -> t
+  val to_quat : t -> EQ.t
+  val of_quat : eps:float -> EQ.t -> t
+end
+
 module ZYZ = struct
   type t = { z_0 : float ; y_1 : float ; z_2 : float }[@@deriving (to_yojson, show, eq, ord);]
   let norm_tol ~eps x =
@@ -93,83 +103,26 @@ module ZYZ = struct
       V3.(v m10 m11 m12)
       V3.(v m20 m21 m22)
 
-  let of_m3_henderson ~eps m =
+  let of_m3_basic ~eps m =
     let open Gg in
-    let open EQ in
-    let m23 = M3.e12 m in
-    let m13 = M3.e02 m in
-    let m33 = M3.e22 m in
-    let m32 = M3.e21 m in
-    let m31 = M3.e20 m in
-    let theta1 = atan2 m23 m13 in
-    let theta2 = atan2 (sqrt (1. -. (sqr m33))) m33 in
-    let theta3 = atan2 m32 (-. m31) in
-    {z_0 = theta1 ; y_1 = theta2 ; z_2 = theta3}
-
-  let of_m3_qiskit ~eps m =
-    let open Gg in
-    if Float.compare_tol ~eps (M3.e22 m) 1. < 0 then
-      if Float.compare_tol ~eps (M3.e22 m) (-1.) > 0 then
-        {
-          z_0 = Float.atan2 (M3.e12 m) (M3.e02 m)
-        ; y_1 = Float.acos (M3.e22 m)
-        ; z_2 = Float.atan2 (M3.e21 m) (-. (M3.e20 m))
-        }
-      else
-        {
-          z_0 = -. (Float.atan2 (M3.e10 m) (M3.e11 m))
-        ; y_1 = Float.pi
-        ; z_2 = 0.
-        }
-    else
+    if Float.equal_tol ~eps (M3.e22 m) 1. then
       {
         z_0 = Float.atan2 (M3.e10 m) (M3.e11 m)
       ; y_1 = 0.
       ; z_2 = 0.
       }
-
-  open Gg
-  let equal_m3 ~eps m m' = M3.equal_f (Float.equal_tol ~eps) m m'
-    let check_theta2 ~eps m t2 = Float.equal_tol ~eps (M3.e22 m) (cos t2)
-    let check_theta23 ~eps m (t2,t3) =
-      Float.equal_tol ~eps (M3.e21 m) ((sin t2) *. (sin t3))
-    let check_theta123 ~eps m (t1,t2,t3) =
-      Float.equal_tol ~eps (M3.e12 m) ((sin t1) *. (sin t2))
-      && check_theta23 ~eps m (t2, t3)
-    let check_zyz ~eps m zyz =
-      let m' = to_m3 zyz in
-      equal_m3 ~eps m m'
-
-  let of_m3_candidates ~eps m =
-    let theta2_cand = acos (M3.e22 m) in
-    let theta2_list = [theta2_cand ; 2. *. Float.pi -. theta2_cand] in
-    let theta2_list = List.filter (check_theta2 ~eps m) theta2_list in
-    let theta23_list =
-      theta2_list
-      |> List.concat_map (fun theta2 ->
-             let sin_theta2 = sin theta2 in
-             let sin_theta3 = (M3.e21 m) /. sin_theta2 in
-             let theta3_cand = asin sin_theta3 in
-             [(theta2, theta3_cand); (theta2, Float.pi -. theta3_cand)]) in
-    let theta23_list = List.filter (check_theta23 ~eps m) theta23_list in
-    let theta123_list =
-      theta23_list
-      |> List.concat_map (fun (theta2,theta3) ->
-             let sin_theta2 = sin theta2 in
-             let sin_theta1 = (M3.e12 m) /. sin_theta2 in
-             let theta1_cand = asin sin_theta1 in
-             [(theta1_cand, theta2, theta3);(Float.pi -. theta1_cand, theta2, theta3)]) in
-    let theta123_list = List.filter (check_theta123 ~eps m) theta123_list in
-    let zyz_list =
-      theta123_list
-      |> List.map (fun (t1,t2,t3) ->
-             {z_0=t1; y_1=t2; z_2=t3}) in
-    List.filter (check_zyz ~eps m) zyz_list
-
-  let of_m3_basic ~eps m = List.hd (of_m3_candidates ~eps m)
-
-
-  let of_m3 = of_m3_qiskit
+    else if Float.equal_tol ~eps (M3.e22 m) (-. 1.) then
+      {
+        z_0 = -. (Float.atan2 (M3.e10 m) (M3.e11 m))
+      ; y_1 = Float.pi
+      ; z_2 = 0.
+      }
+    else
+      {
+        z_0 = Float.atan2 (M3.e12 m) (M3.e02 m)
+      ; y_1 = Float.acos (M3.e22 m)
+      ; z_2 = Float.atan2 (M3.e21 m) (-. (M3.e20 m))
+      }
 
   let to_quat {z_0=theta1; y_1=theta2; z_2=theta3} =
     let open EQ in
@@ -179,31 +132,17 @@ module ZYZ = struct
     ; z = (cos (0.5 *. theta2)) *. (sin (0.5 *. (theta1 +. theta3)))
     } |> of_explicit
 
+  let of_m3 = of_m3_basic
+
   let of_quat ~eps q =
     let open Gg in
     let m = EQ.to_m3 q in
     of_m3 ~eps m
 
 
-(**
-
-if (EulerOrder=='zyz') { 
-EA <- cbind(atan2((2*(Q[,3]*Q[,4] - Q[,1]*Q[,2])),(2*(Q[,2]*Q[,4] + Q[,1]*Q[,3]))), atan2(sqrt(1-(Q[,1]^2 - Q[,2]^2 - Q[,3]^2 + Q[,4]^2)^2),(Q[,1]^2 - Q[,2]^2 - Q[,3]^2 + Q[,4]^2)),atan2((2*(Q[,3]*Q[,4] + Q[,1]*Q[,2])),-(2*(Q[,2]*Q[,4] - Q[,1]*Q[,3]))))
-}
-
-
- *)
-
-let of_quat_from_r q =
-  let q = EQ.to_explicit q in
-  
-  let z_0 = atan2 (2. *. (q.y *. q.z -. q.w *. q.x)) (2. *. (q.x *. q.z +. q.w *. q.y)) in
-  let y_1 = atan2 (sqrt(1. -. (sqr ((sqr q.w) -. (sqr q.x) -. (sqr q.y) +. (sqr q.z))))) ((sqr q.w) -. (sqr q.x) -. (sqr q.y) +. (sqr q.z)) in
-  let z_2 = atan2(2. *. (q.y *. q.z +. q.w *. q.x)) (-. (2. *. (q.x *. q.z -. q.w *. q.y))) in
-  {z_0 ; y_1 ; z_2}
-
-
 end
+
+module _ : (EULER_ANGLE_SIG with type t = ZYZ.t) = ZYZ
 
 module Euler = struct
 
