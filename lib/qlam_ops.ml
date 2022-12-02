@@ -2821,15 +2821,15 @@ value fuse_1q_pair upstream_b downstream_b =
       ] in
 
   let _ = assert (QV.equal downstream_arg upstream_bound) in
-  let upstream_q = Quat.(of_euler [Z;Y;Z] [theta1; phi1; lambda1]) in
-  let downstream_q = Quat.(of_euler [Z;Y;Z] [theta2; phi2; lambda2]) in
+  let upstream_q = ZYZ.(to_quat {z_0=phi1; y_1=theta1; z_2=lambda1}) in
+  let downstream_q = ZYZ.(to_quat {z_0=phi2; y_1=theta2; z_2=lambda2}) in
   (*
    * -> gate1 -> gate2 -> ....
    *
    * turns into GATE2 * GATE1 * ....
    *)
   let fused_q = Quat.mul downstream_q upstream_q in
-  let ZYZ.{z_0 = theta; y_1 = phi; z_2 = lambda} = ZYZ.of_quat ~eps:1e-10 fused_q in
+  let ZYZ.{z_0 = phi; y_1 = theta; z_2 = lambda} = ZYZ.of_quat ~{eps=1e-10} fused_q in
   let loc = qbinding_loc downstream_b in
   let theta = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string theta)))) in
   let phi = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string phi)))) in

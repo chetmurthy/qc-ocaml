@@ -160,6 +160,13 @@ module Euler = struct
       (ZYZ a, ZYZ b) ->
       ZYZ.cmp_tol ~eps a b
     | _ -> false
+
+  let to_m3 = function
+      ZYZ zyz -> ZYZ.to_m3 zyz
+
+  let to_quat = function
+      ZYZ zyz -> ZYZ.to_quat zyz
+
 end
 
 module Quat = struct
@@ -181,7 +188,7 @@ module Quat = struct
   let of_rotations pairs =
       let q = List.fold_left (fun q (rot, ang) -> Q.mul q (of_rotation rot ang)) Q.id pairs in
       Q.unit q
-
+(*
   let of_euler rots angles =
       assert (List.length rots = List.length angles) ;
       let pairs = Std.combine rots angles in
@@ -192,7 +199,7 @@ module Quat = struct
 
   let of_angles = function
       Euler.ZYZ a -> of_zyz a
-
+ *)
   include ExtendedQuat
 
   let oper q x =

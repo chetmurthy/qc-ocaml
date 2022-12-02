@@ -1,6 +1,7 @@
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 
 open OUnit2
+open Pa_ppx_utils
 open Gg
 open Qc_quat
 
@@ -264,7 +265,7 @@ let mat1 =
     (M3.mul
        (m3_rotation_matrix rnd.(1) axes.(idx.(1)))
        (m3_rotation_matrix rnd.(2) axes.(idx.(2))))
-let quat = Quat.of_euler [X;Z;Y] (Array.to_list rnd)
+let quat = Quat.(of_rotations (Std.combine [X;Z;Y] (Array.to_list rnd)))
 let mat2 = Quat.to_m3 quat
 
 let simple_tests = "simple tests" >:::
@@ -356,7 +357,7 @@ let zyz_to_quat_test (zyz, explicit_q) =
   let name = "zyz->quat:"^(show_explicit_t explicit_q) in
   [name >:: (fun _ ->
     assert_equal ~msg:name ~cmp:cmp_quat ~printer:printer_quat
-       expected_q (Quat.of_zyz zyz))]
+       expected_q (ZYZ.to_quat zyz))]
 
 let twopi = 2. *. Float.pi
 let rec norm_angle a =
@@ -418,7 +419,7 @@ let compose_zyz_test (zyz1, zyz2, expected_zyz) =
   let name = "compose-zyz:"^(printer_zyz zyz1)^"*"^(printer_zyz zyz2) in
   [name >:: (fun _ ->
     assert_equal ~msg:name ~cmp:cmp_zyz ~printer:printer_zyz
-       expected_zyz (ZYZ.of_quat ~eps (Quat.mul (Quat.of_zyz zyz1) (Quat.of_zyz zyz2))))]
+       expected_zyz (ZYZ.of_quat ~eps (Quat.mul (ZYZ.to_quat zyz1) (ZYZ.to_quat zyz2))))]
 
 
 let compose_tests = "compose zyz tests" >:::
