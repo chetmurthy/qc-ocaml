@@ -231,12 +231,13 @@ let zyz_tests = "zyz tests" >:::
         let m' = ZYZ.to_m3 zyz' in
         assert_equal ~msg ~cmp ~printer m m'
       done ;
-      for i = -36 to 36 do
-        for j = -36 to 36 do
-          for k = -36 to 36 do
-            let i = i * 10 in
-            let j = j * 10 in
-            let k = k * 10 in
+      let n = (180/45) in
+      for i = -n to n do
+        for j = -n to n do
+          for k = -n to n do
+            let i = i * 45 in
+            let j = j * 45 in
+            let k = k * 45 in
             let msg = Fmt.(str "ZYZ (%d,%d,%d) degrees" i j k) in
             let i = d2r (float_of_int i) in
             let j = d2r (float_of_int j) in
