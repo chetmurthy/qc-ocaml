@@ -249,6 +249,20 @@ let x = cx u v and y = cx v u in (x,y)
 let x = cx v u and y = cx u v in (x,y)
 |},
           false)
+       ; ("bad", {|
+let q0 = qubit #0 () in
+let q1 = U (0., 0., 0.) q0 in
+(q1)
+|}, {|
+let q144 = qubit #0 () in
+let q145 = id q144 in
+(q145)
+|}, false)
+       ; ("bad1", {|
+U (0., 0., 0.) q0
+|}, {|
+id q0
+|}, false)
      ]
   )
 )
@@ -1051,6 +1065,50 @@ ccx q[0], q[1], q[2] ;
 ]
 ;;
 
+let optimize_1q_test_ok ?(basis=["U";"CX";"cx"]) (name, input_qasm, expect_qlam) =
+  name >:: (fun _ ->
+    let cmp = Ops.AlphaEq.qcircuit in
+    let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
+    let p0 = parse_tolam input_qasm in
+    let (genv0, p1) = Ops.Standard.program ~env0 p0 in
+    let p2 = Ops.Unroll.program ~except:(basis |> List.map SYN.QG.of_string) p1 in
+    let (genv, p3) = Ops.Standard.program ~env0 p2 in
+    let ((_, qc) as p4) = Ops.Optimize1q.program genv0 ~env0 p3 in
+    let expected_qc = Qlam.Circ.of_string expect_qlam in
+    assert_equal ~printer ~cmp expected_qc qc
+  )
+;;
+
+let optimize_1q_tests = "optimize 1q tests" >:::
+[
+  optimize_1q_test_ok("H-H",
+{|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[1];
+h q[0] ;
+h q[0] ;
+|},
+{|
+let q0 = qubit #0 () in
+let q1 = U (0., -1.22464679915e-16, 0.) q0 in
+(q1)
+|})
+; optimize_1q_test_ok ~basis:["U";"CX";"cx";"id"]("id",
+{|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[1];
+id q[0] ;
+|},
+{|
+let q0 = qubit #0 () in
+let q1 = id q0 in
+(q1)
+|})
+]
+;;
+
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime.Exceptions.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
@@ -1070,6 +1128,7 @@ if not !Sys.interactive then
       ; check_layout_tests
       ; hoist_tests
       ; unroll_tests
+      ; optimize_1q_tests
       ; basic_swap_tests
       ; sabre_swap_tests
     ])

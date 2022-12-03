@@ -294,8 +294,11 @@ and alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
     && (List.for_all2 (fun cv1 cv2 -> check_cv_corr loc cv_lr cv_rl cv1 cv2) cvl1 cvl2)
 
-  | (QGATEAPP loc _ _ qvl1 cvl1, QGATEAPP _ _ _ qvl2 cvl2) ->
-     (List.length qvl1 = List.length qvl2)
+  | (QGATEAPP loc gn1 pel1 qvl1 cvl1, QGATEAPP _ gn2 pel2 qvl2 cvl2) ->
+     QG.equal gn1 gn2
+     && (List.length pel1 = List.length pel2)
+     && List.for_all2 PE.equal pel1 pel2
+     && (List.length qvl1 = List.length qvl2)
      && (List.length cvl1 = List.length cvl2)
     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
     && (List.for_all2 (fun cv1 cv2 -> check_cv_corr loc cv_lr cv_rl cv1 cv2) cvl1 cvl2)
@@ -2831,9 +2834,9 @@ value fuse_1q_pair upstream_b downstream_b =
   let fused_q = Quat.mul downstream_q upstream_q in
   let ZYZ.{z_0 = phi; y_1 = theta; z_2 = lambda} = ZYZ.of_quat ~{eps=1e-10} fused_q in
   let loc = qbinding_loc downstream_b in
-  let theta = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string theta)))) in
-  let phi = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string phi)))) in
-  let lambda = SYN.(CONST loc (REAL (RealNumeral.mk (Float.to_string lambda)))) in
+  let theta = Qlam_parser.param_of_string (Float.to_string theta) in
+  let phi = Qlam_parser.param_of_string (Float.to_string phi) in
+  let lambda = Qlam_parser.param_of_string (Float.to_string lambda) in
   (loc, [downstream_bound], [],
    QGATEAPP loc (SYN.U loc) [theta;phi;lambda] [upstream_arg] [])
 ;

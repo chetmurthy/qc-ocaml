@@ -125,35 +125,40 @@ open Qclatex_tests ;;
 open Quaternion_tests ;;
 
 
-let cmp (qc1, (qvs1,cvs1)) (qc2, (qvs2, cvs2)) =
-  let open SYN in
-  Ops.AlphaEq.qcircuit qc1 qc2
-  && QVSet.equal qvs1 qvs2
-  && CVSet.equal cvs1 cvs2
-;;
-let printer (qc, (qvs, cvs)) =
-  let open SYN in
-  Fmt.(str "(%a, [%a, %a])" Qlam.Circ.pp_hum qc QVSet.pp_hum qvs CVSet.pp_hum cvs)
+
+let optimize_1q_test_ok ?(basis=["U";"CX";"cx"]) (name, input_qasm, expect_qlam) =
+    let cmp = Ops.AlphaEq.qcircuit in
+    let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
+    let p0 = parse_tolam input_qasm in
+    let (genv0, p1) = Ops.Standard.program ~env0 p0 in
+    let p2 = Ops.Unroll.program ~except:(basis |> List.map SYN.QG.of_string) p1 in
+    let (genv, p3) = Ops.Standard.program ~env0 p2 in
+    let ((_, qc) as p4) = Ops.Optimize1q.program genv0 ~env0 p3 in
+    let expected_qc = Qlam.Circ.of_string expect_qlam in
+    assert_equal ~printer ~cmp expected_qc qc
 ;;
 
+let pp_unroll_env m = Fmt.(pf stdout "<:unroll_env< %a >>" (SYN.QGMap.pp_hum PP.qgatelam) m) ;; 
+#install_printer pp_unroll_env ;;
+(*
+#trace Ops.AlphaEq.alpharec ;;
+ *)
+#trace Ops.AlphaEq.qcircuit ;;
+#trace SYN.PE.equal ;;
 
-let p0 = parse_tolam {|
+optimize_1q_test_ok("H-H",
+{|
 OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];
 h q[0] ;
 h q[0] ;
-|} ;;
-let (genv0, p1) = Ops.Standard.program ~env0 p0 ;;
-let p2 = Ops.Unroll.program ~except:(["U";"CX";"cx"] |> List.map SYN.QG.of_string) p1 ;;
-let (genv, p3) = Ops.Standard.program ~env0 p2 ;;
-(*
-let env_pp env = Fmt.(pf stdout "%a" Ops.Optimize1q.env_pp_hum env) ;;
-#install_printer env_pp ;;
-#trace Ops.Optimize1q.optimize_1q ;;
-#trace Ops.Optimize1q.fuse_1q_pair ;;
- *)
-let p4 = Ops.Optimize1q.program genv0 ~env0 p3 ;;
+|},
+{|
+let q0 = qubit #0 () in
+let q1 = U (0., -1.22464679915e-16, 0.) q0 in
+(q1)
+|}) ;;
 
 (* Local Variables: *)
 (* mode: tuareg *)

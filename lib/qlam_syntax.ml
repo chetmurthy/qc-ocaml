@@ -411,6 +411,13 @@ and qbinding pps = fun [
     Fmt.(pf pps "%a = %a" paren_qvars_cvars (qvl,cvl) qcirc qc)
 ] ;
 
+value qgatelam pps ((pvl, qvl, cvl), qc) =
+    Fmt.(pf pps "@[<v>[(%a) %a]@ @[<v 2>%a@]@]@,"
+           (list ~{sep=(const string ", ")} PV.pp_hum) pvl
+           qvars_cvars (qvl, cvl)
+           qcirc qc)
+;
+
 value gate_item pps = fun [
     DEF _ gname ((pvl, qvl, cvl), qc) ->
     Fmt.(pf pps "@[<v>gate %a (%a) %a =@ @[<v 2>%a@]@]@,;"
