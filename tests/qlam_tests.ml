@@ -1228,7 +1228,36 @@ let (q : cr) = measure q in
 let (qr1 : cr0) = measure qr1 in
 (q, qr1 : cr, cr0)
 |})
-; 
+; optimize_1q_test_ok("collapse_identity_equivalent_phase_gate (BUT THIS IS RZ, not P)",
+{|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg qr[2];
+creg cr[2];
+h qr[0];
+cx qr[1],qr[0];
+rz(2*pi) qr[0];
+cx qr[1],qr[0];
+rz(pi/2) qr[0];
+rz(pi) qr[0];
+rz(pi/2) qr[0];
+cx qr[1],qr[0];
+rz(pi) qr[1];
+rz(pi) qr[1];
+measure qr[0] -> cr[0];
+measure qr[1] -> cr[1];
+|},
+{|
+let qr0 = qubit #0 () in
+let qr1 = qubit #1 () in
+let q = U (pi / 2, 0, pi) qr0 in
+let (qr1, q) = cx qr1 q in
+let (qr1, q) = cx qr1 q in
+let (qr1, q) = cx qr1 q in
+let (q : cr) = measure q in
+let (qr1 : cr0) = measure qr1 in
+(q, qr1 : cr, cr0)
+|})
 ]
 ;;
 
