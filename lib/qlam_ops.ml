@@ -257,13 +257,19 @@ value check_cv_corr loc lr rl v1 v2 =
   with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" CV.pp_hum v1 CV.pp_hum v2)
 ;
 
-value rec letbindings (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 =
-  let bl2 = permute_bl (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) in
+value pe_eval_equal ~{eps} pe1 pe2 =
+  let f1 = PE.eval PVMap.empty pe1 in
+  let f2 = PE.eval PVMap.empty pe2 in
+  Gg.Float.equal_tol ~{eps=eps} f1 f2
+;
+
+value rec letbindings ~{eps} (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 =
+  let bl2 = permute_bl ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) in
   if (List.length bl1 = List.length bl2)
      && (List.for_all2 (fun (_, qvl1, cvl1, qc1) (_, qvl2, cvl2, qc2) ->
              (List.length qvl1 = List.length qvl2)
              && (List.length cvl1 = List.length cvl2)
-             && alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
+             && alpharec ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
            bl1 bl2) then
     let (qv_lr, qv_rl, cv_lr, cv_rl) =
         List.fold_left2 (fun (qv_lr, qv_rl, cv_lr, cv_rl)
@@ -277,15 +283,15 @@ value rec letbindings (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 =
     Some (qv_lr, qv_rl, cv_lr, cv_rl)
   else None
 
-and letlist1_opt maps_opt (_, bl1) (_, bl2) =
-  match maps_opt with [ None -> None | Some maps -> letbindings maps bl1 bl2 ]
+and letlist1_opt ~{eps} maps_opt (_, bl1) (_, bl2) =
+  match maps_opt with [ None -> None | Some maps -> letbindings ~{eps=eps} maps bl1 bl2 ]
 
-and alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
+and alpharec ~{eps} (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
     (QLET _ bl1 qc1, QLET _ bl2 qc2) ->
-    match letbindings (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 with [
+    match letbindings ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 with [
         None -> False
       | Some (qv_lr, qv_rl, cv_lr, cv_rl) ->
-         alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2)
+         alpharec ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2)
       ]
 
   | (QWIRES loc qvl1 cvl1, QWIRES _ qvl2 cvl2) ->
@@ -297,7 +303,7 @@ and alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
   | (QGATEAPP loc gn1 pel1 qvl1 cvl1, QGATEAPP _ gn2 pel2 qvl2 cvl2) ->
      QG.equal gn1 gn2
      && (List.length pel1 = List.length pel2)
-     && List.for_all2 PE.equal pel1 pel2
+     && List.for_all2 (pe_eval_equal ~{eps=eps}) pel1 pel2
      && (List.length qvl1 = List.length qvl2)
      && (List.length cvl1 = List.length cvl2)
     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
@@ -320,12 +326,12 @@ and alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
     
   | _ -> False
   ]
-  and permute_bl (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) =
+  and permute_bl ~{eps} (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) =
     let rec permrec bl1 bl2 = match bl1 with [
           [] -> bl2
         | [b1 :: bl1] ->
            let (matching_b2, rest_bl2) =
-             filter_split (fun b2 -> alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qbinding_qc b1,  qbinding_qc b2)) bl2 in
+             filter_split (fun b2 -> alpharec ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) (qbinding_qc b1,  qbinding_qc b2)) bl2 in
            match matching_b2 with [
                ([] | [_; _ ::_]) -> bl2
              | [b2] -> [b2 :: permrec bl1 rest_bl2]
@@ -333,16 +339,16 @@ and alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
         ]
     in permrec bl1 bl2 
 
-and qcircuit qc1 qc2 =
+and qcircuit ~{eps} qc1 qc2 =
   let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
   let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
   QVSet.equal qvfvs1 qvfvs2
   && CVSet.equal cvfvs1 cvfvs2
   && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVSet.toList qvfvs1) in
       let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVSet.toList cvfvs1) in
-      alpharec (qvmap, qvmap, cvmap, cvmap) (qc1, qc2))
+      alpharec ~{eps=eps} (qvmap, qvmap, cvmap, cvmap) (qc1, qc2))
 
-and top_qcircuit qc1 qc2 =
+and top_qcircuit ~{eps} qc1 qc2 =
   let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
   let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
   QVSet.equal qvfvs1 qvfvs2
@@ -352,10 +358,11 @@ and top_qcircuit qc1 qc2 =
       let (ll1, qc1) = SYN.to_letlist qc1 in
       let (ll2, qc2) = SYN.to_letlist qc2 in
       List.length ll1 = List.length ll2
-      && (match List.fold_left2 letlist1_opt (Some (qvmap, qvmap, cvmap, cvmap)) ll1 ll2 with [
-              Some maps -> top_qc maps qc1 qc2
+      && (match List.fold_left2 (letlist1_opt ~{eps=eps}) (Some (qvmap, qvmap, cvmap, cvmap)) ll1 ll2 with [
+              Some maps -> top_qc ~{eps=eps} maps qc1 qc2
             | None -> False ]))
-and top_qc (qv_lr, qv_rl, cv_lr, cv_rl) qc1 qc2 =
+
+and top_qc ~{eps} (qv_lr, qv_rl, cv_lr, cv_rl) qc1 qc2 =
   match (qc1, qc2) with [
       (QWIRES _ qvl1 cvl1, QWIRES _ qvl2 cvl2) ->
       List.length qvl1 = List.length qvl2

@@ -14,6 +14,8 @@ module Ops = Qlam_ops
 open Test_helpers
 
 
+let eps = 1e-4
+
 let id_tests = "ID tests" >:::
 let printer x = Fmt.(str "<:id<%a>>" ID.pp x) in
 [
@@ -215,7 +217,7 @@ let alpha_equality (name, txt1, txt2, expect) =
   name >:: (fun ctxt ->
     let (env, qc1) = txt1 |> Qlam.Prog.of_string in
     let (env, qc2) = txt2 |> Qlam.Prog.of_string in
-    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit qc1 qc2 in
+    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit ~eps qc1 qc2 in
     let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     if expect then
       assert_equal ~msg:"not alpha-equal" ~printer ~cmp qc1 qc2
@@ -340,7 +342,7 @@ let q0 = h q in
 
 let anorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit qc1 qc2 in
+    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit ~eps qc1 qc2 in
     let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
@@ -417,7 +419,7 @@ gate rzz(theta) a b =
 
 let nnorm_qcirc (name, txt, expect) = 
   name >:: (fun ctxt ->
-    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit qc1 qc2 in
+    let cmp qc1 qc2 = Ops.AlphaEq.qcircuit ~eps qc1 qc2 in
     let printer qc = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let (env, qc) = txt |> Qlam.Prog.of_string in
     match expect with
@@ -556,7 +558,7 @@ let q145 = qubit #0 () in
 
 let cmp (qc1, (qvs1,cvs1)) (qc2, (qvs2, cvs2)) =
   let open SYN in
-  Ops.AlphaEq.qcircuit qc1 qc2
+  Ops.AlphaEq.qcircuit ~eps qc1 qc2
   && QVSet.equal qvs1 qvs2
   && CVSet.equal cvs1 cvs2
 ;;
@@ -692,14 +694,14 @@ cx q[0],q[4];
     begin
       let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
       let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
-      let cmp = Ops.AlphaEq.qcircuit in
+      let cmp = Ops.AlphaEq.qcircuit ~eps in
       let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum qc) in
       assert_equal ~msg:"basic swap failed" ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p1))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
     end ;
     begin
       let p2 = Ops.SabreSwap.sabre_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
       let _ = Ops.CheckLayout.check_layout genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p2 in
-      let cmp = Ops.AlphaEq.qcircuit in
+      let cmp = Ops.AlphaEq.qcircuit ~eps in
       let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum qc) in
       assert_equal ~msg:"sabre swap failed" ~cmp ~printer (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p1))) (Ops.Lower.qcircuit (Ops.Hoist.hoist (snd p2)))
     end
@@ -720,7 +722,7 @@ cx q[1],q[3];
     let (genv0, p1) = Ops.Standard.program ~env0:env0 p0 in
     let cm = GEnv.find_mach genv0 (ID.mk"ring5") in
     let l = Ops.NaiveLayout.mk 5 in
-    let cmp = Ops.AlphaEq.top_qcircuit in
+    let cmp = Ops.AlphaEq.top_qcircuit ~eps in
     let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
     begin
       let p2 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p1 in
@@ -784,7 +786,7 @@ measure q[1] -> c[0] ;
     let (genv, p3) = Ops.Standard.program ~env0 p2 in
     let cm = Ops.CM.mkFromEdges [(0, 2); (2, 0); (1, 2); (2, 1)] in
     let l = Ops.NaiveLayout.mk 3 in
-    let cmp = Ops.AlphaEq.top_qcircuit in
+    let cmp = Ops.AlphaEq.top_qcircuit ~eps in
     let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
     begin
       let p4 = Ops.BasicSwap.basic_swap genv0 ~env0 ~coupling_map:cm ~layout:(Ops.LO.mk l) p3 in
@@ -1039,7 +1041,7 @@ ccx q[0], q[1], q[2] ;
     let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let expected = parse_tolam ccx_expansion in
     let (genv0, expected1) = Ops.Standard.program ~env0 expected in
-    let cmp = Ops.AlphaEq.qcircuit in
+    let cmp = Ops.AlphaEq.qcircuit ~eps in
     let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
     assert_equal ~cmp ~printer qc (snd expected1)
   )
@@ -1058,7 +1060,7 @@ ccx q[0], q[1], q[2] ;
     let got = Fmt.(str "%a" Qlam.Circ.pp_hum qc) in
     let expected = parse_tolam ccx_expansion in
     let (genv0, expected1) = Ops.Standard.program ~env0 expected in
-    let cmp = Ops.AlphaEq.qcircuit in
+    let cmp = Ops.AlphaEq.qcircuit ~eps in
     let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
     assert_equal ~cmp ~printer qc (snd expected1)
   )
@@ -1067,7 +1069,7 @@ ccx q[0], q[1], q[2] ;
 
 let optimize_1q_test_ok ?(basis=["U";"CX";"cx"]) (name, input_qasm, expect_qlam) =
   name >:: (fun _ ->
-    let cmp = Ops.AlphaEq.qcircuit in
+    let cmp = Ops.AlphaEq.qcircuit ~eps in
     let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
     let p0 = parse_tolam input_qasm in
     let (genv0, p1) = Ops.Standard.program ~env0 p0 in
@@ -1091,7 +1093,7 @@ h q[0] ;
 |},
 {|
 let q0 = qubit #0 () in
-let q1 = U (0., -1.22464679915e-16, 0.) q0 in
+let q1 = U (0., 0, 0.) q0 in
 (q1)
 |})
 ; optimize_1q_test_ok ~basis:["U";"CX";"cx";"id"]("id",
@@ -1106,6 +1108,21 @@ let q0 = qubit #0 () in
 let q1 = id q0 in
 (q1)
 |})
+; optimize_1q_test_ok("H-H-H",
+{|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[1];
+h q[0] ;
+h q[0] ;
+h q[0] ;
+|},
+{|
+let q0 = qubit #0 () in
+let q1 = U (pi/2, 0., pi) q0 in
+(q1)
+|})
+; 
 ]
 ;;
 
