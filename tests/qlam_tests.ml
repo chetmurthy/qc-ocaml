@@ -1258,6 +1258,21 @@ let (q : cr) = measure q in
 let (qr1 : cr0) = measure qr1 in
 (q, qr1 : cr, cr0)
 |})
+; optimize_1q_test_ok ~add_basis:["h"] ("test_in_the_back",
+{|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg qr[1];
+rz(0.3) qr[0] ;
+rz(0.4) qr[0] ;
+h qr[0] ;
+|},
+{|
+let qr0 = qubit #0 () in
+let q = U (0., 0.7, 0.) qr0 in
+let q = h q in
+(q)
+|})
 ]
 ;;
 
