@@ -179,9 +179,26 @@ value rebind_qvl ~{rhs} (fv_qvs, ren_qv) qvl =
   let qvl = List.rev rev_qvl in
   (qvl, fv_qvs, ren_qv) ;
 
-value qcircuit qc =
+
+value rebind_cv (rev_cvs, (fv_cvs, ren_cv)) cv =
+        let fresh_cv = CVSet.fresh fv_cvs cv in
+        let fv_cvs = CVSet.add fv_cvs fresh_cv in
+        let ren_cv = 
+          if equal_cvar_t cv fresh_cv then ren_cv
+          else CVMap.add cv fresh_cv ren_cv in
+        ([fresh_cv :: rev_cvs], (fv_cvs, ren_cv)) 
+;
+value rebind_cvl (fv_cvs, ren_cv) cvl =
+        let (rev_cvl, (fv_cvs, ren_cv)) =
+          List.fold_left rebind_cv ([], (fv_cvs, ren_cv)) cvl in
+        let cvl = List.rev rev_cvl in
+        (cvl, fv_cvs, ren_cv) 
+;
+
+value rec qcircuit qc =
   let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
-  let rec lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc =
+  lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
+and lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc =
     let rename_qv qv =
       match QVMap.find qv ren_qv with [
           exception Not_found -> qv
@@ -195,20 +212,6 @@ value qcircuit qc =
     match qc with [
       QLET loc bl qc ->
       let bl = bl |> List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc)) in
-
-      let rebind_cv (rev_cvs, (fv_cvs, ren_cv)) cv =
-        let fresh_cv = CVSet.fresh fv_cvs cv in
-        let fv_cvs = CVSet.add fv_cvs fresh_cv in
-        let ren_cv = 
-          if equal_cvar_t cv fresh_cv then ren_cv
-          else CVMap.add cv fresh_cv ren_cv in
-        ([fresh_cv :: rev_cvs], (fv_cvs, ren_cv)) in
-
-      let rebind_cvl (fv_cvs, ren_cv) cvl =
-        let (rev_cvl, (fv_cvs, ren_cv)) =
-          List.fold_left rebind_cv ([], (fv_cvs, ren_cv)) cvl in
-        let qvl = List.rev rev_cvl in
-        (cvl, fv_cvs, ren_cv) in
       
       let (rev_bl,(fv_qvs, fv_cvs, ren_qv, ren_cv)) =
         List.fold_left (fun (rev_bl, (fv_qvs, fv_cvs, ren_qv, ren_cv)) (loc, qvl, cvl, qc) ->
@@ -229,8 +232,7 @@ value qcircuit qc =
     | QDISCARD loc qv -> QDISCARD loc (rename_qv qv)
     | QMEASURE loc qv -> QMEASURE loc (rename_qv qv)
     | QRESET loc qv -> QRESET loc (rename_qv qv)
-    ] in
-  lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
+    ]
 ;
 
 value program (environ, qc) =
@@ -2802,15 +2804,15 @@ open Qc_quat ;
 type oneq_binding_t = {
     removed : mutable bool
   ; it : SYN.qbinding_t
-  } ;
+  } [@@deriving (to_yojson, show, eq, ord);] ;
 
 value pp_hum pps b =
   Fmt.(pf pps "{it=%a; removed=%b}" PP.qbinding b.it b.removed)
 ;
 
-value env_pp_hum pps env = QVMap.pp_hum pp_hum pps env ;
+value pp_hum_env_t pps env = QVMap.pp_hum pp_hum pps env ;
 
-value fuse_1q_pair upstream_b downstream_b =
+value fuse_uu_pair ~{eps} upstream_b downstream_b =
   let ((theta1,phi1,lambda1), (upstream_bound, upstream_arg)) = match upstream_b with [
         (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [qv_arg] []) ->
         let theta = PE.eval PVMap.empty theta in
@@ -2839,8 +2841,13 @@ value fuse_1q_pair upstream_b downstream_b =
    * turns into GATE2 * GATE1 * ....
    *)
   let fused_q = Quat.mul downstream_q upstream_q in
-  let ZYZ.{z_0 = phi; y_1 = theta; z_2 = lambda} = ZYZ.of_quat ~{eps=1e-10} fused_q in
+  let ZYZ.{z_0 = phi; y_1 = theta; z_2 = lambda} = ZYZ.of_quat ~{eps=eps} fused_q in
   let loc = qbinding_loc downstream_b in
+  if Gg.Float.equal_tol ~{eps=eps} theta 0.
+     && Gg.Float.equal_tol ~{eps=eps} phi 0.
+     && Gg.Float.equal_tol ~{eps=eps} lambda 0. then
+    (loc, [downstream_bound], [], QWIRES loc [upstream_arg] [])
+  else
   let theta = Qlam_parser.param_of_string (Float.to_string theta) in
   let phi = Qlam_parser.param_of_string (Float.to_string phi) in
   let lambda = Qlam_parser.param_of_string (Float.to_string lambda) in
@@ -2848,44 +2855,112 @@ value fuse_1q_pair upstream_b downstream_b =
    QGATEAPP loc (SYN.U loc) [theta;phi;lambda] [upstream_arg] [])
 ;
 
+value simplify_U ~{eps} b =
+  match b with [
+      (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [qv_arg] []) ->
+      let theta = PE.eval PVMap.empty theta in
+      let phi = PE.eval PVMap.empty phi in
+      let lambda = PE.eval PVMap.empty lambda in
+      let q = ZYZ.(to_quat {z_0=phi; y_1=theta; z_2=lambda}) in
+      let ZYZ.{z_0 = phi; y_1 = theta; z_2 = lambda} = ZYZ.of_quat ~{eps} q in
+      if Gg.Float.equal_tol ~{eps=eps} theta 0.
+         && Gg.Float.equal_tol ~{eps=eps} phi 0.
+         && Gg.Float.equal_tol ~{eps=eps} lambda 0. then
+        (loc, [qv_bound], [], QWIRES loc [qv_arg] [])
+      else
+        b
+    | _ -> b
+    ]
+;
+
 value is_U_binding = fun [
   (_, [_],[], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) [_;_;_] [_] []) -> True
 | _ -> False
 ] ;
 
-value oneq_binding_qvarg = fun [
+value _U_binding_qvarg = fun [
   (_, [_],[], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) [_;_;_] [qv] []) -> qv
 | (loc, _, _, _) as b -> 
-   Fmt.(raise_failwithf loc "oneq_binding_qvarg: internal error: not a 1Q binding: %a"
+   Fmt.(raise_failwithf loc "u_binding_qvarg: internal error: not a 1Q binding: %a"
         PP.qbinding b)
 ] ;
 
-value rec qcircuit env qc = match qc with [
+value is_qwire_binding = fun [
+  (_, [_],[], QWIRES _ [_] []) -> True
+| _ -> False
+] ;
+
+value qwire_binding_qvarg = fun [
+  (_, [_],[], QWIRES _  [qv] []) -> qv
+| (loc, _, _, _) as b -> 
+   Fmt.(raise_failwithf loc "qwire_binding_qvarg: internal error: not a 1Q binding: %a"
+        PP.qbinding b)
+] ;
+
+value is_U_or_qwire_binding b =
+  is_U_binding b
+  || is_qwire_binding b
+;
+
+value _U_or_qwire_binding_qvarg b =
+  if is_U_binding b then _U_binding_qvarg b
+  else if is_qwire_binding b then qwire_binding_qvarg b
+  else assert False
+;
+
+value fuse_1q_pair ~{eps} upstream_b downstream_b =
+  match (upstream_b, downstream_b) with [
+      ((_, [_], [], QWIRES _ [qv_arg] []),
+       (loc, [qv_bound], [], QWIRES _ [_] [])) ->
+      (loc, [qv_bound], [], QWIRES loc [qv_arg] [])
+
+    | ((_, [_], [], QWIRES _ [qv_arg] []),
+       (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [_] [])) ->
+       (loc, [qv_bound], [], QGATEAPP loc (SYN.U loc) [theta;phi;lambda] [qv_arg] [])
+      
+
+    | ((_, [_], [], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) _ [_] []),
+       (_, [_], [], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) _ [_] [])) ->
+       fuse_uu_pair ~{eps} upstream_b downstream_b
+
+    | _ -> assert False
+
+    ]
+;
+
+value rec qcircuit ~{eps} env qc = match qc with [
     SYN.QLET loc bl qc ->
-    let (bl, qc) = optimize_1q_qlet env bl qc in
+    let (bl, qc) = optimize_1q_qlet ~{eps=eps} env bl qc in
     if [] = bl then qc else
       SYN.QLET loc bl qc
   | _ -> qc
   ]
 
-and optimize_1q_qlet env bl qc =
+and optimize_1q_qlet ~{eps} env bl qc =
   let (oneq_bl, rest_bl) =
     filter_split (fun b -> 1 = List.length (qbinding_qvl b)) bl in
-  let oneq_bl = List.map (optimize_1q env) oneq_bl in
+  let oneq_bl = List.map (optimize_1q ~{eps=eps} env) oneq_bl in
   let oneq_bindings =
     oneq_bl |> List.map (fun b ->
                    let qv = List.hd (qbinding_qvl b) in
                    (qv, { it = b ; removed = False })) in
-  let qc_env = List.fold_left (fun env (qv, it) -> QVMap.add qv it env) env oneq_bindings in
-  let qc = qcircuit qc_env qc in
+  let rest_bindings =
+    rest_bl
+    |> List.concat_map (fun b ->
+           let qvl = qbinding_qvl b in
+           let it = { it = b ; removed = False } in
+           qvl |> List.map (fun qv ->  (qv, it))) in
+  let qc_env = List.fold_left (fun env (qv, it) -> QVMap.add qv it env) env rest_bindings in
+  let qc_env = List.fold_left (fun env (qv, it) -> QVMap.add qv it env) qc_env oneq_bindings in
+  let qc = qcircuit ~{eps=eps} qc_env qc in
   let oneq_bl = 
     oneq_bindings |> List.filter_map (fun (_, it) ->
                          if it.removed then None else Some it.it) in
   (oneq_bl@rest_bl, qc)
 
-and optimize_1q (env : SYN.QVMap.t oneq_binding_t) b =
-  if is_U_binding b then
-    let qv = oneq_binding_qvarg b in
+and optimize_1q ~{eps} (env : SYN.QVMap.t oneq_binding_t) b =
+  if is_U_or_qwire_binding b then
+    let qv = _U_or_qwire_binding_qvarg b in
     let upstream_it =
       match  QVMap.swap_find env qv with [
           exception Not_found ->
@@ -2893,16 +2968,16 @@ and optimize_1q (env : SYN.QVMap.t oneq_binding_t) b =
                            QV.pp_hum qv)
         | it -> it
         ] in
-    if is_U_binding upstream_it.it then
-      let fused_b = fuse_1q_pair upstream_it.it b in
+    if is_U_or_qwire_binding upstream_it.it then
+      let fused_b = fuse_1q_pair ~{eps=eps} upstream_it.it b in
       let _ = upstream_it.removed := True in
       fused_b
-    else b
+    else simplify_U ~{eps} b
   else b
 ;
 
-value program genv0 ?{env0=[]} (envitems,qc) =
-  (envitems, qcircuit QVMap.empty qc)
+value program ~{eps} genv0 ?{env0=[]} (envitems,qc) =
+  (envitems, qcircuit ~{eps=eps} QVMap.empty qc)
 ;
 
 end ;

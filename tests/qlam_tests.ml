@@ -134,6 +134,23 @@ let lower_qlam (name, txt, expect) =
   )
 ;;
 
+let unsafelower_qlam (name, txt, expect) = 
+  name >:: (fun ctxt ->
+    let (env, qc) = txt |> Qlam.Prog.of_string in
+    match expect with
+      Left expect ->
+       let qc' = Ops.UnsafeLower.qcircuit qc in
+       let txt = Fmt.(str "%a" Qlam.Circ.pp_hum qc') in
+       let cmp s1 s2 = (collapse_ws s1) = (collapse_ws s2) in
+       let printer = (fun x -> "<<"^x^">>") in
+       assert_equal ~cmp ~printer expect txt
+    | Right exnpat ->
+       assert_raises_exn_pattern ~msg:("should match "^exnpat)
+         exnpat
+         (fun () -> Ops.Lower.qcircuit qc)
+  )
+;;
+
 let pp_tolam (name, qasm, qlam) = 
   name >:: (fun ctxt ->
     let (env, qc) = qasm |> parse_tolam in
@@ -325,7 +342,7 @@ let q2 = h q0 and  q2 = h q1 in
      ]
   )@
     (List.map lower_qlam [
-       ("simple", {|
+       ("lower-simple", {|
 let q0 = qubit () in
 let q1 = h q0 in
 ()
@@ -334,6 +351,65 @@ let q1 = h q0 in
 let q = qubit () in
 let q0 = h q in
 ()
+|})
+     ]
+  )@
+    (List.map unsafelower_qlam [
+       ("unsafelower-simple", {|
+let q0 = qubit () in
+let q1 = h q0 in
+()
+|},
+        Left {|
+let q = qubit () in
+let q = h q in
+()
+|})
+       ; ("unsafelower-bug", {|
+let qr326 = qubit #0 () in
+let qr327 = qubit #1 () in
+let q328 = U (pi / 2, 0, pi) qr326 in
+let (qr330, qr329) = cx qr327 q328 in
+let (qr333, qr332) = cx qr330 qr329 in
+let (qr336, qr335) = cx qr333 qr332 in
+let (qr338 : cr339) = measure qr335 in
+let (qr340 : cr341) = measure qr336 in
+(qr338, qr340 : cr339, cr341)
+|},
+        Left {|
+let qr0 = qubit #0 () in
+let qr1 = qubit #1 () in
+let q = U (pi / 2, 0, pi) qr0 in
+let (qr1, q) = cx qr1 q in
+let (qr1, q) = cx qr1 q in
+let (qr1, q) = cx qr1 q in
+let (q : cr) = measure q in
+let (qr1 : cr0) = measure qr1 in
+(q, qr1 : cr, cr0)
+|})
+       ; ("unsafelower-bug2", {|
+let qr326 = qubit #0 () in
+let qr327 = qubit #1 () in
+let (qr338 : cr339) = measure qr326 in
+let (qr340 : cr341) = measure qr327 in
+(qr338, qr340 : cr339, cr341)
+|},
+        Left {|
+let qr0 = qubit #0 () in
+let qr1 = qubit #1 () in
+let (qr0 : cr) = measure qr0 in
+let (qr1 : cr0) = measure qr1 in
+(qr0, qr1 : cr, cr0)
+|})
+       ; ("unsafelower-bug3", {|
+let qr326 = qubit #0 () in
+let (qr338 : cr339) = measure qr326 in
+(qr338 : cr339)
+|},
+        Left {|
+let qr0 = qubit #0 () in
+let (qr0 : cr) = measure qr0 in
+(qr0 : cr)
 |})
      ]
   )
@@ -1075,7 +1151,8 @@ let optimize_1q_test_ok ?(basis=["U";"CX";"cx"]) (name, input_qasm, expect_qlam)
     let (genv0, p1) = Ops.Standard.program ~env0 p0 in
     let p2 = Ops.Unroll.program ~except:(basis |> List.map SYN.QG.of_string) p1 in
     let (genv, p3) = Ops.Standard.program ~env0 p2 in
-    let ((_, qc) as p4) = Ops.Optimize1q.program genv0 ~env0 p3 in
+    let p4 = Ops.Optimize1q.program ~eps genv0 ~env0 p3 in
+    let (genv0, (_, qc) as p5) = Ops.Standard.program ~env0 p4 in
     let expected_qc = Qlam.Circ.of_string expect_qlam in
     assert_equal ~printer ~cmp expected_qc qc
   )
@@ -1093,8 +1170,7 @@ h q[0] ;
 |},
 {|
 let q0 = qubit #0 () in
-let q1 = U (0., 0, 0.) q0 in
-(q1)
+(q0)
 |})
 ; optimize_1q_test_ok ~basis:["U";"CX";"cx";"id"]("id",
 {|
@@ -1121,6 +1197,36 @@ h q[0] ;
 let q0 = qubit #0 () in
 let q1 = U (pi/2, 0., pi) q0 in
 (q1)
+|})
+; optimize_1q_test_ok("collapse_identity_equivalent",
+{|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg qr[2];
+creg cr[2];
+h qr[0];
+cx qr[1],qr[0];
+u1(2*pi) qr[0];
+cx qr[1],qr[0];
+u1(pi/2) qr[0];
+u1(pi) qr[0];
+u1(pi/2) qr[0];
+cx qr[1],qr[0];
+u1(pi) qr[1];
+u1(pi) qr[1];
+measure qr[0] -> cr[0];
+measure qr[1] -> cr[1];
+|},
+{|
+let qr0 = qubit #0 () in
+let qr1 = qubit #1 () in
+let q = U (pi / 2, 0, pi) qr0 in
+let (qr1, q) = cx qr1 q in
+let (qr1, q) = cx qr1 q in
+let (qr1, q) = cx qr1 q in
+let (q : cr) = measure q in
+let (qr1 : cr0) = measure qr1 in
+(q, qr1 : cr, cr0)
 |})
 ; 
 ]
