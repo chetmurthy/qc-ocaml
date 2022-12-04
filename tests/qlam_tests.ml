@@ -1143,13 +1143,13 @@ ccx q[0], q[1], q[2] ;
 ]
 ;;
 
-let optimize_1q_test_ok ?(basis=["U";"CX";"cx"]) (name, input_qasm, expect_qlam) =
+let optimize_1q_test_ok ?(add_basis=[]) ?(basis=["U";"CX";"cx"]) (name, input_qasm, expect_qlam) =
   name >:: (fun _ ->
     let cmp = Ops.AlphaEq.qcircuit ~eps in
     let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
     let p0 = parse_tolam input_qasm in
     let (genv0, p1) = Ops.Standard.program ~env0 p0 in
-    let p2 = Ops.Unroll.program ~except:(basis |> List.map SYN.QG.of_string) p1 in
+    let p2 = Ops.Unroll.program ~except:((basis@add_basis) |> List.map SYN.QG.of_string) p1 in
     let (genv, p3) = Ops.Standard.program ~env0 p2 in
     let p4 = Ops.Optimize1q.program ~eps genv0 ~env0 p3 in
     let (genv0, (_, qc) as p5) = Ops.Standard.program ~env0 p4 in
@@ -1172,7 +1172,7 @@ h q[0] ;
 let q0 = qubit #0 () in
 (q0)
 |})
-; optimize_1q_test_ok ~basis:["U";"CX";"cx";"id"]("id",
+; optimize_1q_test_ok ~add_basis:["id"]("id",
 {|
 OPENQASM 2.0;
 include "qelib1.inc";
@@ -1198,7 +1198,7 @@ let q0 = qubit #0 () in
 let q1 = U (pi/2, 0., pi) q0 in
 (q1)
 |})
-; optimize_1q_test_ok("collapse_identity_equivalent",
+; optimize_1q_test_ok ~add_basis:["h"] ("collapse_identity_equivalent",
 {|
 OPENQASM 2.0;
 include "qelib1.inc";
@@ -1220,7 +1220,7 @@ measure qr[1] -> cr[1];
 {|
 let qr0 = qubit #0 () in
 let qr1 = qubit #1 () in
-let q = U (pi / 2, 0, pi) qr0 in
+let q = h qr0 in
 let (qr1, q) = cx qr1 q in
 let (qr1, q) = cx qr1 q in
 let (qr1, q) = cx qr1 q in
@@ -1228,7 +1228,7 @@ let (q : cr) = measure q in
 let (qr1 : cr0) = measure qr1 in
 (q, qr1 : cr, cr0)
 |})
-; optimize_1q_test_ok("collapse_identity_equivalent_phase_gate (BUT THIS IS RZ, not P)",
+; optimize_1q_test_ok ~add_basis:["h"] ("collapse_identity_equivalent_phase_gate (BUT THIS IS RZ, not P)",
 {|
 OPENQASM 2.0;
 include "qelib1.inc";
@@ -1250,7 +1250,7 @@ measure qr[1] -> cr[1];
 {|
 let qr0 = qubit #0 () in
 let qr1 = qubit #1 () in
-let q = U (pi / 2, 0, pi) qr0 in
+let q = h qr0 in
 let (qr1, q) = cx qr1 q in
 let (qr1, q) = cx qr1 q in
 let (qr1, q) = cx qr1 q in
