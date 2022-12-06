@@ -14,6 +14,14 @@ rotZ(theta):= matrix(
 		     [ 0, 0, 1 ]
 ) ;
 
+
+ZYZ(phi,theta,lambda) :=
+ rotZ(phi) . rotY(theta) . rotZ(lambda) ;
+
+
+ZXZ(phi,theta,lambda) :=
+ rotZ(phi) . rotX(theta) . rotZ(lambda) ;
+
 U(theta,phi,lambda) :=
  rotZ(phi + 3 * %pi) .
  rotX(%pi/2) .
@@ -21,5 +29,4 @@ U(theta,phi,lambda) :=
  rotX(%pi/2) .
  rotZ(lambda) ;
 
-U3_ZYZ(theta,phi,lambda) :=
- rotZ(phi) . rotY(theta) . rotZ(lambda) ;
+U3_ZYZ(theta,phi,lambda) := ZYZ(phi,theta,lambda) ;
