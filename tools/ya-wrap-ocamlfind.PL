@@ -32,9 +32,18 @@ sub discover_args {
   my $line1 = <F> ;
   close(F) ;
   if ($line1 =~ m,^\(\*\*(.*?)\*\),) {
-    return $1 ;
+    my $extra = $1 ;
+    $extra =~ s/(?:\$\(([^)]+)\)|\$\{([^}]+)\})/ envsubst($1, $2) /ge ;
+    return $extra ;
   }
   else {
     return "" ;
   }
+}
+
+sub envsubst {
+  my $varna = shift ;
+  die "env var $varna is not set"
+      unless exists $ENV{$varna} ;
+  return $ENV{$varna} ;
 }

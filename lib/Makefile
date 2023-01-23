@@ -25,6 +25,9 @@ ML= misc_map.ml misc_functions.ml exc.ml http_helpers.ml yojson_helpers.ml \
 	qasm_passes.ml qc_layout.ml \
 	qobj_types.ml qobj_compile.ml qrpc_types.ml qrpc_api.ml
 
+export MIGRATE_PACKAGES=pa_ppx.import,pa_ppx_migrate
+export MIGRATE_CFLAGS=-ppopt -pa_import-I -ppopt .
+
 CMO := $(ML:.ml=.cmo)
 CMI := $(ML:.ml=.cmi)
 CMX := $(ML:.ml=.cmx)
