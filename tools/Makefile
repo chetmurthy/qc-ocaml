@@ -25,6 +25,8 @@ CMTI := $(MLI:.mli=.cmti)
 
 all: $(BIN)
 
+perl:
+	cp ya-wrap-ocamlfind.PL ya-wrap-ocamlfind
 
 .PRECIOUS: $(CMO) $(CMX)
 
