@@ -8,7 +8,7 @@ WD=$(shell pwd)
 DESTDIR=
 RM=rm
 
-SYSDIRS= lib exe
+SYSDIRS= tools lib exe
 
 TESTDIRS= tests
 

@@ -1,3 +1,4 @@
+(** -syntax camlp5r *)
 open Pa_ppx_base ;
 open Ppxutil ;
 open Qc_misc ;

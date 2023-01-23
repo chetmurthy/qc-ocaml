@@ -1,3 +1,4 @@
+(** -syntax camlp5o *)
 (* Copyright 2019 Chetan Murthy, All rights reserved. *)
 open Sexplib0.Sexp_conv
 

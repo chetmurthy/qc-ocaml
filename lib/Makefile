@@ -64,64 +64,6 @@ local-install::
 clean::
 	rm -rf META
 
-qlam_parser.cmo:  qlam_parser.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_parser.cmx:  qlam_parser.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_syntax.cmo:  qlam_syntax.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_syntax.cmx:  qlam_syntax.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-IMPORT_CFLAGS=-ppopt -pa_import-I -ppopt .
-qlam_migrate.cmo:  qlam_migrate.ml
-	$(NOT_OCAMLFIND) preprocess $(OCAMLCFLAGS) -package $(PACKAGES),$(PRPACKAGE),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax $(SYNTAX) $< > $*_ppo.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax camlp5o -c $<
-
-qlam_migrate.cmx:  qlam_migrate.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES),pa_ppx.import,pa_ppx_migrate $(IMPORT_CFLAGS) -syntax camlp5o -c $<
-
-qlam_ops.cmo:  qlam_ops.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_ops.cmx:  qlam_ops.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_analyze.cmo:  qlam_analyze.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_analyze.cmx:  qlam_analyze.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_env.cmo:  qlam_env.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_env.cmx:  qlam_env.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qc0.cmo:  qc0.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qc0.cmx:  qc0.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_misc.cmo:  qlam_misc.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qlam_misc.cmx:  qlam_misc.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qconvert.cmo:  qconvert.ml
-	$(OCAMLFIND) ocamlc $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-qconvert.cmx:  qconvert.ml
-	$(OCAMLFIND) ocamlopt $(DEBUG) $(WARNERR) $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5r -c $<
-
-
-
 EXTERNAL := $(shell $(OCAMLFIND) query -predicates byte -format '%m' $(PACKAGES) | grep local-install)
 $(CMO) $(CMI) $(CMX): $(EXTERNAL)
 

@@ -1,4 +1,4 @@
-
+(** -syntax camlp5o *)
 open Pa_ppx_base.Pp_MLast
 open Pa_ppx_utils
 open Std

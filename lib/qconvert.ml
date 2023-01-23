@@ -1,3 +1,4 @@
+(** -syntax camlp5r *)
 open Misc_functions ;
 open Pa_ppx_utils ;
 open Std ;

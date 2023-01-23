@@ -1,3 +1,4 @@
+(** -syntax camlp5o *)
 open Sexplib0.Sexp_conv
 open Yojson_helpers
 open Qobj_types

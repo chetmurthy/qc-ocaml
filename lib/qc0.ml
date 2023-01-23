@@ -1,3 +1,4 @@
+(** -syntax camlp5r *)
 open Qc_misc ;
 
 value with_include_path = Qc_misc.with_include_path ;

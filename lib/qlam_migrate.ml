@@ -1,4 +1,4 @@
-
+(** -syntax camlp5o -package pa_ppx.import,pa_ppx_migrate -ppopt -pa_import-I -ppopt . *)
 exception Migration_error of string
 
 let migration_error feature =
