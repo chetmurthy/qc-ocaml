@@ -107,8 +107,9 @@ module EntityMap(M : ENTITY_SIG)(S : SETSIG with module M = M) : (MAPSIG with mo
   value compare_key = M.compare ;
   value equal_key = M.equal ;
   value key_to_yojson = M.to_yojson ;
+  value breaking s pps () = Fmt.(pf pps "%s@," s) ;
   value pp_hum ppval pps l =
-    Fmt.(pf pps "%a" (list ~{sep=const string "; "} (parens (pair ~{sep=const string ", "} M.pp_hum ppval))) (bindings l))
+    Fmt.(pf pps "%a" (list ~{sep=breaking ";"} (parens (pair ~{sep=const string ", "} M.pp_hum ppval))) (bindings l))
   ;
   value swap_find m k = find k m ;
   value toList = bindings ;
@@ -244,8 +245,8 @@ module Bijection(M1 : ENTITY_SIG)(S1 : SETSIG with module M = M1)
   value pp_hum pps (dm, _) = DOMMap.pp_hum RNG.pp_hum pps dm ;
 end ;
 
-module IDFVS = VarSet(ID) ;
-module IDMap = EntityMap(ID)(IDFVS) ;
+module IDSet = VarSet(ID) ;
+module IDMap = EntityMap(ID)(IDSet) ;
 module IntEntity = struct
   type t = int[@@deriving (to_yojson, show, eq, ord);] ;
   value pp_hum = pp ;

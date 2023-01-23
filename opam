@@ -38,6 +38,7 @@ depends: [
   "not-ocamlfind"
   "vector"
   "ppx_deriving_cmdliner"
+  "gg"
 ]
 build: [
   [make "sys"]

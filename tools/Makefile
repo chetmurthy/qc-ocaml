@@ -36,7 +36,7 @@ clean::
 
 depend::
 	echo "$(CMO) $(CMI) $(CMX): $(EXTERNAL)" > .depend.NEW
-	$(OCAMLFIND) ocamldep $(OCAMLCFLAGS) -package $(PACKAGES) -syntax camlp5o \
+	$(OCAMLFIND) ocamldep $(OCAMLCFLAGS) -package $(PACKAGES) \
 	$(ML) \
 	>> .depend.NEW
 	mv .depend.NEW .depend

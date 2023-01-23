@@ -9,6 +9,7 @@
 #require "oUnit";;
 #print_length 1048576 ;;
 
+open Gg ;;
 open Asttools ;;
 open Pa_ppx_utils ;;
 open Coll ;;
@@ -18,6 +19,7 @@ open Qc_misc ;;
 open Qc ;;
 open Qasm2syntax ;;
 open OUnit2 ;;
+open Qc_quat ;;
 
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
@@ -78,8 +80,8 @@ let read_file_tolam s0 =
   Qlam.Prog.of_qasm2 (env, instrs)
 ;;
 
-let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QVFVS.pp_hum x) ;;
-let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.CVFVS.pp_hum x) ;;
+let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QVSet.pp_hum x) ;;
+let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.CVSet.pp_hum x) ;;
 
 let pp_qv_corr l = Fmt.(pf stdout "<:qvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QV.pp_hum SYN.QV.pp_hum))) (SYN.QVMap.bindings l)) ;;
 let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.CV.pp_hum SYN.CV.pp_hum))) (SYN.CVMap.bindings l)) ;;
@@ -98,6 +100,15 @@ let pp_logical2qvar m = Fmt.(pf stdout "<:logical2qvar< %a >>" (SYN.BIMap.pp_hum
 let pp_ab_env x = Fmt.(pf stdout "<:abenv< %a >>" Qlam_ops.AB.Env.pp_hum x) ;;
 #install_printer pp_ab_env ;;
 
+let pp_quat x = Fmt.(pf stdout "<:quat< %a >>" Quat.pp x) ;;
+#install_printer pp_quat ;;
+
+let pp_m3 x = Fmt.(pf stdout "<:m3< %a >>" M3.pp x) ;;
+#install_printer pp_m3 ;;
+
+let pp_v3 x = Fmt.(pf stdout "<:v3< %a >>" V3.pp x) ;;
+#install_printer pp_v3 ;;
+
 #load "test_helpers.cmo";;
 #load "qasm2_tests.cmo";;
 open Test_helpers ;;
@@ -110,13 +121,62 @@ open Qlam_tests ;;
 #load "qclatex_tests.cmo";;
 open Qclatex_tests ;;
 
+#load "quaternion_tests.cmo";;
+open Quaternion_tests ;;
 
-let p0 = with_include_path ~path:["testdata"] Qlam.Prog.of_file "testdata/bell2.ql" ;;
-let (genv, p1) = Standard.program p0 ;;
-let p2 = Unroll.program ~only:["bell2" |> ID.mk |> SYN.QG.ofID] p1 ;;
-let (genv, p3) = Standard.program p2 ;;
-let p4 = Lower.program p3 ;;
-Fmt.(pf stdout "%a\n%!" Qlam.Prog.pp_hum p4) ;;
+
+let optimize_1q_test_ok ?(basis=["U";"CX";"cx"]) (name, input_qasm, expect_qlam) =
+    let cmp = Ops.AlphaEq.qcircuit ~eps in
+    let printer qc = Fmt.(str "%a\n%!" Qlam.Circ.pp_hum (Ops.UnsafeLower.qcircuit qc)) in
+    let p0 = parse_tolam input_qasm in
+    let (genv0, p1) = Ops.Standard.program ~env0 p0 in
+    let p2 = Ops.Unroll.program ~except:(basis |> List.map SYN.QG.of_string) p1 in
+    let (genv, p3) = Ops.Standard.program ~env0 p2 in
+    let p4 = Ops.Optimize1q.program ~eps genv0 ~env0 p3 in
+    let (genv0, (_, qc) as p5) = Ops.Standard.program ~env0 p4 in
+    let expected_qc = Qlam.Circ.of_string expect_qlam in
+    assert_equal ~printer ~cmp expected_qc qc
+;;
+
+
+let pp_unroll_env m = Fmt.(pf stdout "<:unroll_env< %a >>" (SYN.QGMap.pp_hum PP.qgatelam) m) ;; 
+#install_printer pp_unroll_env ;;
+
+let pp_opt_env m = Fmt.(pf stdout "<:optenv< %a >>" Ops.Optimize1q.pp_hum_env_t m) ;;
+#install_printer pp_opt_env ;;
+
+(*
+#trace Ops.AlphaEq.alpharec ;;
+#trace SYN.PE.equal ;;
+ *)
+#trace Ops.UnsafeLower.qcircuit ;;
+#trace Ops.AlphaEq.qcircuit ;;
+#trace Ops.Optimize1q.optimize_1q ;;
+#trace Ops.Optimize1q.program ;;
+
+optimize_1q_test_ok("collapse_identity_equivalent",
+{|
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg qr[2];
+creg cr[2];
+h qr[0];
+cx qr[1],qr[0];
+u1(2*pi) qr[0];
+cx qr[1],qr[0];
+u1(pi/2) qr[0];
+u1(pi) qr[0];
+u1(pi/2) qr[0];
+cx qr[1],qr[0];
+u1(pi) qr[1];
+u1(pi) qr[1];
+measure qr[0] -> cr[0];
+measure qr[1] -> cr[1];
+|},
+{|
+let q = qubit #0 () in
+(q)
+|}) ;;
 
 (* Local Variables: *)
 (* mode: tuareg *)

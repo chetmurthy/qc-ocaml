@@ -13,9 +13,9 @@ open SYN ;
 
 value pe_freevars pe =
   let rec fvrec = fun [
-        ID _ pv ->  (PVFVS.ofList [pv])
-      | CONST _ _ -> PVFVS.mt
-      | BINOP _ _ pe1 pe2 -> PVFVS.union (fvrec pe1) (fvrec pe2)
+        ID _ pv ->  (PVSet.ofList [pv])
+      | CONST _ _ -> PVSet.mt
+      | BINOP _ _ pe1 pe2 -> PVSet.union (fvrec pe1) (fvrec pe2)
       | UNOP _ _ pe -> fvrec pe
       | UFUN _ _ pe -> fvrec pe
       ] in
@@ -26,27 +26,28 @@ value circuit_freevars qc =
   let rec fvrec = fun [
         QLET loc bl qc ->
         let (pvs, qvs, cvs) = fvrec qc in
-        let qvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> qvl) |> QVFVS.ofList in
-        let cvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> cvl) |> CVFVS.ofList in
-        let qvs = QVFVS.subtract qvs qvars in
-        let cvs = CVFVS.subtract cvs cvars in
+        let qvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> qvl) |> QVSet.ofList in
+        let cvars = bl |>  List.concat_map (fun (_, qvl, cvl, _) -> cvl) |> CVSet.ofList in
+        let qvs = QVSet.subtract qvs qvars in
+        let cvs = CVSet.subtract cvs cvars in
         List.fold_left (fun (pvs, qvs,  cvs) (_, _, _, qc) ->
             let (pvs', qvs', cvs') = fvrec qc in
-            (PVFVS.union pvs pvs', QVFVS.union qvs qvs', CVFVS.union cvs cvs'))
-          (PVFVS.mt,  qvs, cvs) bl
-      | QWIRES _ qvl cvl -> (PVFVS.mt,  QVFVS.ofList qvl, CVFVS.ofList cvl)
+            (PVSet.union pvs pvs', QVSet.union qvs qvs', CVSet.union cvs cvs'))
+          (PVSet.mt,  qvs, cvs) bl
+      | QWIRES _ qvl cvl -> (PVSet.mt,  QVSet.ofList qvl, CVSet.ofList cvl)
       | QGATEAPP _ _ pel qvl  cvl ->
-         let pvl = List.fold_left (fun pvl pe -> PVFVS.union pvl (pe_freevars pe)) PVFVS.mt pel in
-         (pvl, QVFVS.ofList qvl, CVFVS.ofList cvl)
-      | QBARRIER _ qvl  -> (PVFVS.mt,  QVFVS.ofList qvl, CVFVS.mt)
-      | QCREATE _ _ -> (PVFVS.mt, QVFVS.mt, CVFVS.mt)
-      | QDISCARD _ qv -> (PVFVS.mt,  QVFVS.ofList [qv],  CVFVS.mt)
-      | QMEASURE _ qv -> (PVFVS.mt, QVFVS.ofList [qv], CVFVS.mt)
-      | QRESET _ qv -> (PVFVS.mt, QVFVS.ofList [qv], CVFVS.mt)
+         let pvl = List.fold_left (fun pvl pe -> PVSet.union pvl (pe_freevars pe)) PVSet.mt pel in
+         (pvl, QVSet.ofList qvl, CVSet.ofList cvl)
+      | QBARRIER _ qvl  -> (PVSet.mt,  QVSet.ofList qvl, CVSet.mt)
+      | QCREATE _ _ -> (PVSet.mt, QVSet.mt, CVSet.mt)
+      | QDISCARD _ qv -> (PVSet.mt,  QVSet.ofList [qv],  CVSet.mt)
+      | QMEASURE _ qv -> (PVSet.mt, QVSet.ofList [qv], CVSet.mt)
+      | QRESET _ qv -> (PVSet.mt, QVSet.ofList [qv], CVSet.mt)
   ] in
   fvrec qc
 ;
 
+module Lower = struct
 (** [lower_circuit qc] will return an alpha-equal (in the sense of lambda-calculus,
     to be sure) circuit where ids of the form (s, n) have been renamed to the least
     value of "n" that is greater than all other ids of the form (s, m) for that same
@@ -62,7 +63,7 @@ value circuit_freevars qc =
 
  *)
 
-value lower_circuit qc =
+value qcircuit qc =
   let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
   let rec lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc =
     let rename_qv qv =
@@ -80,16 +81,16 @@ value lower_circuit qc =
       let bl = bl |> List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc)) in
       
       let rebind_qv (rev_qvs, (fv_qvs, ren_qv)) qv =
-        let fresh_qv = QVFVS.fresh fv_qvs qv in
-        let fv_qvs = QVFVS.add fv_qvs fresh_qv in
+        let fresh_qv = QVSet.fresh fv_qvs qv in
+        let fv_qvs = QVSet.add fv_qvs fresh_qv in
         let ren_qv = 
           if equal_qvar_t qv fresh_qv then ren_qv
           else QVMap.add qv fresh_qv ren_qv in
         ([fresh_qv :: rev_qvs], (fv_qvs, ren_qv)) in
       
       let rebind_cv (rev_cvs, (fv_cvs, ren_cv)) cv =
-        let fresh_cv = CVFVS.fresh fv_cvs cv in
-        let fv_cvs = CVFVS.add fv_cvs fresh_cv in
+        let fresh_cv = CVSet.fresh fv_cvs cv in
+        let fv_cvs = CVSet.add fv_cvs fresh_cv in
         let ren_cv = 
           if equal_cvar_t cv fresh_cv then ren_cv
           else CVMap.add cv fresh_cv ren_cv in
@@ -122,6 +123,125 @@ value lower_circuit qc =
   lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
 ;
 
+value program (environ, qc) =
+  (environ, qcircuit qc)
+;
+
+end ;
+
+
+module UnsafeLower = struct
+(** [UnsafeLower.qcircuit qc] does something similar to
+    [Lower.qcircuit qc], but instead of guaranteeing an alpha-equal
+    circuit, it reuses qubit-names aggressively, and for a circuit
+    where qubits aren't used linearly (single-use), will produce
+    incorrect output.
+
+    We *assume* that the circuit has been typechecked, which will
+    verify linearity.
+
+ *)
+
+      
+value rebind_qv (rev_qvs, (fv_qvs, ren_qv)) (newqv_opt, qv) =
+  let fresh_qv = match newqv_opt with [
+        Some newqv  -> newqv
+      | _ -> QVSet.fresh fv_qvs qv
+      ] in
+  let fv_qvs = QVSet.add fv_qvs fresh_qv in
+  let ren_qv = 
+    if equal_qvar_t qv fresh_qv then ren_qv
+    else QVMap.add qv fresh_qv ren_qv in
+  ([fresh_qv :: rev_qvs], (fv_qvs, ren_qv)) ;
+
+value rebind_qvl ~{rhs} (fv_qvs, ren_qv) qvl =
+  let new_qvl =
+    match (rhs, qvl) with [
+        (QCREATE _ (BI.EXPLICIT n), [qv]) ->
+        let newqv = QV.ofID (fst(QV.toID qv), n) in
+        if not (QVSet.mem fv_qvs newqv) then
+          [(Some newqv, qv)]
+        else [(None, qv)]
+
+      | (QGATEAPP loc ((SYN.SWAP _|SYN.GENGATE _ ("swap",-1)) as gn) [] [qvactual1;qvactual2] [], [qv1;qv2]) ->
+         [(Some qvactual2, qv1);(Some qvactual1, qv2)]
+      | (QGATEAPP loc _ [] qvactuals [], qvformals) ->
+         let _ = assert (List.length qvactuals = List.length qvformals) in
+         List.map2 (fun a f -> (Some a, f)) qvactuals qvformals
+      | (QMEASURE _ qvactual, [qv]) ->
+         [(Some qvactual, qv)]
+      | (QBARRIER _ qactuals, qvl) when List.length qactuals = List.length qvl ->
+         List.map2 (fun a v -> (Some a, v)) qactuals qvl
+      | _ -> List.map (fun qv -> (None, qv)) qvl
+      ] in
+
+  let (rev_qvl, (fv_qvs, ren_qv)) =
+    List.fold_left rebind_qv ([], (fv_qvs, ren_qv)) new_qvl in
+  let qvl = List.rev rev_qvl in
+  (qvl, fv_qvs, ren_qv) ;
+
+
+value rebind_cv (rev_cvs, (fv_cvs, ren_cv)) cv =
+        let fresh_cv = CVSet.fresh fv_cvs cv in
+        let fv_cvs = CVSet.add fv_cvs fresh_cv in
+        let ren_cv = 
+          if equal_cvar_t cv fresh_cv then ren_cv
+          else CVMap.add cv fresh_cv ren_cv in
+        ([fresh_cv :: rev_cvs], (fv_cvs, ren_cv)) 
+;
+value rebind_cvl (fv_cvs, ren_cv) cvl =
+        let (rev_cvl, (fv_cvs, ren_cv)) =
+          List.fold_left rebind_cv ([], (fv_cvs, ren_cv)) cvl in
+        let cvl = List.rev rev_cvl in
+        (cvl, fv_cvs, ren_cv) 
+;
+
+value rec qcircuit qc =
+  let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
+  lowrec (fv_qvs, fv_cvs, QVMap.empty, CVMap.empty) qc
+and lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc =
+    let rename_qv qv =
+      match QVMap.find qv ren_qv with [
+          exception Not_found -> qv
+        | x -> x
+        ] in
+    let rename_cv cv =
+      match CVMap.find cv ren_cv with [
+          exception Not_found -> cv
+        | x -> x
+        ] in
+    match qc with [
+      QLET loc bl qc ->
+      let bl = bl |> List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc)) in
+      
+      let (rev_bl,(fv_qvs, fv_cvs, ren_qv, ren_cv)) =
+        List.fold_left (fun (rev_bl, (fv_qvs, fv_cvs, ren_qv, ren_cv)) (loc, qvl, cvl, qc) ->
+            let (qvl, fv_qvs, ren_qv) = rebind_qvl ~{rhs=qc} (fv_qvs, ren_qv) qvl in
+            let (cvl, fv_cvs, ren_cv) = rebind_cvl (fv_cvs, ren_cv) cvl in
+            ([ (loc, qvl, cvl, qc) :: rev_bl ], (fv_qvs, fv_cvs, ren_qv, ren_cv)))
+          ([], (fv_qvs, fv_cvs, ren_qv, ren_cv)) bl in
+      let bl = List.rev rev_bl in
+      let qc = lowrec (fv_qvs, fv_cvs, ren_qv, ren_cv) qc in
+      QLET loc bl qc
+
+    | QWIRES loc qvl cvl ->
+       QWIRES loc (List.map rename_qv qvl) (List.map rename_cv cvl)
+
+    | QGATEAPP loc g pel qvl cvl -> QGATEAPP loc g pel (List.map rename_qv qvl) (List.map rename_cv cvl)
+    | QBARRIER loc qvl -> QBARRIER loc (List.map rename_qv qvl)
+    | QCREATE loc u -> QCREATE loc u
+    | QDISCARD loc qv -> QDISCARD loc (rename_qv qv)
+    | QMEASURE loc qv -> QMEASURE loc (rename_qv qv)
+    | QRESET loc qv -> QRESET loc (rename_qv qv)
+    ]
+;
+
+value program (environ, qc) =
+  (environ, qcircuit qc)
+;
+
+end ;
+
 module AlphaEq = struct
 value add_qvs m l1 l2 =
   List.fold_left2 (fun m v1 v2 -> QVMap.add v1 v2 m) m l1 l2
@@ -140,25 +260,42 @@ value check_cv_corr loc lr rl v1 v2 =
   with Not_found -> Fmt.(raise_failwithf loc "alpha_equal(check_cv_corr %a %a): internal error" CV.pp_hum v1 CV.pp_hum v2)
 ;
 
-value qcircuit qc1 qc2 =
-  let rec alpharec (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
+value pe_eval_equal ~{eps} pe1 pe2 =
+  let f1 = PE.eval PVMap.empty pe1 in
+  let f2 = PE.eval PVMap.empty pe2 in
+  Gg.Float.equal_tol ~{eps=eps} f1 f2
+;
+
+value rec letbindings ~{eps} (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 =
+  let bl2 = permute_bl ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) in
+  if (List.length bl1 = List.length bl2)
+     && (List.for_all2 (fun (_, qvl1, cvl1, qc1) (_, qvl2, cvl2, qc2) ->
+             (List.length qvl1 = List.length qvl2)
+             && (List.length cvl1 = List.length cvl2)
+             && alpharec ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
+           bl1 bl2) then
+    let (qv_lr, qv_rl, cv_lr, cv_rl) =
+        List.fold_left2 (fun (qv_lr, qv_rl, cv_lr, cv_rl)
+                             (_, qvl1, cvl1, _) (_, qvl2, cvl2, _) ->
+            let qv_lr = add_qvs qv_lr qvl1 qvl2 in
+            let qv_rl = add_qvs qv_rl qvl2 qvl1 in
+            let cv_lr = add_cvs cv_lr cvl1 cvl2 in
+            let cv_rl = add_cvs cv_rl cvl2 cvl1 in
+            (qv_lr, qv_rl, cv_lr, cv_rl))
+          (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 in
+    Some (qv_lr, qv_rl, cv_lr, cv_rl)
+  else None
+
+and letlist1_opt ~{eps} maps_opt (_, bl1) (_, bl2) =
+  match maps_opt with [ None -> None | Some maps -> letbindings ~{eps=eps} maps bl1 bl2 ]
+
+and alpharec ~{eps} (qv_lr, qv_rl, cv_lr, cv_rl) = fun [
     (QLET _ bl1 qc1, QLET _ bl2 qc2) ->
-    (List.length bl1 = List.length bl2)
-    && (List.for_all2 (fun (_, qvl1, cvl1, qc1) (_, qvl2, cvl2, qc2) ->
-            (List.length qvl1 = List.length qvl2)
-            && (List.length cvl1 = List.length cvl2)
-            && alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
-          bl1 bl2)
-    && (let (qv_lr, qv_rl, cv_lr, cv_rl) =
-          List.fold_left2 (fun (qv_lr, qv_rl, cv_lr, cv_rl)
-                               (_, qvl1, cvl1, _) (_, qvl2, cvl2, _) ->
-              let qv_lr = add_qvs qv_lr qvl1 qvl2 in
-              let qv_rl = add_qvs qv_rl qvl2 qvl1 in
-              let cv_lr = add_cvs cv_lr cvl1 cvl2 in
-              let cv_rl = add_cvs cv_rl cvl2 cvl1 in
-              (qv_lr, qv_rl, cv_lr, cv_rl))
-            (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 in
-        alpharec (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2))
+    match letbindings ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) bl1 bl2 with [
+        None -> False
+      | Some (qv_lr, qv_rl, cv_lr, cv_rl) ->
+         alpharec ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) (qc1, qc2)
+      ]
 
   | (QWIRES loc qvl1 cvl1, QWIRES _ qvl2 cvl2) ->
      (List.length qvl1 = List.length qvl2)
@@ -166,8 +303,11 @@ value qcircuit qc1 qc2 =
     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
     && (List.for_all2 (fun cv1 cv2 -> check_cv_corr loc cv_lr cv_rl cv1 cv2) cvl1 cvl2)
 
-  | (QGATEAPP loc _ _ qvl1 cvl1, QGATEAPP _ _ _ qvl2 cvl2) ->
-     (List.length qvl1 = List.length qvl2)
+  | (QGATEAPP loc gn1 pel1 qvl1 cvl1, QGATEAPP _ gn2 pel2 qvl2 cvl2) ->
+     QG.equal gn1 gn2
+     && (List.length pel1 = List.length pel2)
+     && List.for_all2 (pe_eval_equal ~{eps=eps}) pel1 pel2
+     && (List.length qvl1 = List.length qvl2)
      && (List.length cvl1 = List.length cvl2)
     && (List.for_all2 (fun qv1 qv2 -> check_qv_corr loc qv_lr qv_rl qv1 qv2) qvl1 qvl2)
     && (List.for_all2 (fun cv1 cv2 -> check_cv_corr loc cv_lr cv_rl cv1 cv2) cvl1 cvl2)
@@ -188,14 +328,56 @@ value qcircuit qc1 qc2 =
      check_qv_corr loc qv_lr qv_rl qv1 qv2
     
   | _ -> False
-  ] in
+  ]
+  and permute_bl ~{eps} (qv_lr, qv_rl, cv_lr, cv_rl) (bl1, bl2) =
+    let rec permrec bl1 bl2 = match bl1 with [
+          [] -> bl2
+        | [b1 :: bl1] ->
+           let (matching_b2, rest_bl2) =
+             filter_split (fun b2 -> alpharec ~{eps=eps} (qv_lr, qv_rl, cv_lr, cv_rl) (qbinding_qc b1,  qbinding_qc b2)) bl2 in
+           match matching_b2 with [
+               ([] | [_; _ ::_]) -> bl2
+             | [b2] -> [b2 :: permrec bl1 rest_bl2]
+             ]
+        ]
+    in permrec bl1 bl2 
+
+and qcircuit ~{eps} qc1 qc2 =
   let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
   let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
-  QVFVS.equal qvfvs1 qvfvs2
-  && CVFVS.equal cvfvs1 cvfvs2
-  && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVFVS.toList qvfvs1) in
-      let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVFVS.toList cvfvs1) in
-      alpharec (qvmap, qvmap, cvmap, cvmap) (qc1, qc2))
+  QVSet.equal qvfvs1 qvfvs2
+  && CVSet.equal cvfvs1 cvfvs2
+  && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVSet.toList qvfvs1) in
+      let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVSet.toList cvfvs1) in
+      alpharec ~{eps=eps} (qvmap, qvmap, cvmap, cvmap) (qc1, qc2))
+
+and top_qcircuit ~{eps} qc1 qc2 =
+  let (_, qvfvs1, cvfvs1) = circuit_freevars qc1 in
+  let (_, qvfvs2, cvfvs2) = circuit_freevars qc2 in
+  QVSet.equal qvfvs1 qvfvs2
+  && CVSet.equal cvfvs1 cvfvs2
+  && (let qvmap = List.fold_left (fun m v -> QVMap.add v v m) QVMap.empty (QVSet.toList qvfvs1) in
+      let cvmap = List.fold_left (fun m v -> CVMap.add v v m) CVMap.empty (CVSet.toList cvfvs1) in
+      let (ll1, qc1) = SYN.to_letlist qc1 in
+      let (ll2, qc2) = SYN.to_letlist qc2 in
+      List.length ll1 = List.length ll2
+      && (match List.fold_left2 (letlist1_opt ~{eps=eps}) (Some (qvmap, qvmap, cvmap, cvmap)) ll1 ll2 with [
+              Some maps -> top_qc ~{eps=eps} maps qc1 qc2
+            | None -> False ]))
+
+and top_qc ~{eps} (qv_lr, qv_rl, cv_lr, cv_rl) qc1 qc2 =
+  match (qc1, qc2) with [
+      (QWIRES _ qvl1 cvl1, QWIRES _ qvl2 cvl2) ->
+      List.length qvl1 = List.length qvl2
+      && List.length cvl1 = List.length cvl2
+      && qvl1 |> List.for_all (fun v -> QVMap.mem v qv_lr)
+      && cvl1 |> List.for_all (fun v -> CVMap.mem v cv_lr)
+      && (let qvl2' = List.map (QVMap.swap_find qv_lr) qvl1 in
+          let cvl2' = List.map (CVMap.swap_find cv_lr) cvl1 in
+          List.sort QV.compare qvl2 = List.sort QV.compare qvl2'
+          && List.sort CV.compare cvl2 = List.sort CV.compare cvl2')
+    | _ -> False
+    ]
 ;
 end ;
 
@@ -367,15 +549,15 @@ value subst (pvmap, qvmap, cvmap, qvfvs, cvfvs) qc =
   let rec substrec = fun [
     QLET loc bl qc -> do {
       bl |> List.iter (fun (loc, qvl, cvl, _) ->
-                if qvl |> List.exists (QVFVS.mem qvfvs) then
+                if qvl |> List.exists (QVSet.mem qvfvs) then
                   Fmt.(raise_failwithf loc "BetaReduce.subst: internal error: binding qvars %a clash with subst %a"
                          (list ~{sep=const string " "} QV.pp_hum) qvl
-                         QVFVS.pp_hum qvfvs
+                         QVSet.pp_hum qvfvs
                   )
-                else if cvl |> List.exists (CVFVS.mem cvfvs) then
+                else if cvl |> List.exists (CVSet.mem cvfvs) then
                   Fmt.(raise_failwithf loc "BetaReduce.subst: internal error: binding cvars %a clash with subst %a"
                          (list ~{sep=const string " "} CV.pp_hum) cvl
-                         CVFVS.pp_hum cvfvs
+                         CVSet.pp_hum cvfvs
                   )
                 else ());
       let bl = bl |> List.map (fun (loc, qvl,cvl, qc) -> (loc, qvl, cvl, substrec qc)) in
@@ -409,7 +591,7 @@ value qcircuit ~{counter} genv = fun [
   let pvmap = List.fold_left2 (fun pvmap pv pe -> PVMap.add pv pe pvmap) PVMap.empty pvl pel in
   let qvmap = List.fold_left2 (fun qvmap qv qe -> QVMap.add qv qe qvmap) QVMap.empty qvl qel in
   let cvmap = List.fold_left2 (fun cvmap cv ce -> CVMap.add cv ce cvmap) CVMap.empty cvl cel in
-  subst (pvmap, qvmap, cvmap, QVFVS.ofList qel, CVFVS.ofList cel) qc
+  subst (pvmap, qvmap, cvmap, QVSet.ofList qel, CVSet.ofList cel) qc
 
 | x -> Fmt.(raise_failwithf (loc_of_qcirc x) "BetaReduce.qcircuit: can only be applied to gate-application, not %a" PP.qcirc x)
 ] ;
@@ -435,21 +617,21 @@ module ANorm = struct
  *)
 
 module FVS = struct
-type t = (QVFVS.t * CVFVS.t) ;
-value mt = (QVFVS.mt, CVFVS.mt) ;
-value union (q1, c1) (q2, c2) = (QVFVS.union q1 q2, CVFVS.union c1 c2) ;
+type t = (QVSet.t * CVSet.t) ;
+value mt = (QVSet.mt, CVSet.mt) ;
+value union (q1, c1) (q2, c2) = (QVSet.union q1 q2, CVSet.union c1 c2) ;
 value concat l = List.fold_left union mt l ;
 value subtract_ids (q, c) (qvl, cvl) = 
-  (QVFVS.(subtract q (ofList qvl)), CVFVS.(subtract c (ofList cvl))) ;
+  (QVSet.(subtract q (ofList qvl)), CVSet.(subtract c (ofList cvl))) ;
 value subtract (q1, c1) (q2, c2) = 
-  (QVFVS.(subtract q1 q2), CVFVS.(subtract c1 c2)) ;
+  (QVSet.(subtract q1 q2), CVSet.(subtract c1 c2)) ;
 value intersect (q1, c1) (q2, c2) = 
-  (QVFVS.(intersect q1 q2), CVFVS.(intersect c1 c2)) ;
-value of_ids (qvl, cvl) = (QVFVS.ofList qvl, CVFVS.ofList cvl) ;
-value pp_hum pps (q, c) = Fmt.(pf pps "{q=%a; c=%a}" QVFVS.pp_hum q CVFVS.pp_hum c) ;
+  (QVSet.(intersect q1 q2), CVSet.(intersect c1 c2)) ;
+value of_ids (qvl, cvl) = (QVSet.ofList qvl, CVSet.ofList cvl) ;
+value pp_hum pps (q, c) = Fmt.(pf pps "{q=%a; c=%a}" QVSet.pp_hum q CVSet.pp_hum c) ;
 end ;
 
-value compute_binding_fvs bindingf ((loc, qvl, cvl, qc) : qbinding_t) : (qbinding_t * FVS.t) =
+value compute_binding_fvs bindingf (loc, qvl, cvl, qc) =
   let (qc, fvs) = bindingf qc in
   ((loc, qvl, cvl, qc), fvs)
 ;
@@ -479,16 +661,11 @@ value rebuild_let_fvs loc bl_fvs (qc,fvs) =
 value rebuild_letlist_fvs (b, b_fvs) (qc, qc_fvs) =
   let (ll, b_qc) = SYN.to_letlist (qbinding_qc b) in
   let _ = assert ([] <> ll) in
-  let bl =
-    ll
-    |> List.map snd
-    |> List.concat in
   let qc =
     let (loc, qvl, cvl, _) = b in
     QLET loc [(loc, qvl, cvl, b_qc)] qc  in
-  let qc = List.fold_right (fun b qc ->
-               let loc = qbinding_loc b in
-               QLET loc [b] qc) bl qc in
+  let qc_fvs = FVS.subtract_ids qc_fvs (qbinding_qvl b, qbinding_cvl b) in
+  let qc = SYN.of_letlist (ll, qc) in
   (qc, FVS.union b_fvs qc_fvs)
 ;
 
@@ -519,7 +696,7 @@ value rebuild_letlist_fvs (b, b_fvs) (qc, qc_fvs) =
 
  *)
 
-(** [anormalizable loc bindings_and_fvs qc_and_fvs]
+(** [anormalize_let loc bindings_and_fvs qc_and_fvs]
 
     a LET with a collection of top-level bindings  is A-normalizable if:
 
@@ -587,15 +764,18 @@ value anormalize_let loc bl_fvs (qc, qc_fvs) = do {
     List.fold_right rebuild_letlist_fvs letbindings_fvs (qc,qc_fvs)
   } ;
 
-value qcircuit qc =
-  let rec anrec qc = match qc with [
-    SYN.QLET loc bl qc ->
+value rec qcircuit qc =
+  let (qc, _) = anormrec qc in
+  qc
+
+and anormrec qc = match qc with [
+    SYN.QLET loc bl0 qc0 ->
      let bl_fvs =
-       bl |> List.map (fun (loc, qvl, cvl, qc) ->
-                 let (qc, fvs) = anrec qc in
+       bl0 |> List.map (fun (loc, qvl, cvl, qc) ->
+                 let (qc, fvs) = anormrec qc in
                  ((loc, qvl, cvl, qc), fvs)
                ) in
-     let (qc, qc_fvs) = anrec qc in
+     let (qc, qc_fvs) = anormrec qc0 in
      anormalize_let loc bl_fvs (qc, qc_fvs)
 
   | QWIRES _ qvl cvl -> (qc, FVS.(of_ids (qvl, cvl)))
@@ -605,9 +785,7 @@ value qcircuit qc =
   | QDISCARD _ qv -> (qc, FVS.(of_ids ([qv], [])))
   | QMEASURE _ qv -> (qc, FVS.(of_ids ([qv], [])))
   | QRESET _ qv -> (qc, FVS.(of_ids ([qv], [])))
-  ] in
-  let (qc, _) = anrec qc in
-  qc
+  ]
 ;
 
 
@@ -650,8 +828,8 @@ value qcircuit qc =
     let map_cv cv = match CVMap.find cv cvmap with [ exception Not_found -> cv | x -> x ] in 
     match qc  with [
     SYN.QLET loc bl qc ->
+    let bl = bl |> List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, nnrec (qvmap, cvmap) qc)) in
     let (rename_bindings, rest_bindings) = filter_split is_rename_binding bl in
-    let rest_bindings = List.map (fun (loc, qvl, cvl, qc) -> (loc, qvl, cvl, nnrec (qvmap, cvmap) qc)) rest_bindings in
     let (qvmap,cvmap) =
       List.fold_left (fun (qvmap,cvmap) b ->
              let (loc, qvl, cvl, qel, cel) = match b with [
@@ -918,8 +1096,8 @@ value make_dag loc ll =
   let g = G.empty in
   let g = List.fold_left (fun g (node, _) -> G.add_vertex g node) g numbered_bl_fvs in
   let g = List.fold_left (fun g (node, ((_, qvl, cvl, _), fvs)) ->
-    let free_ids = (fvs |> fst |> QVFVS.toList |> List.map QV.toID)
-                   @(fvs |> snd |> CVFVS.toList |> List.map CV.toID) in
+    let free_ids = (fvs |> fst |> QVSet.toList |> List.map QV.toID)
+                   @(fvs |> snd |> CVSet.toList |> List.map CV.toID) in
     List.fold_left (fun g id ->
         let e = G.E.create (IDMap.find id var2node) id node in
         G.add_edge_e g e)
@@ -1083,8 +1261,8 @@ type t = {
   ; syntax : SYN.CouplingMap.t
   } ;
 
-value mk syntax =
-  let {SYN.CouplingMap.edges=edges; positions=positions} = syntax in
+value mkFromEdges ?{positions=[]} edges =
+  let syntax = {SYN.CouplingMap.edges=edges; positions=positions} in
   let g = GX.of_edges edges in
   let dag = DAGX.of_edges edges in
   let positions = IntMap.ofList positions in
@@ -1093,6 +1271,11 @@ value mk syntax =
   ; positions = positions
   ; syntax = syntax
   } ;
+
+value mk syntax =
+  let {SYN.CouplingMap.edges=edges; positions=positions} = syntax in
+  mkFromEdges ~{positions=positions} edges
+;
 
 value has_pair ?{undirected=False} it v1 v2 =
   if undirected then
@@ -1222,6 +1405,7 @@ module LO = struct
     List.map (fun n -> physical_to_logical l (PQ.ofInt n)) physpath ;
 
   value logical_distance ?{undirected=False} l cmap l1 l2 =
+    let _ = assert (not (BI.equal l1 l2)) in
     let pq1 = logical_to_physical l l1 in
     let pq2 = logical_to_physical l l2 in
     CM.distance ~{undirected=undirected} cmap (PQ.toInt pq1) (PQ.toInt pq2) ;
@@ -1436,15 +1620,15 @@ value top_circuit env qc = do {
 value gate_item genv gitem = match gitem with [
   DEF loc gn (((pvl, qvl, cvl) as glam), qc) -> do {
     let (fv_pvs, fv_qvs, fv_cvs) = circuit_freevars qc in
-    let fv_pvs = PVFVS.subtract fv_pvs (PVFVS.ofList pvl) in
-    let fv_qvs = QVFVS.subtract fv_qvs (QVFVS.ofList qvl) in
-    let fv_cvs = CVFVS.subtract fv_cvs (CVFVS.ofList cvl) in
-    if PVFVS.mt <> fv_pvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free param-vars %a" QG.pp_hum gn PVFVS.pp fv_pvs)
-    else if QVFVS.mt <> fv_qvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free qvars %a" QG.pp_hum gn QVFVS.pp fv_qvs)
-    else if CVFVS.mt <> fv_cvs then
-      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free cvars %a" QG.pp_hum gn CVFVS.pp fv_cvs)
+    let fv_pvs = PVSet.subtract fv_pvs (PVSet.ofList pvl) in
+    let fv_qvs = QVSet.subtract fv_qvs (QVSet.ofList qvl) in
+    let fv_cvs = CVSet.subtract fv_cvs (CVSet.ofList cvl) in
+    if PVSet.mt <> fv_pvs then
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free param-vars %a" QG.pp_hum gn PVSet.pp fv_pvs)
+    else if QVSet.mt <> fv_qvs then
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free qvars %a" QG.pp_hum gn QVSet.pp fv_qvs)
+    else if CVSet.mt <> fv_cvs then
+      Fmt.(raise_failwithf loc "TYCHK.gate_item: gate %a has free cvars %a" QG.pp_hum gn CVSet.pp fv_cvs)
     else
     let env' = Env.mk genv in
     let qvbl = qvl |> List.map (fun qv -> (qv, { Env.used = False ; loc = loc ; it = None })) in
@@ -1740,15 +1924,6 @@ value program ?{env0=[]} (environ, qc) =
 
 end ;
 
-module Lower = struct
-value qcircuit qc = lower_circuit qc ;
-
-value program (environ, qc) =
-  (environ, lower_circuit qc)
-;
-
-end ;
-
 module Latex = struct
 (** Generate Latex for a quantum circuit.
 
@@ -1774,8 +1949,8 @@ open Qc_latex ;
 
 value binding_wire_range aenv (qubit2wire, clbit2wire) (loc, qvl, cvl, qc) =
   let (_, qvfvs, cvfvs) = circuit_freevars qc in
-  let qvl = QVFVS.(toList (union qvfvs (ofList qvl))) in
-  let cvl = CVFVS.(toList (union cvfvs (ofList cvl))) in
+  let qvl = QVSet.(toList (union qvfvs (ofList qvl))) in
+  let cvl = CVSet.(toList (union cvfvs (ofList cvl))) in
   let qubits = List.map (AB.Env.qv_swap_find aenv) qvl in
   let clbits = List.map (AB.Env.cv_swap_find aenv) cvl in
   let qwires = qubits |> List.map (AB.QUBMap.swap_find qubit2wire) |> List.map snd in
@@ -2053,6 +2228,16 @@ value latex genv0 ?{env0=[]} ?{qubit2wire} ?{clbit2wire} (envitems, qc) =
 
 end ;
 
+module NaiveLayout = struct
+
+value mk n =
+  (Std.interval 0 (n-1))
+  |> List.map (fun i -> (BI.EXPLICIT i, PQ.Physical i))
+  |> Layout.mk
+;
+
+end ;
+
 module BasicSwap = struct
 (** BasicSwap
 
@@ -2092,8 +2277,8 @@ value logical_to_explicit_qubit loc q =
     ]
 ;
 
-value make_h loc qv = QGATEAPP loc (QG.ofID (ID.mk "h")) [] [qv] [] ;
-value make_cx loc c t = QGATEAPP loc (QG.ofID (ID.mk "CX")) [] [c; t] [] ;
+value make_h loc qv = QGATEAPP loc (QG.of_string "h") [] [qv] [] ;
+value make_cx loc c t = QGATEAPP loc (QG.of_string "CX") [] [c; t] [] ;
 
 value update_layout aenv l (loc, qvl, _, qc) = match qc with [
       QGATEAPP loc (SYN.SWAP _) _ [qv1;qv2] [] ->
@@ -2105,8 +2290,12 @@ value update_layout aenv l (loc, qvl, _, qc) = match qc with [
     | _ -> l
 ] ;
 
+value swap_binding loc (qv1, qv2) =
+  (loc,  [qv2;qv1], [], QGATEAPP loc (SYN.SWAP loc) [] [qv1;qv2] [])
+;
+
 value layout_swap aenv cm l loc (qv1, qv2) =
-  let b = (loc,  [qv2;qv1], [], QGATEAPP loc (SYN.SWAP loc) [] [qv1;qv2] []) in
+  let b = swap_binding loc (qv1, qv2) in
   let l = update_layout aenv l b in
   ((loc, [b]), l)
 ;
@@ -2291,7 +2480,7 @@ value check_bindings aenv cm l bl =
                QGATEAPP _ _ _ qvl _ -> qvl
              | _ -> []
              ]) in
-  let _ = assert (QVFVS.distinct qv_args) in
+  let _ = assert (QVSet.distinct qv_args) in
   let qubits = List.map (AB.Env.qv_swap_find aenv) qv_args in
   let _ = assert (AB.QUBSet.distinct qubits) in
   let l = List.fold_left (check_binding aenv cm) l bl in
@@ -2310,7 +2499,7 @@ value check_layout genv0 ?{env0=[]} ~{coupling_map=cm} ~{layout=l} (envitems, qc
 ;
 
 end ;
-(*
+
 module SabreSwap = struct
 (** SabreSwap
 
@@ -2367,7 +2556,7 @@ module SabreSwap = struct
  *)
 
 value gate_distance cm l (lbit1, lbit2) =
-  match LO.logical_distance ~{undirected=True} cm l lbit1 lbit2 with [
+  match LO.logical_distance ~{undirected=True} l cm lbit1 lbit2 with [
       None -> max_int
     | Some d -> d
     ]
@@ -2383,19 +2572,38 @@ value safe_div n m =
   if n = max_int then max_int
   else n/m
 ;
-value gate_set_distance_sum cm l pairs =
+value gate_set_distance_sum cm l (pairs : list (BI.t * BI.t)) =
   List.fold_left (fun sum p -> safe_add sum (gate_distance cm l p)) 0 pairs ;
 
 value _EXTENDED_WEIGHT = 0.5 ;
+value _DECAY_INCREMENT = 0.001 ;
 
-value evaluate_swap cm l decay (lbit1, lbit2) (fs,  es) =
+type pair_t = (BI.t * BI.t) [@@deriving (to_yojson, show, eq, ord);] ;
+
+value evaluate_state cm l decay ((fs,  es) : (list (BI.t * BI.t) * list (BI.t * BI.t))) =
   let fs_distsum = Float.of_int (gate_set_distance_sum cm l fs) in
   let es_distsum = Float.of_int (gate_set_distance_sum cm l es) in
-  let max_decay_weight = max (PQMap.swap_find decay lbit1) (PQMap.swap_find decay lbit2) in
   let fs_size = Float.of_int (List.length fs) in
   let es_size = Float.of_int (List.length es) in
-  max_decay_weight *. (fs_distsum /. fs_size +. _EXTENDED_WEIGHT *. es_distsum /. es_size)
+  (fs_distsum /. fs_size +. _EXTENDED_WEIGHT *. es_distsum /. es_size)
 ;
+
+value evaluate_swap cm l decay (fs,  es) ((lbit1, lbit2) as sw) =
+  let l = LO.swap l (lbit1, lbit2) in
+  let evaluated = evaluate_state cm l decay (fs, es) in
+  let pqbit1 = LO.logical_to_physical l lbit1 in
+  let pqbit2 = LO.logical_to_physical l lbit2 in
+  let max_decay_weight = max (PQMap.swap_find decay pqbit1) (PQMap.swap_find decay pqbit2) in
+  (max_decay_weight *. evaluated, (l, sw))
+;
+
+value qbinding_lbits aenv b = match qbinding_qc b with [
+  QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [qv1;qv2] _ ->
+  let lbit1 = BasicSwap.logical_to_explicit_qubit loc (AB.Env.qv_swap_find aenv qv1) in
+  let lbit2 = BasicSwap.logical_to_explicit_qubit loc (AB.Env.qv_swap_find aenv qv2) in
+  (lbit1, lbit2)
+| _ -> assert False
+] ;
 
 (** available_swaps:
 
@@ -2416,7 +2624,7 @@ value evaluate_swap cm l decay (lbit1, lbit2) (fs,  es) =
 
  *)
 value available_swaps_from cm l ~{except} lb =
-  let nlist = LO.logical_neighbors ~{undirected=True} cm l lb in
+  let nlist = LO.logical_neighbors ~{undirected=True} l cm lb in
   let nlist = List.filter (fun lb ->  not (BI.equal lb except)) nlist in
   List.map (fun lb2 -> (lb,  lb2)) nlist
 ;
@@ -2448,7 +2656,6 @@ value available_swaps cm l (lbit1, lbit2) =
     (5) return that swap
 
  *)
-type pair_t = (BI.t * BI.t) [@@deriving (to_yojson, show, eq, ord);] ;
 
 value generate_candidate_swaps cm l fs =
   let all_swaps = List.concat_map (available_swaps cm l) fs in
@@ -2461,64 +2668,90 @@ value generate_candidate_swaps cm l fs =
   all_swaps
 ;
 
-value select_swap aenv cm (l, logical2qvar) decay loc (fs, es) =
+value select_swap aenv cm l decay loc (fs, es) =
   let all_swaps = generate_candidate_swaps cm l fs in
-  
-  let all_swaps = List.concat_map (available_swaps cm l) fs in
-  let uniq_swap (lb1, lb2) = match BI.compare lb1 lb2 with [
-        0 -> assert False
-      | -1 -> (lb1, lb2)
-      | 1 -> (lb2, lb1) ] in
-  let all_swaps = List.map uniq_swap all_swaps in
-  let all_swaps = List.sort_uniq compare_pair_t all_swaps in
- () ; 
-
-value sabre_swap_cx_layer aenv cm (l, logical2qvar) (fs, es, (loc, bl)) =
-  let _ = assert (List.length fs = List.length bl) in
-  let fs_bl = List.map2 (fun varpair b -> (varpair, b)) fs bl in
-  let physbits = l |> LO.physical_bits |> PQSet.toList in
-  let decay = physbits |> List.map (fun p -> (p, 1.0)) |> PQMap.ofList in
-  assert False
-
+  let eval_all_swaps = List.map (evaluate_swap cm l decay (fs, es)) all_swaps in
+  let state_cost = evaluate_state cm l decay (fs, es) in
+  let eval_all_swaps = List.filter (fun (cost, _) ->  cost < state_cost) eval_all_swaps in
+  if eval_all_swaps = [] then
+    Fmt.(raise_failwithf loc "no swap found that decreased the cost-function")
+  else
+    let (_, rv) =
+      List.fold_left (fun (c1, s1) (c2, s2) -> if c1 < c2 || c1 = c2 && [%ord: (BI.t * BI.t)] (snd s1) (snd s2) <= 0 then (c1,s1) else (c2, s2))
+        (List.hd eval_all_swaps) (List.tl eval_all_swaps) in
+    rv
 ;
 
-value process_bindings aenv cm (l, logical2qvar) (varset, (loc, bl)) =
-  match varset with [
-      None ->
-      ((l, logical2qvar), [(loc,bl)])
-    | Some (fs, es) ->
-       sabre_swap_cx_layer aenv cm (l, logical2qvar) loc (fs, es)
-    ]
+value compute_cx_varset aenv l (loc, bl) =
+  let l = bl |> List.map (qbinding_lbits aenv) in
+  let _ = assert (BISet.distinct (List.concat_map (fun (b1, b2) -> [b1;b2]) l)) in
+  l
 ;
 
-value compute_varset aenv l (loc, bl) =
+value compute_varset aenv l (loc, bl) : option (list (BI.t * BI.t))=
   if not (List.for_all SabreHoist.is_cx_binding bl) then
     let _ = assert (not (List.exists SabreHoist.is_cx_binding bl)) in
     None
-  else
-    let l =
-      bl
-      |> List.map (fun b ->
-             match qbinding_qc b with [
-                 QGATEAPP loc ((SYN.CX _|SYN.GENGATE _ ("cx",-1)) as gn) _ [qv1;qv2] _ ->
-                 let lbit1 = AB.Env.qv_swap_find aenv qv1 in
-                 let lbit2 = AB.Env.qv_swap_find aenv qv2 in
-                 (lbit1, lbit2)
-               | _ -> assert False
-           ]) in
-    let _ = assert (AB.QUBSet.distinct (List.concat_map (fun (b1, b2) -> [b1;b2]) l)) in
-    Some l
+  else Some (compute_cx_varset aenv l (loc, bl))
 ;
 
-value add_bothsets_to_letlist aenv l ll =
+value initial_decay l =
+  let physbits = l |> LO.physical_bits |> PQSet.toList in
+  physbits |> List.map (fun p -> (p, 1.0)) |> PQMap.ofList
+;
+
+value increase_decay l lbit decay =
+  let physbit = LO.logical_to_physical l lbit in
+  let oldval = PQMap.swap_find decay physbit in
+  PQMap.add physbit (oldval +. _DECAY_INCREMENT) decay
+;
+
+value qbinding_available aenv cm l b =
+  let (lbit1, lbit2) = qbinding_lbits aenv b in
+  let dist = gate_distance cm l (lbit1, lbit2) in
+  dist = 1
+;
+
+value sabre_swap_layer aenv cm (l, logical2qvar) (es, (loc, bl)) =
+  let decay = initial_decay l in
+  match compute_varset aenv l (loc, bl) with [
+      None ->
+      let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, bl) in
+      ((l, logical2qvar), [(loc, bl)])
+    | Some fs ->
+       let rec swaprec ((l, logical2qvar), ll_acc) decay fs bl =
+         if bl = [] then
+           ((l, logical2qvar), List.rev ll_acc)
+         else if List.exists (qbinding_available aenv cm l) bl then
+           let (available_bl, rest_bl) = filter_split (qbinding_available aenv cm l) bl in
+           let fs = compute_cx_varset aenv l (loc, rest_bl) in
+           let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, available_bl) in
+           swaprec ((l, logical2qvar), [(loc, available_bl) :: ll_acc]) decay fs rest_bl
+         else
+           let (l, (lbit1, lbit2)) = select_swap aenv cm l decay loc (fs, es) in
+           let decay = decay |> increase_decay l lbit1 |> increase_decay l lbit2 in
+           let qv1 = BIMap.swap_find logical2qvar lbit1 in
+           let qv2 = BIMap.swap_find logical2qvar lbit2 in
+           let swapb = BasicSwap.swap_binding loc (qv1, qv2) in
+           let logical2qvar = BasicSwap.l2q_letlayer aenv logical2qvar (loc, [swapb]) in
+           let ll_acc = [(loc, [swapb]) :: ll_acc] in
+           swaprec ((l, logical2qvar), ll_acc) decay fs bl
+       in swaprec ((l, logical2qvar),  []) decay fs bl
+    ]
+;
+
+value process_bindings aenv cm (l, logical2qvar) (extset, (loc, bl)) =
+  sabre_swap_layer aenv cm (l, logical2qvar) (extset, (loc, bl))
+;
+
+value add_extset_to_letlist aenv l ll =
   let (_, rv) =
     List.fold_right (fun (loc, bl) (curset, rest) ->
         let newset = compute_varset aenv l (loc, bl) in
-        match (newset, curset) with [
-            (None, _) -> (None, [(None, (loc, bl)) :: rest])
-          | (Some fs,  None) -> (Some fs,  [(Some (fs, []), (loc, bl)) :: rest])
-          | (Some fs,  Some es) -> (Some fs, [(Some (fs, es), (loc, bl)) :: rest])
-      ]) ll (None, []) in
+        match newset with [
+            None -> (curset, [(curset, (loc, bl)) :: rest])
+          | Some fs -> (fs,  [(curset, (loc, bl)) :: rest])
+      ]) ll ([], []) in
   rv
 ;
 
@@ -2526,11 +2759,11 @@ value sabre_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
   let (gate_assign_env, qc_assign_env) = AB.program genv0 ~{env0=env0} (envitems, qc) in
   let qc = SabreHoist.hoist qc in
   let (ll, qc) = SYN.to_letlist qc in
-  let ll = add_bothsets_to_letlist qc_assign_env l ll in
+  let ll = add_extset_to_letlist qc_assign_env l ll in
   let logical2qvar = BIMap.empty in
   let (_,  rev_ll) =
-    List.fold_left (fun ((l, logical2qvar), acc_rev_ll) (varsets, (loc, bl)) ->
-        let ((l, logicalqvar), ll) = process_bindings qc_assign_env coupling_map (l, logical2qvar) (varsets, (loc, bl)) in
+    List.fold_left (fun ((l, logical2qvar), acc_rev_ll) (extset, (loc, bl)) ->
+        let ((l, logicalqvar), ll) = process_bindings qc_assign_env coupling_map (l, logical2qvar) (extset, (loc, bl)) in
         ((l, logicalqvar), [ll :: acc_rev_ll])
       )
       ((l,  logical2qvar), []) ll in
@@ -2540,4 +2773,212 @@ value sabre_swap genv0 ?{env0=[]} ~{coupling_map} ~{layout=l} (envitems,qc) =
 ;
 
 end ;
+
+module Optimize1q = struct
+
+(** Optimize1q assumes that the circuit is in ANF/NNF, and
+
+
+    (1) We're writing a recursive function over circuits. It takes an
+    environment mapping qvars to binding+removed-flag.
+
+    (2) To optimize a circuit, if it's not a LET, then just return it.
+
+    (3) If it's a let:
+
+        (3a) process each 1q binding against the current env, possibly modifying it
+
+        (3b) remove all qvars used in bindings, from the environment (if present)
+
+        (3c) build list of 1q bindings as binding+removed-flag
+
+        (3d) add 1q bindings to env
+
+        (3d) recurse on body of circuit
+
+        (3e) rebuild let-bindings, skipping any in the 1q-list from #3c that are removed=true.
+
  *)
+
+open Qc_quat ;
+
+type oneq_binding_t = {
+    removed : mutable bool
+  ; it : SYN.qbinding_t
+  } [@@deriving (to_yojson, show, eq, ord);] ;
+
+value pp_hum pps b =
+  Fmt.(pf pps "{it=%a; removed=%b}" PP.qbinding b.it b.removed)
+;
+
+value pp_hum_env_t pps env = QVMap.pp_hum pp_hum pps env ;
+
+value fuse_uu_pair ~{eps} upstream_b downstream_b =
+  let ((theta1,phi1,lambda1), (upstream_bound, upstream_arg)) = match upstream_b with [
+        (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [qv_arg] []) ->
+        let theta = PE.eval PVMap.empty theta in
+        let phi = PE.eval PVMap.empty phi in
+        let lambda = PE.eval PVMap.empty lambda in
+        ((theta,phi,lambda), (qv_bound, qv_arg))
+
+      | _ -> assert False
+      ] in
+  let ((theta2,phi2,lambda2), (downstream_bound, downstream_arg)) = match downstream_b with [
+        (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [qv_arg] []) ->
+        let theta = PE.eval PVMap.empty theta in
+        let phi = PE.eval PVMap.empty phi in
+        let lambda = PE.eval PVMap.empty lambda in
+        ((theta,phi,lambda), (qv_bound, qv_arg))
+
+      | _ -> assert False
+      ] in
+
+  let _ = assert (QV.equal downstream_arg upstream_bound) in
+  let upstream_q = ZYZ.(to_quat {z_0=phi1; y_1=theta1; z_2=lambda1}) in
+  let downstream_q = ZYZ.(to_quat {z_0=phi2; y_1=theta2; z_2=lambda2}) in
+  (*
+   * -> gate1 -> gate2 -> ....
+   *
+   * turns into GATE2 * GATE1 * ....
+   *)
+  let fused_q = Quat.mul downstream_q upstream_q in
+  let ZYZ.{z_0 = phi; y_1 = theta; z_2 = lambda} = ZYZ.of_quat ~{eps=eps} fused_q in
+  let loc = qbinding_loc downstream_b in
+  if Gg.Float.equal_tol ~{eps=eps} theta 0.
+     && Gg.Float.equal_tol ~{eps=eps} phi 0.
+     && Gg.Float.equal_tol ~{eps=eps} lambda 0. then
+    (loc, [downstream_bound], [], QWIRES loc [upstream_arg] [])
+  else
+  let theta = Qlam_parser.param_of_string (Float.to_string theta) in
+  let phi = Qlam_parser.param_of_string (Float.to_string phi) in
+  let lambda = Qlam_parser.param_of_string (Float.to_string lambda) in
+  (loc, [downstream_bound], [],
+   QGATEAPP loc (SYN.U loc) [theta;phi;lambda] [upstream_arg] [])
+;
+
+value simplify_U ~{eps} b =
+  match b with [
+      (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [qv_arg] []) ->
+      let theta = PE.eval PVMap.empty theta in
+      let phi = PE.eval PVMap.empty phi in
+      let lambda = PE.eval PVMap.empty lambda in
+      let q = ZYZ.(to_quat {z_0=phi; y_1=theta; z_2=lambda}) in
+      let ZYZ.{z_0 = phi; y_1 = theta; z_2 = lambda} = ZYZ.of_quat ~{eps} q in
+      if Gg.Float.equal_tol ~{eps=eps} theta 0.
+         && Gg.Float.equal_tol ~{eps=eps} phi 0.
+         && Gg.Float.equal_tol ~{eps=eps} lambda 0. then
+        (loc, [qv_bound], [], QWIRES loc [qv_arg] [])
+      else
+        b
+    | _ -> b
+    ]
+;
+
+value is_U_binding = fun [
+  (_, [_],[], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) [_;_;_] [_] []) -> True
+| _ -> False
+] ;
+
+value _U_binding_qvarg = fun [
+  (_, [_],[], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) [_;_;_] [qv] []) -> qv
+| (loc, _, _, _) as b -> 
+   Fmt.(raise_failwithf loc "u_binding_qvarg: internal error: not a 1Q binding: %a"
+        PP.qbinding b)
+] ;
+
+value is_qwire_binding = fun [
+  (_, [_],[], QWIRES _ [_] []) -> True
+| _ -> False
+] ;
+
+value qwire_binding_qvarg = fun [
+  (_, [_],[], QWIRES _  [qv] []) -> qv
+| (loc, _, _, _) as b -> 
+   Fmt.(raise_failwithf loc "qwire_binding_qvarg: internal error: not a 1Q binding: %a"
+        PP.qbinding b)
+] ;
+
+value is_U_or_qwire_binding b =
+  is_U_binding b
+  || is_qwire_binding b
+;
+
+value _U_or_qwire_binding_qvarg b =
+  if is_U_binding b then _U_binding_qvarg b
+  else if is_qwire_binding b then qwire_binding_qvarg b
+  else assert False
+;
+
+value fuse_1q_pair ~{eps} upstream_b downstream_b =
+  match (upstream_b, downstream_b) with [
+      ((_, [_], [], QWIRES _ [qv_arg] []),
+       (loc, [qv_bound], [], QWIRES _ [_] [])) ->
+      (loc, [qv_bound], [], QWIRES loc [qv_arg] [])
+
+    | ((_, [_], [], QWIRES _ [qv_arg] []),
+       (loc, [qv_bound], [], QGATEAPP _ ((SYN.U _|SYN.GENGATE _ ("u",-1)) as gn) [theta;phi;lambda] [_] [])) ->
+       (loc, [qv_bound], [], QGATEAPP loc (SYN.U loc) [theta;phi;lambda] [qv_arg] [])
+      
+
+    | ((_, [_], [], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) _ [_] []),
+       (_, [_], [], QGATEAPP _ (SYN.U _|SYN.GENGATE _ ("u",-1)) _ [_] [])) ->
+       fuse_uu_pair ~{eps} upstream_b downstream_b
+
+    | _ -> assert False
+
+    ]
+;
+
+value rec qcircuit ~{eps} env qc = match qc with [
+    SYN.QLET loc bl qc ->
+    let (bl, qc) = optimize_1q_qlet ~{eps=eps} env bl qc in
+    if [] = bl then qc else
+      SYN.QLET loc bl qc
+  | _ -> qc
+  ]
+
+and optimize_1q_qlet ~{eps} env bl qc =
+  let (oneq_bl, rest_bl) =
+    filter_split (fun b -> 1 = List.length (qbinding_qvl b)) bl in
+  let oneq_bl = List.map (optimize_1q ~{eps=eps} env) oneq_bl in
+  let oneq_bindings =
+    oneq_bl |> List.map (fun b ->
+                   let qv = List.hd (qbinding_qvl b) in
+                   (qv, { it = b ; removed = False })) in
+  let rest_bindings =
+    rest_bl
+    |> List.concat_map (fun b ->
+           let qvl = qbinding_qvl b in
+           let it = { it = b ; removed = False } in
+           qvl |> List.map (fun qv ->  (qv, it))) in
+  let qc_env = List.fold_left (fun env (qv, it) -> QVMap.add qv it env) env rest_bindings in
+  let qc_env = List.fold_left (fun env (qv, it) -> QVMap.add qv it env) qc_env oneq_bindings in
+  let qc = qcircuit ~{eps=eps} qc_env qc in
+  let oneq_bl = 
+    oneq_bindings |> List.filter_map (fun (_, it) ->
+                         if it.removed then None else Some it.it) in
+  (oneq_bl@rest_bl, qc)
+
+and optimize_1q ~{eps} (env : SYN.QVMap.t oneq_binding_t) b =
+  if is_U_or_qwire_binding b then
+    let qv = _U_or_qwire_binding_qvarg b in
+    let upstream_it =
+      match  QVMap.swap_find env qv with [
+          exception Not_found ->
+                    Fmt.(raise_failwithf (qbinding_loc b) "optimize_1q: internal error: cannot find qvar %a in env"
+                           QV.pp_hum qv)
+        | it -> it
+        ] in
+    if is_U_or_qwire_binding upstream_it.it then
+      let fused_b = fuse_1q_pair ~{eps=eps} upstream_it.it b in
+      let _ = upstream_it.removed := True in
+      fused_b
+    else simplify_U ~{eps} b
+  else b
+;
+
+value program ~{eps} genv0 ?{env0=[]} (envitems,qc) =
+  (envitems, qcircuit ~{eps=eps} QVMap.empty qc)
+;
+
+end ;

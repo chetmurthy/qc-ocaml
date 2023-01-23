@@ -87,8 +87,10 @@ let unroll1 envs dag node =
     | DAG.STMT (AST.STMT_QOP(AST.UOP (AST.COMPOSITE_GATE(gateid, actual_params, actual_qargs)))) ->
        (gateid, actual_params, actual_qargs)
     | _ -> failwith "cannot unroll a node that's not a composite gate instance" in
-  let (_, formal_params, formal_qargs, gate_body) =
-    LM.map envs.TYCHK.Env.gates gateid in
+  let (formal_params, formal_qargs, gate_body) =
+    match LM.map envs.TYCHK.Env.gates gateid with
+      TYCHK.Env.DEF (_, p,q,b) -> (p,q,b)
+    | TYCHK.Env.OPAQUE _ -> assert false in
   assert (List.length formal_params = List.length actual_params) ;
   assert (List.length formal_qargs = List.length actual_qargs) ;
   let cparamenv = LM.ofList() (combine formal_params actual_params) in

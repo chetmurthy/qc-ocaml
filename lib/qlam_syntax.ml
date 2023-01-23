@@ -21,38 +21,41 @@ module PV = struct
   type t = pvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ PV _ x -> x ] ;
   value ofID ?{loc=Ploc.dummy} x = PV loc x ;
+  value of_string s = ofID(ID.mk s) ;
   value to_loc = fun [ PV loc _ -> loc ] ;
 
   value pvar pps = fun [ (PV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" pvar x) ;
 end ;
 
-module PVFVS = VarSet(PV) ;
-module PVMap = EntityMap(PV)(PVFVS) ;
+module PVSet = VarSet(PV) ;
+module PVMap = EntityMap(PV)(PVSet) ;
 
 type qvar_t = [ QV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module QV = struct
   type t = qvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ QV _ x -> x ] ;
   value ofID ?{loc=Ploc.dummy} x = QV loc x ;
+  value of_string s = ofID(ID.mk s) ;
   value to_loc = fun [ QV loc _ -> loc ] ;
   value qvar pps = fun [ (QV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" qvar x) ;
 end ;
-module QVFVS = VarSet(QV) ;
-module QVMap = EntityMap(QV)(QVFVS) ;
+module QVSet = VarSet(QV) ;
+module QVMap = EntityMap(QV)(QVSet) ;
 
 type cvar_t = [ CV of loc and ID.t ][@@deriving (to_yojson, show, eq, ord);] ;
 module CV = struct
   type t = cvar_t[@@deriving (to_yojson, show, eq, ord);];
   value toID = fun [ CV _ x -> x ] ;
   value ofID ?{loc=Ploc.dummy} x = CV loc x ;
+  value of_string s = ofID(ID.mk s) ;
   value to_loc = fun [ CV loc _ -> loc ] ;
   value cvar pps = fun [ (CV _ id) -> ID.pp_hum pps id ] ;
   value pp_hum pps x = Fmt.(pf pps "%a" cvar x) ;
 end ;
-module CVFVS = VarSet(CV) ;
-module CVMap = EntityMap(CV)(CVFVS) ;
+module CVSet = VarSet(CV) ;
+module CVMap = EntityMap(CV)(CVSet) ;
 
 type qgn_t = [
     CX of loc | U of loc | SWAP of loc
@@ -72,6 +75,7 @@ module QG = struct
   | ("SWAP",-1) -> SWAP loc
   | x -> GENGATE loc x
   ] ;
+  value of_string s = ofID(ID.mk s) ;
   value to_loc = fun [
     CX loc -> loc | U loc -> loc | SWAP loc -> loc
   | GENGATE loc _ -> loc
@@ -94,6 +98,56 @@ type pexpr_t = [
 | UFUN of loc and ufun_t and pexpr_t
   ][@@deriving (to_yojson, show, eq, ord);]
 ;
+
+module PE = struct
+type t = pexpr_t [@@deriving (to_yojson, show, eq, ord);]
+;
+
+value eval penv pe =
+  let rec erec = fun [
+        ID loc pv ->
+        (match PVMap.swap_find penv pv with [
+             exception Not_found ->
+                       Fmt.(raise_failwithf loc "PE.eval: cannot find param-var %a in environment" PV.pp_hum pv)
+           | x -> x ])
+
+      | CONST loc (REAL r) ->
+         (match Float.of_string_opt r with [
+              None ->
+              Fmt.(raise_failwithf loc "PE.eval: (probable internal error) malformed real constant expression: %s" r)
+            | Some r -> r
+         ])
+      | CONST loc (NNINT n) -> Float.of_int n
+      | CONST loc PI -> Float.pi
+      | BINOP _ bop e1 e2 ->
+         let v1 = erec e1 in
+         let v2 = erec e2 in
+         (match bop with [
+              ADD -> v1 +. v2
+            | SUB -> v1 -. v2
+            | MUL ->  v1 *. v2
+            | DIV -> v1 /. v2
+            | POW -> Float.pow v1 v2
+         ])
+      | UNOP _ uop e1 ->
+         let v1 = erec e1 in
+         (match uop with [
+              UMINUS -> -. v1
+         ])
+      | UFUN _ uf e1 ->
+         let v1 = erec e1 in
+         (match uf with [
+              SIN -> Float.sin v1
+            | COS -> Float.cos v1
+            | TAN -> Float.tan v1
+            | EXP -> Float.exp v1
+            | LN -> Float.log v1
+            | SQRT -> Float.sqrt v1
+         ])
+      ] in
+  erec pe
+;
+end ;
 
 module Unique = struct
   value ctr = Counter.mk () ;
@@ -357,6 +411,13 @@ and qbinding pps = fun [
   | (_, qvl,  cvl, qc) ->
     Fmt.(pf pps "%a = %a" paren_qvars_cvars (qvl,cvl) qcirc qc)
 ] ;
+
+value qgatelam pps ((pvl, qvl, cvl), qc) =
+    Fmt.(pf pps "@[<v>[(%a) %a]@ @[<v 2>%a@]@]@,"
+           (list ~{sep=(const string ", ")} PV.pp_hum) pvl
+           qvars_cvars (qvl, cvl)
+           qcirc qc)
+;
 
 value gate_item pps = fun [
     DEF _ gname ((pvl, qvl, cvl), qc) ->

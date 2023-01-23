@@ -7,6 +7,7 @@ open Qc_misc ;
 open Qlam_syntax.SYN ;
 
 value g = Grammar.gcreate (Plexer.gmake ());
+value param_eoi = Grammar.Entry.create g "param_eoi";
 value qcirc = Grammar.Entry.create g "qcirc";
 value qbinding = Grammar.Entry.create g "qbinding";
 value env = Grammar.Entry.create g "env";
@@ -53,7 +54,7 @@ value qelib_of_file s =
 
 EXTEND
   GLOBAL: qcirc qbinding env env_item top
-          qcirc_eoi env_eoi top_eoi
+          param_eoi qcirc_eoi env_eoi top_eoi
           layout layout_eoi coupling_map coupling_map_eoi ;
 
   env: [ [
@@ -77,7 +78,7 @@ EXTEND
   direction: [ [ "->" -> CouplingMap.LR | "<-" -> CouplingMap.RL | "<->" -> CouplingMap.BIDI ] ] ;
   position: [ [ n=INT ; "@" ; "(" ; x=signed_int; ","; y=signed_int ; ")" -> (int_of_string n, (x,y)) ] ] ;
   signed_int: [ [ n= INT -> int_of_string n  | "-" ; n=INT -> - (int_of_string n) ] ] ;
-  layout: [ [ "[" ; l = LIST1 layout_item SEP "," ; "]" -> Layout.mk l ] ] ;
+  layout: [ [ "[" ; l = LIST1 layout_item SEP "," OPT_SEP ; "]" -> Layout.mk l ] ] ;
   layout_item: [ [
         OPT "logical" ; lbit = explicit_bit ; ":"  ; pbit = physical_bit -> (lbit, pbit)
       | pbit = physical_bit ; ":" ; OPT "logical" ; lbit = explicit_bit -> (lbit, pbit)
@@ -190,12 +191,21 @@ EXTEND
   qgatename: [ [ x = ident -> QG.ofID ~{loc=loc} x ] ] ;
 
   top_eoi: [ [ x = top ; EOI -> x ] ] ;
+  param_eoi: [ [ x = param ; EOI -> x ] ] ;
   qcirc_eoi: [ [ x = qcirc ; EOI -> x ] ] ;
   env_eoi: [ [ x = env ; EOI -> x ] ] ;
   layout_eoi: [ [ x = layout ; EOI -> x ] ] ;
   coupling_map_eoi: [ [ x = coupling_map ; EOI -> x ] ] ;
 
 END;
+
+value parse_param s =
+  s |> (Grammar.Entry.parse param_eoi)
+;
+
+value param_of_string s =
+  s |> Stream.of_string |> parse_param
+;
 
 value parse_program ?{file="<string>"} s =
   s |> with_input_file file (Grammar.Entry.parse top_eoi)

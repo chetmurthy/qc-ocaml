@@ -1,0 +1,32 @@
+rotX(theta):= matrix(
+		     [ 1, 0, 0 ],
+		     [ 0, cos(theta) , sin(theta) ],
+		     [ 0,  sin(theta),  cos(theta) ]
+) ;
+rotY(theta):= matrix(
+		     [ cos(theta) , 0, sin(theta) ],
+		     [ 0, 1, 0 ],
+		     [ -sin(theta), 0, cos(theta) ]
+) ;
+rotZ(theta):= matrix(
+		     [ cos(theta), -sin(theta) , 0 ],
+		     [ sin(theta), cos(theta), 0 ],
+		     [ 0, 0, 1 ]
+) ;
+
+
+ZYZ(phi,theta,lambda) :=
+ rotZ(phi) . rotY(theta) . rotZ(lambda) ;
+
+
+ZXZ(phi,theta,lambda) :=
+ rotZ(phi) . rotX(theta) . rotZ(lambda) ;
+
+U(theta,phi,lambda) :=
+ rotZ(phi + 3 * %pi) .
+ rotX(%pi/2) .
+ rotZ(theta + %pi) .
+ rotX(%pi/2) .
+ rotZ(lambda) ;
+
+U3_ZYZ(theta,phi,lambda) := ZYZ(phi,theta,lambda) ;

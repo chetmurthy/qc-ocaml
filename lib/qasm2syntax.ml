@@ -51,6 +51,7 @@ type rawtoken =
   | T_SQRT
   | T_TAN
   | T_U
+  | T_SWAPGATE of string
   | T_MEASURE
   | T_OPAQUE
   | T_RESET
@@ -232,10 +233,12 @@ module AST = struct
 
   type 'aux gatedecl_t = string * string list * string list * 'aux gate_op_t list [@@deriving to_yojson, show, eq, ord]
 
+  type 'aux gateopaque_t = string * string list * string list [@@deriving to_yojson, show, eq, ord]
+
   type 'aux raw_stmt_t =
     | STMT_INCLUDE of file_type_t * string * 'aux stmt_t list option
     | STMT_GATEDECL of 'aux gatedecl_t
-    | STMT_OPAQUEDECL of string * string list * string list
+    | STMT_OPAQUEDECL of 'aux gateopaque_t
     | STMT_QOP of raw_qop_t
     | STMT_IF of creg_t * int * raw_qop_t
     | STMT_BARRIER of qreg_t or_indexed list
@@ -289,8 +292,9 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
 
 
   module Env = struct
+    type 'a env_gate_t = DEF of 'a AST.gatedecl_t | OPAQUE of 'a AST.gateopaque_t
     type 'a t = {
-        gates: (string, 'a AST.gatedecl_t) LM.t ;
+        gates: (string, 'a env_gate_t) LM.t ;
         qregs: (string, int) LM.t ;
         cregs: (string, int) LM.t ;
       }
@@ -309,6 +313,14 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
 
     let has_gate envs id = LM.in_dom envs.gates id
     let find_gate envs id = LM.map envs.gates id
+    let is_defined_gate envs id = match find_gate envs id with
+        exception Not_found -> false
+      | DEF _ -> true
+      | OPAQUE _ -> false
+
+    let defined_gates envs =
+      let l = LM.dom envs.gates in
+      Std.filter (is_defined_gate envs) l
 
     let must_have_gate envs id =
       if not (has_gate envs id) then
@@ -343,16 +355,24 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
         raise (TypeError(false, Printf.sprintf "qreg %s already declared" id))
 
     let auxmap mappers env =
-      let map_gatedecl (a,b,c,gopl) =
-        let rst = AST.STMT_GATEDECL(a,b,c,gopl) in
-        match AST.AuxMap.raw_stmt mappers rst with
-        | AST.STMT_GATEDECL(a,b,c,gopl) -> (a,b,c,gopl)
-        | _ -> assert false in
+      let map_env_gate = function
+          DEF (a,b,c,gopl) -> begin
+           let rst = AST.STMT_GATEDECL(a,b,c,gopl) in
+           match AST.AuxMap.raw_stmt mappers rst with
+           | AST.STMT_GATEDECL(a,b,c,gopl) -> DEF(a,b,c,gopl)
+           | _ -> assert false
+          end
+        | OPAQUE (a,b,c) -> begin
+           let rst = AST.STMT_OPAQUEDECL(a,b,c) in
+           match AST.AuxMap.raw_stmt mappers rst with
+           | AST.STMT_OPAQUEDECL(a,b,c) -> OPAQUE(a,b,c)
+           | _ -> assert false
+          end in
 
       let gates =
         env.gates
         |> LM.toList
-        |> List.map (fun (k,v) -> (k, map_gatedecl v))
+        |> List.map (fun (k,v) -> (k, map_env_gate v))
         |> LM.ofList () in
 
       { env with gates = gates }
@@ -537,7 +557,9 @@ type Pa_ppx_runtime_fat.Exceptions.t +=
       | _, AST.STMT_QREG(id, n) -> Env.add_qreg envs (id, n)
       | _, STMT_CREG(id, n) -> Env.add_creg envs (id, n)
       | _, STMT_GATEDECL(gateid, param_formals, qubit_formals, gopl) ->
-         Env.add_gate envs (gateid, (gateid, param_formals, qubit_formals, gopl))
+         Env.add_gate envs (gateid, Env.DEF(gateid, param_formals, qubit_formals, gopl))
+      | _, STMT_OPAQUEDECL(gateid, param_formals, qubit_formals) ->
+         Env.add_gate envs (gateid, Env.OPAQUE(gateid, param_formals, qubit_formals))
       | _ -> envs
 
   let rec stmt envs st = match st with

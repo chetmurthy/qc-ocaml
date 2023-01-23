@@ -9,6 +9,7 @@
 #require "oUnit";;
 #print_length 1048576 ;;
 
+open Gg ;;
 open Asttools ;;
 open Pa_ppx_utils ;;
 open Coll ;;
@@ -18,6 +19,7 @@ open Qc_misc ;;
 open Qc ;;
 open Qasm2syntax ;;
 open OUnit2 ;;
+open Qc_quat ;;
 
 Pa_ppx_base.Pp_MLast.Ploc.pp_loc_verbose := true ;;
 Pa_ppx_runtime_fat.Exceptions.Ploc.pp_loc_verbose := true ;;
@@ -78,8 +80,8 @@ let read_file_tolam s0 =
   Qlam.Prog.of_qasm2 (env, instrs)
 ;;
 
-let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QVFVS.pp_hum x) ;;
-let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.CVFVS.pp_hum x) ;;
+let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QVSet.pp_hum x) ;;
+let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.CVSet.pp_hum x) ;;
 
 let pp_qv_corr l = Fmt.(pf stdout "<:qvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QV.pp_hum SYN.QV.pp_hum))) (SYN.QVMap.bindings l)) ;;
 let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.CV.pp_hum SYN.CV.pp_hum))) (SYN.CVMap.bindings l)) ;;
@@ -98,6 +100,15 @@ let pp_logical2qvar m = Fmt.(pf stdout "<:logical2qvar< %a >>" (SYN.BIMap.pp_hum
 let pp_ab_env x = Fmt.(pf stdout "<:abenv< %a >>" Qlam_ops.AB.Env.pp_hum x) ;;
 #install_printer pp_ab_env ;;
 
+let pp_quat x = Fmt.(pf stdout "<:quat< %a >>" Quat.pp x) ;;
+#install_printer pp_quat ;;
+
+let pp_m3 x = Fmt.(pf stdout "<:m3< %a >>" M3.pp x) ;;
+#install_printer pp_m3 ;;
+
+let pp_v3 x = Fmt.(pf stdout "<:v3< %a >>" V3.pp x) ;;
+#install_printer pp_v3 ;;
+
 #load "test_helpers.cmo";;
 #load "qasm2_tests.cmo";;
 open Test_helpers ;;
@@ -110,6 +121,8 @@ open Qlam_tests ;;
 #load "qclatex_tests.cmo";;
 open Qclatex_tests ;;
 
+#load "quaternion_tests.cmo";;
+open Quaternion_tests ;;
 
 (* Local Variables: *)
 (* mode: tuareg *)

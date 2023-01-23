@@ -9,10 +9,6 @@ open Misc_functions
 open Qc_misc
 open Qasm2syntax
 
-let read_include pfun fname =
-  let ic = open_in (find_file_from ~path:!include_path fname) in
-  pfun (Qasm2_lexer.make_body_lexer_from_channel ~fname ic)
-
 let catch_parse_error pfun tokstrm =
   try pfun tokstrm
   with Stream.Error _ ->
@@ -21,6 +17,9 @@ let catch_parse_error pfun tokstrm =
         | Some(loc, tok) ->
            Ploc.raise loc (SyntaxError "parse error")
 
+let read_include pfun fname =
+  let ic = open_in (find_file_from ~path:!include_path fname) in
+  catch_parse_error pfun (Qasm2_lexer.make_body_lexer_from_channel ~fname ic)
 
 let full_parse pfun ?(fname="") buf =
   let tokstrm = Qasm2_lexer.make_lexer ~fname buf in
@@ -177,6 +176,9 @@ let uop = parser
    (List.fold_left ploc_encl_with_comments aux1 [aux2; aux3; aux4; aux5; aux6], CST.U(el, a))
 | [< '(aux1,T_CX) ; (aux2, a1)=id_or_indexed ; '(aux3, T_COMMA) ; (aux4, a2)=id_or_indexed ; '(aux5, T_SEMICOLON) >] ->
    (List.fold_left ploc_encl_with_comments aux1 [aux2; aux3; aux4; aux5], CST.CX(a1, a2))
+| [< '(aux1,T_SWAPGATE _) ; (aux2, a1)=id_or_indexed ; '(aux3, T_COMMA) ; (aux4, a2)=id_or_indexed ; '(aux5, T_SEMICOLON) >] ->
+   (List.fold_left ploc_encl_with_comments aux1 [aux2; aux3; aux4; aux5], CST.COMPOSITE_GATE("SWAP", [], [a1; a2]))
+
 | [< '(aux1, T_ID gateid) ;
    (aux2, params)=(parser
                      [< '(paux1, T_LPAREN); (paux2, l)=possibly_empty ne_explist; '(paux3, T_RPAREN) >] ->
@@ -219,7 +221,7 @@ let gatedecl = parser
     CST.STMT_GATEDECL(gateid, formal_params, formal_bits, gopl))
 
 let opaquedecl = parser
-| [< '(aux1, T_OPAQUE) ; '(aux2, T_ID gateid) ;
+| [< '(aux1, T_OPAQUE) ; '(aux2, (T_ID gateid | T_SWAPGATE gateid)) ;
    (aux3, formal_params)=(parser
                             [< '(paux1, T_LPAREN); (paux2, l)=possibly_empty ne_id_list ; '(paux3, T_RPAREN) >] ->
                           (List.fold_left ploc_encl_with_comments paux1 [paux2; paux3], l)

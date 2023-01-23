@@ -1,3 +1,2 @@
 gate U (theta, phi, lambda) q ;
 gate CX () c t ;
-gate SWAP () p q ;

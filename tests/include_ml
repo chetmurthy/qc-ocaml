@@ -78,8 +78,8 @@ let read_file_tolam s0 =
   Qlam.Prog.of_qasm2 (env, instrs)
 ;;
 
-let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QVFVS.pp_hum x) ;;
-let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.CVFVS.pp_hum x) ;;
+let pp_qvfvs x = Fmt.(pf stdout "<:qvfvs<%a>>" SYN.QVSet.pp_hum x) ;;
+let pp_cvfvs x = Fmt.(pf stdout "<:cvfvs<%a>>" SYN.CVSet.pp_hum x) ;;
 
 let pp_qv_corr l = Fmt.(pf stdout "<:qvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.QV.pp_hum SYN.QV.pp_hum))) (SYN.QVMap.bindings l)) ;;
 let pp_cv_corr l = Fmt.(pf stdout "<:cvcorr<%a>>" (list ~sep:(const string "; ") (parens (pair ~sep:(const string ", ") SYN.CV.pp_hum SYN.CV.pp_hum))) (SYN.CVMap.bindings l)) ;;
