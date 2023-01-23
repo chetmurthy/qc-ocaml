@@ -23,6 +23,6 @@ let () =
   List.iter (fun f ->
       let extra = discover_args f in
       let cmd = Printf.sprintf "%s %s %s" cmd extra f in
-      Printf.fprintf stderr "%s\n" cmd;
+      Printf.fprintf stderr "%s\n%!" cmd;
       ignore (Sys.command cmd))
     files

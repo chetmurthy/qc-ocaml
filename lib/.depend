@@ -85,6 +85,134 @@ qasm_io.cmx : \
     qasm2_parser.cmx \
     qasm2_lexer.cmx \
     misc_functions.cmx
+qc_latex.cmo : \
+    qc_misc.cmo
+qc_latex.cmx : \
+    qc_misc.cmx
+qc_dot.cmo : \
+    qc_misc.cmo
+qc_dot.cmx : \
+    qc_misc.cmx
+qlam_misc.cmo : \
+    qc_misc.cmo \
+    misc_map.cmo
+qlam_misc.cmx : \
+    qc_misc.cmx \
+    misc_map.cmx
+qlam_syntax.cmo : \
+    qrpc_types.cmo \
+    qlam_misc.cmo \
+    qc_misc.cmo \
+    misc_functions.cmo
+qlam_syntax.cmx : \
+    qrpc_types.cmx \
+    qlam_misc.cmx \
+    qc_misc.cmx \
+    misc_functions.cmx
+qlam_env.cmo : \
+    qlam_syntax.cmo \
+    qlam_misc.cmo \
+    qc_misc.cmo
+qlam_env.cmx : \
+    qlam_syntax.cmx \
+    qlam_misc.cmx \
+    qc_misc.cmx
+qlam_migrate.cmo : \
+    qlam_syntax.cmo \
+    qc_misc.cmo
+qlam_migrate.cmx : \
+    qlam_syntax.cmx \
+    qc_misc.cmx
+qlam_parser.cmo : \
+    qlam_syntax.cmo \
+    qc_misc.cmo \
+    misc_functions.cmo
+qlam_parser.cmx : \
+    qlam_syntax.cmx \
+    qc_misc.cmx \
+    misc_functions.cmx
+qc0.cmo : \
+    qlam_syntax.cmo \
+    qlam_parser.cmo \
+    qlam_env.cmo \
+    qc_misc.cmo \
+    qasmpp.cmo \
+    qasm_io.cmo \
+    qasm2syntax.cmo \
+    qasm2_parser.cmo
+qc0.cmx : \
+    qlam_syntax.cmx \
+    qlam_parser.cmx \
+    qlam_env.cmx \
+    qc_misc.cmx \
+    qasmpp.cmx \
+    qasm_io.cmx \
+    qasm2syntax.cmx \
+    qasm2_parser.cmx
+qlam_ops.cmo : \
+    qlam_syntax.cmo \
+    qlam_parser.cmo \
+    qlam_misc.cmo \
+    qlam_migrate.cmo \
+    qlam_env.cmo \
+    qc_quat.cmo \
+    qc_misc.cmo \
+    qc_latex.cmo \
+    misc_functions.cmo
+qlam_ops.cmx : \
+    qlam_syntax.cmx \
+    qlam_parser.cmx \
+    qlam_misc.cmx \
+    qlam_migrate.cmx \
+    qlam_env.cmx \
+    qc_quat.cmx \
+    qc_misc.cmx \
+    qc_latex.cmx \
+    misc_functions.cmx
+qlam_analyze.cmo : \
+    qlam_syntax.cmo \
+    qlam_ops.cmo \
+    qlam_env.cmo \
+    qc_misc.cmo \
+    misc_functions.cmo
+qlam_analyze.cmx : \
+    qlam_syntax.cmx \
+    qlam_ops.cmx \
+    qlam_env.cmx \
+    qc_misc.cmx \
+    misc_functions.cmx
+qconvert.cmo : \
+    qlam_syntax.cmo \
+    qlam_ops.cmo \
+    qlam_misc.cmo \
+    qlam_env.cmo \
+    qc_misc.cmo \
+    qasm2syntax.cmo \
+    misc_functions.cmo
+qconvert.cmx : \
+    qlam_syntax.cmx \
+    qlam_ops.cmx \
+    qlam_misc.cmx \
+    qlam_env.cmx \
+    qc_misc.cmx \
+    qasm2syntax.cmx \
+    misc_functions.cmx
+qc1.cmo : \
+    qlam_syntax.cmo \
+    qlam_ops.cmo \
+    qconvert.cmo \
+    qc_dot.cmo \
+    qc0.cmo
+qc1.cmx : \
+    qlam_syntax.cmx \
+    qlam_ops.cmx \
+    qconvert.cmx \
+    qc_dot.cmx \
+    qc0.cmx
+qc.cmo : \
+    qc1.cmo
+qc.cmx : \
+    qc1.cmx
 qasm_passes.cmo : \
     qasmpp.cmo \
     qasmdag0.cmo \
@@ -135,131 +263,3 @@ qrpc_api.cmx : \
     qc_environment.cmx \
     misc_functions.cmx \
     exc.cmx
-qlam_migrate.cmo : \
-    qlam_syntax.cmo \
-    qc_misc.cmo
-qlam_migrate.cmx : \
-    qlam_syntax.cmx \
-    qc_misc.cmx
-qc_latex.cmo : \
-    qc_misc.cmo
-qc_latex.cmx : \
-    qc_misc.cmx
-qc_dot.cmo : \
-    qc_misc.cmo
-qc_dot.cmx : \
-    qc_misc.cmx
-qc1.cmo : \
-    qlam_syntax.cmo \
-    qlam_ops.cmo \
-    qconvert.cmo \
-    qc_dot.cmo \
-    qc0.cmo
-qc1.cmx : \
-    qlam_syntax.cmx \
-    qlam_ops.cmx \
-    qconvert.cmx \
-    qc_dot.cmx \
-    qc0.cmx
-qc.cmo : \
-    qc1.cmo
-qc.cmx : \
-    qc1.cmx
-qc0.cmo : \
-    qlam_syntax.cmo \
-    qlam_parser.cmo \
-    qlam_env.cmo \
-    qc_misc.cmo \
-    qasmpp.cmo \
-    qasm_io.cmo \
-    qasm2syntax.cmo \
-    qasm2_parser.cmo
-qc0.cmx : \
-    qlam_syntax.cmx \
-    qlam_parser.cmx \
-    qlam_env.cmx \
-    qc_misc.cmx \
-    qasmpp.cmx \
-    qasm_io.cmx \
-    qasm2syntax.cmx \
-    qasm2_parser.cmx
-qconvert.cmo : \
-    qlam_syntax.cmo \
-    qlam_ops.cmo \
-    qlam_misc.cmo \
-    qlam_env.cmo \
-    qc_misc.cmo \
-    qasm2syntax.cmo \
-    misc_functions.cmo
-qconvert.cmx : \
-    qlam_syntax.cmx \
-    qlam_ops.cmx \
-    qlam_misc.cmx \
-    qlam_env.cmx \
-    qc_misc.cmx \
-    qasm2syntax.cmx \
-    misc_functions.cmx
-qlam_analyze.cmo : \
-    qlam_syntax.cmo \
-    qlam_ops.cmo \
-    qlam_env.cmo \
-    qc_misc.cmo \
-    misc_functions.cmo
-qlam_analyze.cmx : \
-    qlam_syntax.cmx \
-    qlam_ops.cmx \
-    qlam_env.cmx \
-    qc_misc.cmx \
-    misc_functions.cmx
-qlam_env.cmo : \
-    qlam_syntax.cmo \
-    qlam_misc.cmo \
-    qc_misc.cmo
-qlam_env.cmx : \
-    qlam_syntax.cmx \
-    qlam_misc.cmx \
-    qc_misc.cmx
-qlam_misc.cmo : \
-    qc_misc.cmo \
-    misc_map.cmo
-qlam_misc.cmx : \
-    qc_misc.cmx \
-    misc_map.cmx
-qlam_ops.cmo : \
-    qlam_syntax.cmo \
-    qlam_parser.cmo \
-    qlam_misc.cmo \
-    qlam_migrate.cmo \
-    qlam_env.cmo \
-    qc_quat.cmo \
-    qc_misc.cmo \
-    qc_latex.cmo \
-    misc_functions.cmo
-qlam_ops.cmx : \
-    qlam_syntax.cmx \
-    qlam_parser.cmx \
-    qlam_misc.cmx \
-    qlam_migrate.cmx \
-    qlam_env.cmx \
-    qc_quat.cmx \
-    qc_misc.cmx \
-    qc_latex.cmx \
-    misc_functions.cmx
-qlam_parser.cmo : \
-    qlam_syntax.cmo \
-    qc_misc.cmo \
-    misc_functions.cmo
-qlam_parser.cmx : \
-    qlam_syntax.cmx \
-    qc_misc.cmx \
-    misc_functions.cmx
-qlam_syntax.cmo : \
-    qrpc_types.cmo \
-    qlam_misc.cmo \
-    qc_misc.cmo \
-    misc_functions.cmo
-qlam_syntax.cmx : \
-    qrpc_types.cmx \
-    qlam_misc.cmx \
-    qc_misc.cmx \
-    misc_functions.cmx
