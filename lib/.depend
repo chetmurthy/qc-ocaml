@@ -227,6 +227,7 @@ qlam_misc.cmx : \
     misc_map.cmx
 qlam_ops.cmo : \
     qlam_syntax.cmo \
+    qlam_parser.cmo \
     qlam_misc.cmo \
     qlam_migrate.cmo \
     qlam_env.cmo \
@@ -236,6 +237,7 @@ qlam_ops.cmo : \
     misc_functions.cmo
 qlam_ops.cmx : \
     qlam_syntax.cmx \
+    qlam_parser.cmx \
     qlam_misc.cmx \
     qlam_migrate.cmx \
     qlam_env.cmx \
