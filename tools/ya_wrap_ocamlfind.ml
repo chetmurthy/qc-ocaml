@@ -6,6 +6,19 @@ let rec split_args cmd = function
 let split_args = split_args []
 
 let comment_pattern = Re.Perl.compile_pat "^\\(\\*\\*(.*?)\\*\\)"
+let envvar_pattern = Re.Perl.compile_pat {|(?:\$\(([^)]+)\)|\$\{([^}]+)\})|}
+
+let envsubst s =
+  let envlookup vname =
+    match Sys.getenv_opt vname with
+      Some v -> v
+    | None -> failwith (Printf.sprintf "ya_wrap_ocamlfind: environment variable <<%s>> not found" vname) in
+  let f g =
+    match (Re.Group.get_opt g 1, Re.Group.get_opt g 2) with
+      (None, None) -> s
+    | (Some v, _) -> envlookup v
+    | (None, Some v) -> envlookup v in
+  Re.replace ~all:true envvar_pattern ~f s
 
 let discover_args f =
   let f' = open_in f in
@@ -13,7 +26,7 @@ let discover_args f =
   close_in f';
   match Re.exec_opt comment_pattern line1 with
   | None -> ""
-  | Some group -> Re.Group.get group 1
+  | Some group -> envsubst (Re.Group.get group 1)
 
 let () = 
   let cmd, files =
